@@ -17,26 +17,12 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
   "Terminal Access" category in NVDA's Input Gestures dialog, allowing users to discover and
   remap any gesture.
 
-## [1.0.53] - 2026-03-01
-
-### Added
-
-- **Enhanced Braille display support**: Navigation scripts (read line, read to left/right/top/
-  bottom, review home/end/top/bottom, window content, continuous read) now send output to
-  Braille displays via `braille.handler.message()`. Previously these used `speech.speakText()`
-  which produced zero Braille output. Cursor tracking also notifies the Braille display of
-  caret movement so it shows the full line context instead of a brief single-character flash.
-
 ### Fixed
 
 - **Build script now generates manifest.ini from buildVars.py**: Previously `manifest.ini` was
   a static file that had to be manually kept in sync with `buildVars.py`, causing the v1.0.53
   NVDA store submission to fail (the addon package declared itself as v1.0.52 internally).
   The build script now auto-generates `manifest.ini` before packaging.
-- **Duplicate key echo when NVDA's speak-typed-characters is enabled**: When NVDA's global
-  "Speak typed characters" setting was on, every keystroke was announced twice — once by NVDA
-  and once by the addon. The addon now detects NVDA's `speakTypedCharacters` setting and defers
-  to NVDA when it is already echoing characters, eliminating the duplication.
 - **Spacebar announcing "space" when key echo is off**: On Windows 10, the legacy console host
   fires UIA caret events on every keystroke. The cursor tracking path announced the character
   at the new caret position independently of the key echo setting, creating a "shadow key echo".
@@ -57,6 +43,28 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
     COM objects
   - Position calculator compensates for scrollback on conhost, producing viewport-relative row
     numbers instead of buffer-absolute values inflated by thousands
+
+### Changed
+
+- **Removed automated NVDA store submission workflow**: The CI workflow for automated NVDA
+  Add-on Store submissions has been removed in favor of manual submissions.
+
+## [1.0.53] - 2026-03-01
+
+### Added
+
+- **Enhanced Braille display support**: Navigation scripts (read line, read to left/right/top/
+  bottom, review home/end/top/bottom, window content, continuous read) now send output to
+  Braille displays via `braille.handler.message()`. Previously these used `speech.speakText()`
+  which produced zero Braille output. Cursor tracking also notifies the Braille display of
+  caret movement so it shows the full line context instead of a brief single-character flash.
+
+### Fixed
+
+- **Duplicate key echo when NVDA's speak-typed-characters is enabled**: When NVDA's global
+  "Speak typed characters" setting was on, every keystroke was announced twice — once by NVDA
+  and once by the addon. The addon now detects NVDA's `speakTypedCharacters` setting and defers
+  to NVDA when it is already echoing characters, eliminating the duplication.
 
 ### Changed
 
