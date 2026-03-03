@@ -2,11 +2,114 @@
 
 ## Table of Contents
 
-1. [Application Profiles](#application-profiles)
-2. [Third-Party Terminal Support](#third-party-terminal-support)
-3. [Window Definitions](#window-definitions)
-4. [Unicode and CJK Text](#unicode-and-cjk-text)
-5. [Performance Optimization](#performance-optimization)
+1. [Command Layer](#command-layer)
+2. [Application Profiles](#application-profiles)
+3. [Third-Party Terminal Support](#third-party-terminal-support)
+4. [Window Definitions](#window-definitions)
+5. [Unicode and CJK Text](#unicode-and-cjk-text)
+6. [Performance Optimization](#performance-optimization)
+
+---
+
+## Command Layer
+
+The command layer is a modal input mode that lets you execute Terminal Access commands with simple single-key presses instead of multi-key NVDA modifier combinations. This avoids conflicts with other NVDA add-ons and makes commands much faster to type.
+
+### Entering and Exiting
+
+- **NVDA+'** (apostrophe) — Enter the command layer. You'll hear "Terminal commands" and a high-pitched tone (880 Hz).
+- **Escape** or **NVDA+'** — Exit the command layer. You'll hear "Exit terminal commands" and a lower tone (440 Hz).
+
+The layer stays active until you explicitly exit. Each command you press keeps you in the layer so you can chain multiple commands. The layer automatically exits if focus leaves the terminal.
+
+### Command Reference
+
+While in the command layer, the following keys are active:
+
+#### Navigation
+| Key | Action |
+|-----|--------|
+| **U / I / O** | Read previous / current / next line |
+| **J / K / L** | Read previous / current / next word |
+| **M / , / .** | Read previous / current / next character |
+| **Home / End** | Jump to start / end of line |
+| **PageUp / PageDown** | Jump to top / bottom of buffer |
+| **Shift+Left / Right** | Read to start / end of line |
+| **Shift+Up / Down** | Read to top / bottom of buffer |
+
+#### Information & Reading
+| Key | Action |
+|-----|--------|
+| **A** | Continuous reading (say all) |
+| **;** | Announce position (row, column) |
+| **Shift+A** | Read text attributes and colors |
+| **I** (twice) | Announce line indentation |
+| **,** (twice) | Phonetic character reading |
+| **,** (three times) | Character code |
+
+#### Selection & Copying
+| Key | Action |
+|-----|--------|
+| **R** | Toggle mark (start/end) |
+| **C** | Copy linear selection |
+| **Shift+C** | Copy rectangular selection |
+| **X** | Clear marks |
+| **V** | Enter copy mode (L=line, S=screen, Esc=cancel) |
+
+#### Window Management
+| Key | Action |
+|-----|--------|
+| **W** | Read window content |
+| **Shift+W** | Set window boundaries |
+| **Ctrl+W** | Clear window |
+| **\*** | Cycle cursor tracking mode |
+
+#### Configuration
+| Key | Action |
+|-----|--------|
+| **Q** | Toggle quiet mode |
+| **N** | Toggle announce new output |
+| **[** / **]** | Decrease / increase punctuation level |
+| **D** | Toggle indentation announcement |
+| **P** | Announce active profile |
+
+#### Bookmarks
+| Key | Action |
+|-----|--------|
+| **0-9** | Jump to bookmark |
+| **Shift+0-9** | Set bookmark |
+| **B** | List all bookmarks |
+
+#### Tabs & History
+| Key | Action |
+|-----|--------|
+| **T** | Create new tab |
+| **Shift+T** | List tabs |
+| **H / G** | Previous / next command in history |
+| **Shift+H** | Scan command history |
+| **Shift+L** | List command history |
+
+#### Search
+| Key | Action |
+|-----|--------|
+| **F** | Search terminal output |
+| **F3** | Next search match |
+| **Shift+F3** | Previous search match |
+
+#### Help & Settings
+| Key | Action |
+|-----|--------|
+| **F1** | Open user guide |
+| **S** | Open Terminal Access settings |
+| **Escape** | Exit command layer |
+
+### Copy Mode Within the Layer
+
+When you press **V** in the command layer, you enter copy mode. The keys **L** (copy line), **S** (copy screen), and **Escape** (cancel) temporarily override their layer bindings. When copy mode exits, those layer bindings are automatically restored.
+
+### Customizing Gestures
+
+All Terminal Access commands (both layer and direct) are registered under the "Terminal Access" category in NVDA's Input Gestures dialog. You can remap any gesture to suit your workflow.
 
 ---
 

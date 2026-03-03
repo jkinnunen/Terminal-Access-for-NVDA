@@ -4,6 +4,17 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Command layer (NVDA+')**: A modal single-key command mode that avoids conflicts with other
+  NVDA add-ons. Press NVDA+' (apostrophe) to enter the layer — all commands become simple
+  single-key presses (e.g. `i` for current line, `f` for search, `a` for say all). Press Escape
+  or NVDA+' again to exit. The layer auto-exits when focus leaves the terminal. The original
+  NVDA+modifier gestures remain available as direct alternatives.
+- **Input Gestures category**: All 53 Terminal Access scripts are now registered under the
+  "Terminal Access" category in NVDA's Input Gestures dialog, allowing users to discover and
+  remap any gesture.
+
 ## [1.0.53] - 2026-03-01
 
 ### Added

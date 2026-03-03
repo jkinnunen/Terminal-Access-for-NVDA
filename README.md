@@ -8,6 +8,13 @@ Terminal Access enables screen reader users to efficiently navigate and interact
 
 ## Features
 
+### Command Layer (New)
+- **Single-key command mode** - Press **NVDA+'** to enter the command layer; all commands become simple single-key presses (e.g. `i` for current line, `f` for search, `a` for say all)
+- **No modifier conflicts** - The command layer avoids conflicts with other NVDA add-ons since all keys are unmodified while in the layer
+- **Easy exit** - Press **Escape** or **NVDA+'** to leave the layer
+- **Auto-exit on focus loss** - Layer deactivates automatically when you switch away from the terminal
+- **Customizable** - All gestures appear in NVDA's Input Gestures dialog under "Terminal Access" for remapping
+
 ### Core Navigation
 - **Line-by-line navigation** through terminal output
 - **Word and character navigation** with phonetic spelling support
@@ -123,14 +130,18 @@ Terminal Access provides keyboard shortcuts for efficient terminal navigation. F
 - View the [User Guide](addon/doc/en/readme.html) for detailed documentation
 - Refer to `addon/doc/en/readme.html` file
 
-**Most Common Gestures:**
-- **NVDA+U/I/O** - Read previous/current/next line
-- **NVDA+J/K/L** - Read previous/current/next word
-- **NVDA+F** - Search terminal output
-- **NVDA+[/]** - Adjust punctuation level
-- **NVDA+Shift+Q** - Toggle quiet mode
+**Quickest Start — Command Layer:**
+- **NVDA+'** — Enter the command layer (single-key mode)
+- Then press: **i** (current line), **o/u** (next/prev line), **k** (current word), **a** (say all), **f** (search), **Escape** (exit layer)
 
-For complete gesture documentation and advanced features, see the [User Guide](addon/doc/en/readme.html).
+**Direct Gestures (alternative):**
+- **NVDA+Alt+U/I/O** - Read previous/current/next line
+- **NVDA+Alt+J/K/L** - Read previous/current/next word
+- **NVDA+Alt+F** - Search terminal output
+- **NVDA+Alt+[/]** - Adjust punctuation level
+- **NVDA+Alt+Q** - Toggle quiet mode
+
+All gestures can be remapped in NVDA's Input Gestures dialog under "Terminal Access". For the complete list, see the [User Guide](addon/doc/en/readme.html).
 
 ## Configuration
 

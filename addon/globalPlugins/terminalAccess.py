@@ -40,8 +40,15 @@ Architecture Overview:
 	   - Registers keyboard gestures and scripts
 	   - Manages terminal detection and navigation
 	   - Coordinates all components for terminal access
+	   - Command Layer: modal input mode (NVDA+') that binds single-key
+	     gestures from _COMMAND_LAYER_MAP so commands do not require
+	     NVDA modifier combos; auto-exits on focus loss
 
 Key Features:
+	- Command Layer: Press NVDA+' to enter single-key command mode; press Escape
+	  or NVDA+' again to exit. All navigation, selection, configuration, and
+	  search commands become simple single-key presses (e.g. u/i/o for line
+	  navigation, j/k/l for word navigation, f for search, etc.).
 	- Navigation: Line, word, character, column, row movement
 	- Selection: Linear and rectangular (column-based) text selection
 	- Cursor Tracking: Standard, highlight, window, or off modes
@@ -91,6 +98,7 @@ from scriptHandler import script
 import scriptHandler
 import globalCommands
 import speech
+import tones
 from typing import Any
 
 try:
@@ -108,6 +116,95 @@ except (ImportError, AttributeError, OSError):
 
 # Script category for Terminal Access commands
 SCRCAT_TERMINALACCESS = _("Terminal Access")
+
+# Command layer key map: single-key gestures → script names (without "script_" prefix).
+# When the command layer is active (entered via NVDA+'), these simple key presses
+# invoke the corresponding script, avoiding the need for NVDA modifier combos.
+_COMMAND_LAYER_MAP = {
+	# Line navigation
+	"kb:u": "readPreviousLine",
+	"kb:i": "readCurrentLine",
+	"kb:o": "readNextLine",
+	# Word navigation
+	"kb:j": "readPreviousWord",
+	"kb:k": "readCurrentWord",
+	"kb:l": "readNextWord",
+	# Character navigation
+	"kb:m": "readPreviousChar",
+	"kb:,": "readCurrentChar",
+	"kb:.": "readNextChar",
+	# Boundary movement
+	"kb:home": "reviewHome",
+	"kb:end": "reviewEnd",
+	"kb:pageUp": "reviewTop",
+	"kb:pageDown": "reviewBottom",
+	# Directional reading
+	"kb:shift+leftArrow": "readToLeft",
+	"kb:shift+rightArrow": "readToRight",
+	"kb:shift+upArrow": "readToTop",
+	"kb:shift+downArrow": "readToBottom",
+	# Information & attributes
+	"kb:;": "announcePosition",
+	"kb:a": "sayAll",
+	"kb:shift+a": "readAttributes",
+	# Selection & copying
+	"kb:r": "toggleMark",
+	"kb:c": "copyLinearSelection",
+	"kb:shift+c": "copyRectangularSelection",
+	"kb:x": "clearMarks",
+	"kb:v": "copyMode",
+	# Window management
+	"kb:w": "readWindow",
+	"kb:shift+w": "setWindow",
+	"kb:control+w": "clearWindow",
+	"kb:*": "cycleCursorTrackingMode",
+	# Configuration
+	"kb:q": "toggleQuietMode",
+	"kb:n": "toggleAnnounceNewOutput",
+	"kb:[": "decreasePunctuationLevel",
+	"kb:]": "increasePunctuationLevel",
+	"kb:d": "toggleIndentation",
+	"kb:p": "announceActiveProfile",
+	# Bookmarks (0-9 for jump, shift+0-9 for set)
+	"kb:0": "jumpToBookmark",
+	"kb:1": "jumpToBookmark",
+	"kb:2": "jumpToBookmark",
+	"kb:3": "jumpToBookmark",
+	"kb:4": "jumpToBookmark",
+	"kb:5": "jumpToBookmark",
+	"kb:6": "jumpToBookmark",
+	"kb:7": "jumpToBookmark",
+	"kb:8": "jumpToBookmark",
+	"kb:9": "jumpToBookmark",
+	"kb:shift+0": "setBookmark",
+	"kb:shift+1": "setBookmark",
+	"kb:shift+2": "setBookmark",
+	"kb:shift+3": "setBookmark",
+	"kb:shift+4": "setBookmark",
+	"kb:shift+5": "setBookmark",
+	"kb:shift+6": "setBookmark",
+	"kb:shift+7": "setBookmark",
+	"kb:shift+8": "setBookmark",
+	"kb:shift+9": "setBookmark",
+	"kb:b": "listBookmarks",
+	# Tab management
+	"kb:t": "createNewTab",
+	"kb:shift+t": "listTabs",
+	# Command history
+	"kb:h": "previousCommand",
+	"kb:g": "nextCommand",
+	"kb:shift+h": "scanCommandHistory",
+	"kb:shift+l": "listCommandHistory",
+	# Search
+	"kb:f": "searchOutput",
+	"kb:f3": "findNext",
+	"kb:shift+f3": "findPrevious",
+	# Help & settings
+	"kb:f1": "showHelp",
+	"kb:s": "openSettings",
+	# Layer exit
+	"kb:escape": "exitCommandLayer",
+}
 
 # Cursor tracking mode constants
 CT_OFF = 0
@@ -4637,6 +4734,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.lastTerminalAppName = None
 		self.announcedHelp = False
 		self.copyMode = False
+		self._inCommandLayer = False
 		self._boundTerminal = None
 		self._cursorTrackingTimer = None
 		self._lastCaretPosition = None
@@ -4767,6 +4865,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		"""Unbind Terminal Access gestures outside terminal focus."""
 		if not self._terminalGestures:
 			return
+		# Exit command layer silently before unbinding (focus loss auto-exit)
+		if getattr(self, "_inCommandLayer", False):
+			self._exitCommandLayer()
 		for gesture in self._terminalGestures:
 			try:
 				self.removeGestureBinding(gesture)
@@ -5462,7 +5563,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for the show help gesture
 		description=_("Opens the Terminal Access user guide"),
-		gesture="kb:NVDA+shift+f1"
+		gesture="kb:NVDA+shift+f1",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_showHelp(self, gesture):
 		"""Open the Terminal Access user guide."""
@@ -5483,7 +5585,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the previous line
 		description=_("Read previous line in terminal"),
-		gesture="kb:NVDA+u"
+		gesture="kb:NVDA+u",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readPreviousLine(self, gesture):
 		"""Read the previous line in the terminal."""
@@ -5496,7 +5599,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the current line
 		description=_("Read current line in terminal. Press twice for indentation level."),
-		gesture="kb:NVDA+i"
+		gesture="kb:NVDA+i",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readCurrentLine(self, gesture):
 		"""Read the current line in the terminal. Double-press announces indentation level."""
@@ -5514,7 +5618,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the next line
 		description=_("Read next line in terminal"),
-		gesture="kb:NVDA+o"
+		gesture="kb:NVDA+o",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readNextLine(self, gesture):
 		"""Read the next line in the terminal."""
@@ -5527,7 +5632,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the previous word
 		description=_("Read previous word in terminal"),
-		gesture="kb:NVDA+j"
+		gesture="kb:NVDA+j",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readPreviousWord(self, gesture):
 		"""Read the previous word in the terminal."""
@@ -5540,7 +5646,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the current word
 		description=_("Read current word in terminal"),
-		gesture="kb:NVDA+k"
+		gesture="kb:NVDA+k",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readCurrentWord(self, gesture):
 		"""Read the current word in the terminal."""
@@ -5553,7 +5660,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for spelling the current word
 		description=_("Spell current word in terminal"),
-		gesture="kb:NVDA+k,kb:NVDA+k"
+		gesture="kb:NVDA+k,kb:NVDA+k",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_spellCurrentWord(self, gesture):
 		"""Spell out the current word letter by letter."""
@@ -5566,7 +5674,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the next word
 		description=_("Read next word in terminal"),
-		gesture="kb:NVDA+l"
+		gesture="kb:NVDA+l",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readNextWord(self, gesture):
 		"""Read the next word in the terminal."""
@@ -5579,7 +5688,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the previous character
 		description=_("Read previous character in terminal"),
-		gesture="kb:NVDA+m"
+		gesture="kb:NVDA+m",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readPreviousChar(self, gesture):
 		"""Read the previous character in the terminal."""
@@ -5592,7 +5702,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the current character
 		description=_("Read current character in terminal. Press twice for phonetic. Press three times for character code."),
-		gesture="kb:NVDA+,"
+		gesture="kb:NVDA+,",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readCurrentChar(self, gesture):
 		"""Read the current character. Double-press for phonetic. Triple-press for character code."""
@@ -5615,7 +5726,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading the next character
 		description=_("Read next character in terminal"),
-		gesture="kb:NVDA+."
+		gesture="kb:NVDA+.",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readNextChar(self, gesture):
 		"""Read the next character in the terminal."""
@@ -5628,7 +5740,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for toggling quiet mode
 		description=_("Toggle quiet mode in terminal"),
-		gesture="kb:NVDA+shift+q"
+		gesture="kb:NVDA+shift+q",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_toggleQuietMode(self, gesture):
 		"""Toggle quiet mode on/off."""
@@ -5649,7 +5762,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for toggling announce new output
 		description=_("Toggle announce new output in terminal"),
-		gesture="kb:NVDA+shift+n"
+		gesture="kb:NVDA+shift+n",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_toggleAnnounceNewOutput(self, gesture):
 		"""Toggle announce new output on/off."""
@@ -5681,7 +5795,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for toggling indentation announcement
 		description=_("Toggle indentation announcement on line read in terminal"),
-		gesture="kb:NVDA+f5"
+		gesture="kb:NVDA+f5",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_toggleIndentation(self, gesture):
 		"""Toggle indentation announcement on/off."""
@@ -5702,7 +5817,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for copy mode
 		description=_("Enter copy mode in terminal"),
-		gesture="kb:NVDA+v"
+		gesture="kb:NVDA+v",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_copyMode(self, gesture):
 		"""Enter copy mode to copy line or screen."""
@@ -5721,7 +5837,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		# Translators: Description for copying line
-		description=_("Copy line in copy mode")
+		description=_("Copy line in copy mode"),
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_copyLine(self, gesture):
 		"""Copy the current line to clipboard."""
@@ -5751,7 +5868,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		# Translators: Description for copying screen
-		description=_("Copy screen in copy mode")
+		description=_("Copy screen in copy mode"),
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_copyScreen(self, gesture):
 		"""Copy the entire screen to clipboard."""
@@ -5781,7 +5899,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		# Translators: Description for exiting copy mode
-		description=_("Exit copy mode")
+		description=_("Exit copy mode"),
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_exitCopyMode(self, gesture):
 		"""Exit copy mode."""
@@ -5802,10 +5921,83 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.removeGestureBinding("kb:escape")
 		except (KeyError, AttributeError):
 			pass
-	
+		# If the command layer is active, re-bind the layer gestures that
+		# copy mode temporarily overwrote (l, s, escape).
+		if getattr(self, "_inCommandLayer", False):
+			for gesture_id in ("kb:l", "kb:s", "kb:escape"):
+				if gesture_id in _COMMAND_LAYER_MAP:
+					try:
+						self.bindGesture(gesture_id, _COMMAND_LAYER_MAP[gesture_id])
+					except Exception:
+						pass
+
+	# ------------------------------------------------------------------
+	# Command Layer — modal input mode for single-key commands
+	# ------------------------------------------------------------------
+
+	@script(
+		# Translators: Description for toggling the command layer
+		description=_("Toggle terminal command layer (single-key command mode)"),
+		gesture="kb:NVDA+'",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_toggleCommandLayer(self, gesture):
+		"""Toggle the command layer on/off."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		if self._inCommandLayer:
+			self._exitCommandLayer()
+		else:
+			self._enterCommandLayer()
+
+	def _enterCommandLayer(self):
+		"""Activate the command layer by binding all single-key gestures."""
+		if self._inCommandLayer:
+			return
+		# If copy mode is active, exit it first
+		if self.copyMode:
+			self._exitCopyModeBindings()
+		for gesture_id, script_name in _COMMAND_LAYER_MAP.items():
+			try:
+				self.bindGesture(gesture_id, script_name)
+			except Exception:
+				pass
+		self._inCommandLayer = True
+		tones.beep(880, 100)
+		# Translators: Announced when the terminal command layer is activated
+		ui.message(_("Terminal commands"))
+
+	def _exitCommandLayer(self):
+		"""Deactivate the command layer by removing all single-key gestures."""
+		if not self._inCommandLayer:
+			return
+		for gesture_id in _COMMAND_LAYER_MAP:
+			try:
+				self.removeGestureBinding(gesture_id)
+			except (KeyError, AttributeError):
+				pass
+		self._inCommandLayer = False
+		tones.beep(440, 100)
+		# Translators: Announced when the terminal command layer is deactivated
+		ui.message(_("Exit terminal commands"))
+
+	@script(
+		# Translators: Description for exiting the command layer
+		description=_("Exit the terminal command layer"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_exitCommandLayer(self, gesture):
+		"""Exit the command layer (bound to Escape within the layer)."""
+		if self._inCommandLayer:
+			self._exitCommandLayer()
+		else:
+			gesture.send()
+
 	@script(
 		# Translators: Description for opening terminal settings
-		description=_("Open Terminal Access settings")
+		description=_("Open Terminal Access settings"),
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_openSettings(self, gesture):
 		"""Open the Terminal Access settings dialog."""
@@ -5823,7 +6015,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for cycling cursor tracking modes
 		description=_("Cycle cursor tracking mode"),
-		gesture="kb:NVDA+alt+asterisk"
+		gesture="kb:NVDA+alt+asterisk",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_cycleCursorTrackingMode(self, gesture):
 		"""Cycle through cursor tracking modes: Off -> Standard -> Highlight -> Window -> Off."""
@@ -5852,7 +6045,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for setting screen window
 		description=_("Set screen window boundaries"),
-		gesture="kb:NVDA+alt+f2"
+		gesture="kb:NVDA+alt+f2",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_setWindow(self, gesture):
 		"""Set screen window boundaries (two-step process: start position, then end position)."""
@@ -5891,7 +6085,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for clearing screen window
 		description=_("Clear screen window"),
-		gesture="kb:NVDA+alt+f3"
+		gesture="kb:NVDA+alt+f3",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_clearWindow(self, gesture):
 		"""Clear the defined screen window."""
@@ -5907,7 +6102,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading window content
 		description=_("Read window content"),
-		gesture="kb:NVDA+alt+plus"
+		gesture="kb:NVDA+alt+plus",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readWindow(self, gesture):
 		"""Read the content within the defined window."""
@@ -5982,7 +6178,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading text attributes
 		description=_("Read text attributes at cursor"),
-		gesture="kb:NVDA+shift+a"
+		gesture="kb:NVDA+shift+a",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readAttributes(self, gesture):
 		"""Read color and formatting attributes at cursor position using enhanced ANSI parser."""
@@ -6032,7 +6229,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for continuous reading (say all)
 		description=_("Read continuously from cursor to end of buffer"),
-		gesture="kb:NVDA+a"
+		gesture="kb:NVDA+a",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_sayAll(self, gesture):
 		"""Read continuously from current review cursor position to end of buffer."""
@@ -6071,7 +6269,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for jumping to start of line
 		description=_("Move to first character of current line"),
-		gesture="kb:NVDA+shift+home"
+		gesture="kb:NVDA+shift+home",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_reviewHome(self, gesture):
 		"""Move review cursor to first character of current line."""
@@ -6108,7 +6307,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for jumping to end of line
 		description=_("Move to last character of current line"),
-		gesture="kb:NVDA+shift+end"
+		gesture="kb:NVDA+shift+end",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_reviewEnd(self, gesture):
 		"""Move review cursor to last character of current line."""
@@ -6146,7 +6346,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for jumping to top
 		description=_("Move to top of terminal buffer"),
-		gesture="kb:NVDA+f4"
+		gesture="kb:NVDA+f4",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_reviewTop(self, gesture):
 		"""Move review cursor to top of terminal buffer."""
@@ -6178,7 +6379,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for jumping to bottom
 		description=_("Move to bottom of terminal buffer"),
-		gesture="kb:NVDA+f6"
+		gesture="kb:NVDA+f6",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_reviewBottom(self, gesture):
 		"""Move review cursor to bottom of terminal buffer."""
@@ -6210,7 +6412,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for announcing position
 		description=_("Announce current row and column position"),
-		gesture="kb:NVDA+;"
+		gesture="kb:NVDA+;",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_announcePosition(self, gesture):
 		"""Announce current row and column coordinates of review cursor."""
@@ -6240,7 +6443,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for announcing active profile
 		description=_("Announce which profile is currently active and which is set as default"),
-		gesture="kb:NVDA+f10"
+		gesture="kb:NVDA+f10",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_announceActiveProfile(self, gesture):
 		"""Announce the currently active profile and default profile."""
@@ -6575,7 +6779,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for decreasing punctuation level
 		description=_("Decrease punctuation level"),
-		gesture="kb:NVDA+["
+		gesture="kb:NVDA+[",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_decreasePunctuationLevel(self, gesture):
 		"""Decrease the punctuation level (wraps from 0 to 3)."""
@@ -6599,7 +6804,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for increasing punctuation level
 		description=_("Increase punctuation level"),
-		gesture="kb:NVDA+]"
+		gesture="kb:NVDA+]",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_increasePunctuationLevel(self, gesture):
 		"""Increase the punctuation level (wraps from 3 to 0)."""
@@ -6623,7 +6829,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading to left edge
 		description=_("Read from cursor to beginning of line"),
-		gesture="kb:NVDA+shift+leftArrow"
+		gesture="kb:NVDA+shift+leftArrow",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readToLeft(self, gesture):
 		"""Read from current cursor position to beginning of line."""
@@ -6658,7 +6865,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading to right edge
 		description=_("Read from cursor to end of line"),
-		gesture="kb:NVDA+shift+rightArrow"
+		gesture="kb:NVDA+shift+rightArrow",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readToRight(self, gesture):
 		"""Read from current cursor position to end of line."""
@@ -6692,7 +6900,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading to top
 		description=_("Read from cursor to top of buffer"),
-		gesture="kb:NVDA+shift+upArrow"
+		gesture="kb:NVDA+shift+upArrow",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readToTop(self, gesture):
 		"""Read from current cursor position to top of buffer."""
@@ -6728,7 +6937,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for reading to bottom
 		description=_("Read from cursor to bottom of buffer"),
-		gesture="kb:NVDA+shift+downArrow"
+		gesture="kb:NVDA+shift+downArrow",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_readToBottom(self, gesture):
 		"""Read from current cursor position to bottom of buffer."""
@@ -6764,7 +6974,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for toggling mark position
 		description=_("Toggle mark for selection (enhanced)"),
-		gesture="kb:NVDA+r"
+		gesture="kb:NVDA+r",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_toggleMark(self, gesture):
 		"""Toggle marking positions for enhanced selection."""
@@ -6800,7 +7011,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for copying linear selection
 		description=_("Copy linear selection between marks"),
-		gesture="kb:NVDA+c"
+		gesture="kb:NVDA+c",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_copyLinearSelection(self, gesture):
 		"""Copy text from start mark to end mark (continuous selection)."""
@@ -6842,7 +7054,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for copying rectangular selection
 		description=_("Copy rectangular selection between marks"),
-		gesture="kb:NVDA+shift+c"
+		gesture="kb:NVDA+shift+c",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_copyRectangularSelection(self, gesture):
 		"""Copy rectangular region (column-based) between marks."""
@@ -7047,7 +7260,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for clearing marks
 		description=_("Clear selection marks"),
-		gesture="kb:NVDA+x"
+		gesture="kb:NVDA+x",
+		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_clearMarks(self, gesture):
 		"""Clear the selection marks."""

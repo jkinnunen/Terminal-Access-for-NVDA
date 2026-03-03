@@ -76,7 +76,9 @@
 		<li><a href="#features">Features</a></li>
 		<li><a href="#supported-terminals">Supported Terminals</a></li>
 		<li><a href="#getting-started">Getting Started</a></li>
-		<li><a href="#keyboard-commands">Keyboard Commands</a></li>
+		<li><a href="#keyboard-commands">Keyboard Commands</a>
+			<ul><li><a href="#command-layer">Command Layer (Recommended)</a></li></ul>
+		</li>
 		<li><a href="#practical-scenarios">Practical Usage Scenarios</a></li>
 		<li><a href="#settings">Settings</a></li>
 		<li><a href="#advanced-topics">Advanced Topics</a></li>
@@ -97,6 +99,14 @@
 	</p>
 	
 	<h2 id="features">Features</h2>
+
+	<h3>Command Layer</h3>
+	<p>
+		Press <code>NVDA+'</code> to enter a single-key command mode where all navigation, selection,
+		configuration, and search commands become simple single-key presses. No modifier combos needed,
+		no conflicts with other NVDA add-ons. Press <code>Escape</code> to exit. See the
+		<a href="#command-layer">Command Layer reference</a> for the full key mapping.
+	</p>
 
 	<h3>Core Navigation Features</h3>
 
@@ -385,7 +395,52 @@
 	</p>
 	
 	<h2 id="keyboard-commands">Keyboard Commands</h2>
-	
+
+	<h3 id="command-layer">Command Layer (Recommended)</h3>
+	<p>
+		The command layer is a modal input mode that turns all commands into simple single-key presses.
+		This avoids conflicts with other NVDA add-ons and makes commands much faster to type.
+	</p>
+	<div class="info">
+		<strong>How to use:</strong> Press <code>NVDA+'</code> (apostrophe) to enter the command layer.
+		You'll hear "Terminal commands" and a high-pitched tone. Now press single keys for commands
+		(e.g. <code>i</code> for current line, <code>a</code> for say all, <code>f</code> for search).
+		Press <code>Escape</code> or <code>NVDA+'</code> again to exit.
+	</div>
+	<table>
+		<thead>
+			<tr>
+				<th>Layer Key</th>
+				<th>Action</th>
+				<th>Layer Key</th>
+				<th>Action</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr><td><code>u / i / o</code></td><td>Prev/current/next line</td><td><code>j / k / l</code></td><td>Prev/current/next word</td></tr>
+			<tr><td><code>m / , / .</code></td><td>Prev/current/next char</td><td><code>Home / End</code></td><td>Start/end of line</td></tr>
+			<tr><td><code>PgUp / PgDn</code></td><td>Top/bottom of buffer</td><td><code>Shift+Arrows</code></td><td>Read to edge</td></tr>
+			<tr><td><code>a</code></td><td>Say all</td><td><code>;</code></td><td>Announce position</td></tr>
+			<tr><td><code>Shift+A</code></td><td>Read attributes</td><td><code>f</code></td><td>Search output</td></tr>
+			<tr><td><code>F3 / Shift+F3</code></td><td>Next/prev match</td><td><code>q</code></td><td>Toggle quiet mode</td></tr>
+			<tr><td><code>n</code></td><td>Toggle new output</td><td><code>d</code></td><td>Toggle indentation</td></tr>
+			<tr><td><code>[ / ]</code></td><td>Punctuation level</td><td><code>p</code></td><td>Active profile</td></tr>
+			<tr><td><code>r</code></td><td>Toggle mark</td><td><code>c / Shift+C</code></td><td>Copy linear/rectangular</td></tr>
+			<tr><td><code>x</code></td><td>Clear marks</td><td><code>v</code></td><td>Copy mode</td></tr>
+			<tr><td><code>w / Shift+W</code></td><td>Read/set window</td><td><code>Ctrl+W</code></td><td>Clear window</td></tr>
+			<tr><td><code>*</code></td><td>Cycle tracking mode</td><td><code>0-9</code></td><td>Jump to bookmark</td></tr>
+			<tr><td><code>Shift+0-9</code></td><td>Set bookmark</td><td><code>b</code></td><td>List bookmarks</td></tr>
+			<tr><td><code>t / Shift+T</code></td><td>New tab / list tabs</td><td><code>h / g</code></td><td>Prev/next command</td></tr>
+			<tr><td><code>Shift+H / Shift+L</code></td><td>Scan/list history</td><td><code>s</code></td><td>Open settings</td></tr>
+			<tr><td><code>F1</code></td><td>Open user guide</td><td><code>Escape</code></td><td>Exit layer</td></tr>
+		</tbody>
+	</table>
+	<div class="note">
+		<strong>Note:</strong> The command layer stays active until you press Escape or NVDA+'. It exits
+		automatically if focus leaves the terminal. The original NVDA+modifier gestures below remain
+		available as direct alternatives.
+	</div>
+
 	<h3>Help and Information</h3>
 	<table>
 		<thead>

@@ -98,6 +98,7 @@ scriptHandler_mock.getLastScriptRepeatCount = _get_last_script_repeat_count
 sys.modules['scriptHandler'] = scriptHandler_mock
 sys.modules['globalCommands'] = MagicMock()
 sys.modules['speech'] = MagicMock()
+sys.modules['tones'] = MagicMock()
 sys.modules['logHandler'] = MagicMock()
 sys.modules['wx'] = MagicMock()
 

@@ -67,6 +67,13 @@ GlobalPlugin (tdsr.py)
 │   ├── Position announcement (P)
 │   └── Attribute reading (Shift+A)
 │
+├── Command Layer (NVDA+')
+│   ├── _COMMAND_LAYER_MAP - Single-key gesture → script mapping
+│   ├── _enterCommandLayer() - Binds layer gestures, plays 880 Hz tone
+│   ├── _exitCommandLayer() - Unbinds layer gestures, plays 440 Hz tone
+│   ├── Auto-exit on focus loss (_disableTerminalGestures)
+│   └── Copy-mode interaction (_exitCopyModeBindings restores layer keys)
+│
 └── Configuration
     ├── TDSRSettingsPanel - GUI settings
     ├── Config validation helpers
