@@ -1,7 +1,7 @@
 # TDSR for NVDA - Architecture Overview
 
-**Version:** 1.0.18
-**Last Updated:** 2026-02-21
+**Version:** 1.1.0
+**Last Updated:** 2026-03-03
 
 ## Table of Contents
 

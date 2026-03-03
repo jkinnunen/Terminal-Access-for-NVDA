@@ -4,6 +4,8 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-03
+
 ### Added
 
 - **Command layer (NVDA+')**: A modal single-key command mode that avoids conflicts with other
