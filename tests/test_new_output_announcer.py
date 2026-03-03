@@ -438,23 +438,30 @@ class TestPollingMechanism(unittest.TestCase):
     @patch('globalPlugins.terminalAccess.ui.message')
     def test_polling_detects_new_output(self, mock_msg):
         """Polling thread detects new output without explicit feed() calls."""
-        # Set terminal and start polling
-        self.announcer.set_terminal(self.mock_terminal)
-        self.announcer.start_polling()
+        # Patch _read_terminal_text_on_main to bypass wx.CallAfter in tests
+        # (wx is mocked and CallAfter won't actually invoke the callback).
+        test_ref = self
+        def _fake_read(terminal_obj, position=None, timeout=2.0):
+            info = terminal_obj.makeTextInfo(position)
+            return info.text
+        with patch('globalPlugins.terminalAccess._read_terminal_text_on_main', side_effect=_fake_read):
+            # Set terminal and start polling
+            self.announcer.set_terminal(self.mock_terminal)
+            self.announcer.start_polling()
 
-        # Wait for initial poll to establish baseline
-        time.sleep(0.4)
+            # Wait for initial poll to establish baseline
+            time.sleep(0.4)
 
-        # Add new output to terminal
-        self.terminal_text = "initial\nnew line from polling\n"
+            # Add new output to terminal
+            self.terminal_text = "initial\nnew line from polling\n"
 
-        # Wait for polling + coalesce delay
-        time.sleep(0.6)
+            # Wait for polling + coalesce delay
+            time.sleep(0.6)
 
-        # Should have announced the new output
-        mock_msg.assert_called()
-        announced_text = mock_msg.call_args[0][0]
-        self.assertIn("new line from polling", announced_text)
+            # Should have announced the new output
+            mock_msg.assert_called()
+            announced_text = mock_msg.call_args[0][0]
+            self.assertIn("new line from polling", announced_text)
 
     def test_multiple_start_calls_safe(self):
         """Calling start_polling multiple times doesn't create multiple threads."""

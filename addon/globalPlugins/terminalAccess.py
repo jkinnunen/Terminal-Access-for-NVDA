@@ -214,8 +214,17 @@ _BUILTIN_PROFILE_NAMES: frozenset[str] = frozenset([
 	'claude', 'lazygit', 'btop', 'btm', 'yazi', 'k9s',
 ])
 
+# Terminals that strip ANSI escape codes from UIA text (highlight detection is pointless)
+_ANSI_STRIPPING_TERMINALS: frozenset[str] = frozenset([
+	"windowsterminal", "alacritty", "wezterm", "wezterm-gui",
+	"ghostty", "rio", "contour",
+])
+
 # Compiled regex for stripping ANSI highlight codes (used in _extractHighlightedText)
 _ANSI_HIGHLIGHT_RE: re.Pattern[str] = re.compile(r'\x1b\[[0-9;]*m')
+
+# Compiled regex for stripping trailing spaces per line (conhost pads lines to screen width)
+_TRAILING_SPACES_RE: re.Pattern[str] = re.compile(r' +$', re.MULTILINE)
 
 # Compiled prompt patterns for CommandHistoryManager (avoids re-compilation per instance)
 _PROMPT_PATTERNS: list[re.Pattern[str]] = [
@@ -231,6 +240,85 @@ _PROMPT_PATTERNS: list[re.Pattern[str]] = [
 	# Generic prompt with colon or arrow
 	re.compile(r'^[^\s>:]+[>:]\s*(.+)$'),
 ]
+
+
+def _read_terminal_text_on_main(terminal_obj, position=None, timeout: float = 2.0):
+	"""Read terminal text on the main thread via ``wx.CallAfter``.
+
+	UIA/COM objects are apartment-threaded and must be called from the thread
+	that created them.  Background threads (polling, rectangular copy) that
+	need terminal text should use this helper instead of calling
+	``makeTextInfo()`` directly.
+
+	Args:
+		terminal_obj: NVDA terminal NVDAObject with ``makeTextInfo()``.
+		position: ``textInfos.POSITION_*`` constant (default: ``POSITION_ALL``).
+		timeout: Maximum seconds to wait for the main thread to respond.
+
+	Returns:
+		The text string, or ``None`` on failure / timeout.
+	"""
+	if position is None:
+		position = textInfos.POSITION_ALL
+	result: list[str | None] = [None]
+	done = threading.Event()
+
+	def _do_read():
+		try:
+			info = terminal_obj.makeTextInfo(position)
+			result[0] = info.text
+		except Exception:
+			result[0] = None
+		done.set()
+
+	try:
+		wx.CallAfter(_do_read)
+	except Exception:
+		return None
+	done.wait(timeout)
+	return result[0]
+
+
+def _read_lines_on_main(terminal_obj, start_row: int, end_row: int, timeout: float = 5.0):
+	"""Read a range of terminal lines on the main thread.
+
+	Used by ``_performRectangularCopy`` to bulk-read all needed lines in one
+	marshaled call, then column-slice them in the background thread.
+
+	Args:
+		terminal_obj: NVDA terminal NVDAObject.
+		start_row: First row to read (1-based).
+		end_row: Last row to read (1-based, inclusive).
+		timeout: Maximum seconds to wait.
+
+	Returns:
+		List of line strings, or ``None`` on failure / timeout.
+	"""
+	result: list[list[str] | None] = [None]
+	done = threading.Event()
+
+	def _do_read():
+		try:
+			lines: list[str] = []
+			info = terminal_obj.makeTextInfo(textInfos.POSITION_FIRST)
+			info.move(textInfos.UNIT_LINE, start_row - 1)
+			for _ in range(end_row - start_row + 1):
+				line_info = info.copy()
+				line_info.expand(textInfos.UNIT_LINE)
+				lines.append(line_info.text or "")
+				if info.move(textInfos.UNIT_LINE, 1) == 0:
+					break
+			result[0] = lines
+		except Exception:
+			result[0] = None
+		done.set()
+
+	try:
+		wx.CallAfter(_do_read)
+	except Exception:
+		return None
+	done.wait(timeout)
+	return result[0]
 
 
 @functools.cache
@@ -387,6 +475,16 @@ class TextDiffer:
 		self._last_text: str | None = None
 		self._last_len: int = 0
 
+	@staticmethod
+	def _normalize(text: str) -> str:
+		"""Strip trailing spaces from each line for padding-agnostic comparison.
+
+		conhost pads UNIT_LINE text to screen width (80/120 chars) with trailing
+		spaces. When padding shifts between reads, the prefix comparison fails.
+		Normalizing before comparison prevents false KIND_CHANGED results.
+		"""
+		return _TRAILING_SPACES_RE.sub('', text)
+
 	def update(self, current_text: str) -> tuple[str, str]:
 		"""
 		Compare *current_text* to the stored snapshot and return a diff result.
@@ -402,6 +500,7 @@ class TextDiffer:
 			``KIND_*`` constants and *new_content* is the appended portion
 			(non-empty for :attr:`KIND_APPENDED` and :attr:`KIND_LAST_LINE_UPDATED`).
 		"""
+		current_text = self._normalize(current_text)
 		old = self._last_text
 		if old is None:
 			self._last_text = current_text
@@ -2512,6 +2611,46 @@ class PositionCalculator:
 		except Exception:
 			return None
 
+	@staticmethod
+	def _to_viewport_row(buffer_row: int, total_lines: int, terminal) -> int:
+		"""Convert buffer-absolute row to viewport-relative row on conhost.
+
+		conhost's POSITION_FIRST includes scrollback, so buffer_row may be
+		inflated by thousands.  Windows Terminal is already viewport-relative.
+		We estimate the viewport height from the terminal window's pixel
+		dimensions and subtract the scrollback offset.
+
+		Args:
+			buffer_row: Row number counted from POSITION_FIRST (1-based).
+			total_lines: Total line count in the buffer.
+			terminal: NVDA terminal NVDAObject.
+
+		Returns:
+			Viewport-relative row (1-based), or *buffer_row* unchanged when
+			we cannot determine the terminal type or viewport height.
+		"""
+		try:
+			appName = terminal.appModule.appName.lower()
+		except (AttributeError, TypeError):
+			return buffer_row
+		# Windows Terminal: POSITION_FIRST is already viewport-relative
+		if "windowsterminal" in appName:
+			return buffer_row
+		# Estimate viewport height from window pixel dimensions
+		try:
+			loc = getattr(terminal, 'location', None)
+			if loc is None:
+				return buffer_row
+			pixel_height = loc[3] if len(loc) >= 4 else getattr(loc, 'height', 0)
+			if pixel_height <= 0:
+				return buffer_row
+			# ~18px per character cell is a reasonable estimate for common DPI / font combos
+			viewport_rows = max(1, pixel_height // 18)
+			scrollback = max(0, total_lines - viewport_rows)
+			return max(1, buffer_row - scrollback)
+		except Exception:
+			return buffer_row
+
 	def _calculate_full(self, textInfo: Any, terminal: Any,
 					   bookmark: Any) -> tuple[int, int]:
 		"""
@@ -2532,6 +2671,17 @@ class PositionCalculator:
 		targetCopy = textInfo.copy()
 		targetCopy.collapse()
 
+		# Estimate total lines from full buffer text (cheap string op, no UIA loop).
+		# Used by _to_viewport_row to compensate for scrollback on conhost.
+		total_lines = 1
+		try:
+			all_info = terminal.makeTextInfo(textInfos.POSITION_ALL)
+			all_text = all_info.text
+			if all_text:
+				total_lines = all_text.count('\n') + 1
+		except Exception:
+			pass
+
 		# Move to the end of content to get total lines
 		startInfo.move(textInfos.UNIT_LINE, 999999, endPoint="end")
 		startInfo.collapse(end=False)
@@ -2544,7 +2694,10 @@ class PositionCalculator:
 				break
 			lineCount += 1
 
-		row = lineCount + 1
+		buffer_row = lineCount + 1
+
+		# Compensate for scrollback on conhost
+		row = self._to_viewport_row(buffer_row, total_lines, terminal)
 
 		# Calculate column by counting characters from line start
 		lineStart = targetCopy.copy()
@@ -2815,6 +2968,23 @@ class NewOutputAnnouncer:
 		# it fires and reschedules itself if the deadline was pushed forward.
 		self._coalesce_deadline: float = 0.0
 
+	def should_read(self) -> bool:
+		"""Check if a feed is worthwhile before the caller does an expensive read.
+
+		Returns True only when the feature is enabled, quiet mode is off,
+		and the throttle interval has elapsed.  Callers should gate the
+		expensive ``makeTextInfo(POSITION_ALL)`` behind this check.
+		"""
+		if (time.time() - self._last_feed_time) < self._MIN_FEED_INTERVAL:
+			return False
+		try:
+			ta_conf = config.conf["terminalAccess"]
+			if ta_conf["quietMode"] or not ta_conf["announceNewOutput"]:
+				return False
+		except Exception:
+			return False
+		return True
+
 	def feed(self, text: str) -> None:
 		"""
 		Feed the current terminal text and queue an announcement if new output
@@ -2995,11 +3165,13 @@ class NewOutputAnnouncer:
 				if not config.conf["terminalAccess"]["announceNewOutput"]:
 					continue
 
-				# Get terminal content and feed to announcer
+				# Get terminal content and feed to announcer.
+				# Marshal to main thread — UIA COM objects are apartment-threaded.
 				if self._terminal_obj is not None:
 					try:
-						info = self._terminal_obj.makeTextInfo(textInfos.POSITION_ALL)
-						self.feed(info.text)
+						text = _read_terminal_text_on_main(self._terminal_obj)
+						if text is not None:
+							self.feed(text)
 					except Exception:
 						# Terminal object may be invalid, ignore
 						pass
@@ -3256,9 +3428,11 @@ class WindowMonitor:
 		lines = []
 
 		try:
-			# Get terminal dimensions
-			info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
-			all_text = info.text
+			# Marshal to main thread — this runs from a background polling thread
+			# and UIA COM objects are apartment-threaded.
+			all_text = _read_terminal_text_on_main(self._terminal)
+			if all_text is None:
+				return ""
 
 			# Split into lines
 			all_lines = all_text.split('\n')
@@ -4659,6 +4833,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._terminalAppCache[appName] = result
 		return result
 
+	def _terminalStripsAnsi(self, obj=None) -> bool:
+		"""Return True if the terminal's UIA provider strips ANSI escape codes.
+
+		Modern GPU-accelerated terminals (Windows Terminal, Alacritty, WezTerm,
+		Ghostty, etc.) return clean text from UIA — checking for raw ANSI codes
+		like ``\\x1b[7m`` will never succeed and just wastes a UNIT_LINE read.
+		"""
+		if obj is None:
+			obj = self._boundTerminal
+		if obj is None:
+			return False
+		try:
+			appName = obj.appModule.appName.lower()
+			return any(t in appName for t in _ANSI_STRIPPING_TERMINALS)
+		except (AttributeError, TypeError):
+			return False
+
 	def _getPositionContext(self, textInfo=None) -> str:
 		"""
 		Get current position context for verbose announcements.
@@ -4998,6 +5189,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			# Update terminal object for polling (in case it changed)
 			self._newOutputAnnouncer.set_terminal(obj)
+			# Gate the expensive POSITION_ALL read behind cheap config/throttle checks.
+			# On conhost this avoids reading the entire buffer (10KB-1MB) hundreds of
+			# times per second when announceNewOutput is off or in quiet mode.
+			if not self._newOutputAnnouncer.should_read():
+				return
 			info = obj.makeTextInfo(textInfos.POSITION_ALL)
 			self._newOutputAnnouncer.feed(info.text)
 		except Exception:
@@ -5074,24 +5270,38 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			info.expand(textInfos.UNIT_CHARACTER)
 			char = info.text
 
-			# Refresh line cache: expand a fresh copy to the full line.
-			try:
-				line_info = obj.makeTextInfo(textInfos.POSITION_CARET)
-				line_info.expand(textInfos.UNIT_LINE)
-				self._lastLineText = line_info.text
-				bm = getattr(line_info, 'bookmark', None)
+			# On conhost, bookmark offsets are often unavailable (AttributeError),
+			# so the indexed cache lookup always fails.  When offsets are None and
+			# the content generation hasn't changed, we can skip the UNIT_LINE
+			# re-read — the text hasn't changed, we just can't index into it.
+			# This saves one UIA call per cursor movement on conhost.
+			skip_line_reread = (
+				self._lastLineStartOffset is None
+				and self._lastLineEndOffset is None
+				and self._lastLineGeneration == self._contentGeneration
+				and self._lastLineText is not None
+			)
+			if not skip_line_reread:
+				# Refresh line cache: expand a fresh copy to the full line.
 				try:
-					self._lastLineStartOffset = bm.startOffset
-					self._lastLineEndOffset = bm.endOffset
-				except AttributeError:
-					# Can't determine range; disable line cache.
+					line_info = obj.makeTextInfo(textInfos.POSITION_CARET)
+					line_info.expand(textInfos.UNIT_LINE)
+					self._lastLineText = line_info.text
+					bm = getattr(line_info, 'bookmark', None)
+					try:
+						self._lastLineStartOffset = bm.startOffset
+						self._lastLineEndOffset = bm.endOffset
+					except AttributeError:
+						# Offsets unavailable (conhost); keep text cache but can't
+						# do indexed character lookup.  The UNIT_CHARACTER expand
+						# above still works.
+						self._lastLineStartOffset = None
+						self._lastLineEndOffset = None
+					self._lastLineGeneration = self._contentGeneration
+				except Exception:
+					self._lastLineText = None
 					self._lastLineStartOffset = None
 					self._lastLineEndOffset = None
-				self._lastLineGeneration = self._contentGeneration
-			except Exception:
-				self._lastLineText = None
-				self._lastLineStartOffset = None
-				self._lastLineEndOffset = None
 
 		# When a recent keystroke caused this caret movement and the addon's
 		# key echo is off, suppress the character announcement to avoid a
@@ -5145,9 +5355,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			info.expand(textInfos.UNIT_LINE)
 			lineText = info.text
 
-			# Try to detect ANSI escape codes for highlighting (inverse video: ESC[7m)
-			# This is a simplified detection - real implementation would need more robust parsing
-			if '\x1b[7m' in lineText or 'ESC[7m' in lineText:
+			# Try to detect ANSI escape codes for highlighting (inverse video: ESC[7m).
+			# Skip on terminals whose UIA provider strips ANSI codes (Windows Terminal,
+			# Alacritty, etc.) — the check can never succeed and wastes a UNIT_LINE read.
+			if not self._terminalStripsAnsi(obj) and ('\x1b[7m' in lineText or 'ESC[7m' in lineText):
 				# Extract highlighted portion
 				highlightedText = self._extractHighlightedText(lineText)
 				if highlightedText and highlightedText != self._lastHighlightedText:
@@ -6755,18 +6966,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			endCol: Ending column (1-based)
 			progressDialog: Optional SelectionProgressDialog for visual feedback
 		"""
-		# Extract rectangular region line by line
-		lines = []
-		currentInfo = terminal.makeTextInfo(textInfos.POSITION_FIRST)
-
-		# Move to start row
-		currentInfo.move(textInfos.UNIT_LINE, startRow - 1)
+		# Bulk-read all needed lines on the main thread in a single marshaled
+		# call.  This avoids per-line UIA COM calls from the background thread
+		# (apartment-threaded COM objects must be called from their owning thread).
+		raw_lines = _read_lines_on_main(terminal, startRow, endRow)
+		if raw_lines is None:
+			if threading.current_thread() != threading.main_thread():
+				wx.CallAfter(ui.message, _("Background copy failed"))
+			else:
+				ui.message(_("Background copy failed"))
+			return
 
 		# Calculate total rows for progress tracking
-		totalRows = endRow - startRow + 1
+		totalRows = len(raw_lines)
 
-		# Extract each line in range
-		for idx, row in enumerate(range(startRow, endRow + 1)):
+		# Process each line (column slicing — no UIA needed)
+		lines = []
+		for idx, lineText in enumerate(raw_lines):
 			# Update progress dialog if provided (Section 1.3: Improved progress tracking)
 			if progressDialog and idx % 10 == 0:  # Update every 10 rows
 				progress = int((idx / totalRows) * 100)
@@ -6781,9 +6997,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					progressDialog.close()
 					return
 
-			lineInfo = currentInfo.copy()
-			lineInfo.expand(textInfos.UNIT_LINE)
-			lineText = lineInfo.text.rstrip('\n\r')
+			lineText = lineText.rstrip('\n\r')
 
 			# Strip ANSI codes for accurate column extraction
 			cleanText = ANSIParser.stripANSI(lineText)
@@ -6792,11 +7006,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			columnText = UnicodeWidthHelper.extractColumnRange(cleanText, startCol, endCol)
 
 			lines.append(columnText)
-
-			# Move to next line
-			moved = currentInfo.move(textInfos.UNIT_LINE, 1)
-			if moved == 0:
-				break
 
 		# Join lines and copy to clipboard
 		rectangularText = '\n'.join(lines)

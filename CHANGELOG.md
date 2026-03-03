@@ -28,6 +28,22 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
   fires UIA caret events on every keystroke. The cursor tracking path announced the character
   at the new caret position independently of the key echo setting, creating a "shadow key echo".
   Typing-induced caret events are now suppressed when key echo is off.
+- **Windows 10 (conhost) terminal compatibility improvements**: Six fixes for behavioral
+  differences between the legacy console host (Windows 10) and Windows Terminal (Windows 11):
+  - New output announcer no longer reads the entire buffer on every caret event when the feature
+    is disabled or quiet mode is active (performance fix for conhost's 100-500 Hz caret events)
+  - Line-level cache now works on terminals without bookmark offsets, saving one UIA call per
+    cursor movement on conhost when content hasn't changed
+  - TextDiffer normalizes trailing whitespace per line, preventing false change detections caused
+    by conhost's fixed-width line padding
+  - Highlight cursor mode skips ANSI escape detection on terminals that strip ANSI codes
+    (Windows Terminal, Alacritty, WezTerm, Ghostty, etc.), falling through to standard cursor
+    immediately instead of wasting a UNIT_LINE read
+  - Background threads (polling, window monitoring, rectangular copy) now marshal UIA/COM calls
+    to the main thread via wx.CallAfter, preventing intermittent errors from apartment-threaded
+    COM objects
+  - Position calculator compensates for scrollback on conhost, producing viewport-relative row
+    numbers instead of buffer-absolute values inflated by thousands
 
 ### Changed
 
