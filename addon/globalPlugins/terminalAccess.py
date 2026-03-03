@@ -2612,13 +2612,30 @@ class PositionCalculator:
 			return None
 
 	@staticmethod
+	def _needs_scrollback_compensation(terminal) -> bool:
+		"""Return True if the terminal needs scrollback compensation.
+
+		Windows Terminal's POSITION_FIRST is already viewport-relative, so
+		no compensation is needed.  conhost includes scrollback, so we need
+		to estimate the viewport offset.
+		"""
+		try:
+			appName = terminal.appModule.appName.lower()
+		except (AttributeError, TypeError):
+			return False
+		# Windows Terminal is already viewport-relative
+		if "windowsterminal" in appName:
+			return False
+		# conhost, cmd, powershell, etc. may include scrollback
+		return any(t in appName for t in ("cmd", "powershell", "pwsh", "conhost"))
+
+	@staticmethod
 	def _to_viewport_row(buffer_row: int, total_lines: int, terminal) -> int:
 		"""Convert buffer-absolute row to viewport-relative row on conhost.
 
 		conhost's POSITION_FIRST includes scrollback, so buffer_row may be
-		inflated by thousands.  Windows Terminal is already viewport-relative.
-		We estimate the viewport height from the terminal window's pixel
-		dimensions and subtract the scrollback offset.
+		inflated by thousands.  We estimate the viewport height from the
+		terminal window's pixel dimensions and subtract the scrollback offset.
 
 		Args:
 			buffer_row: Row number counted from POSITION_FIRST (1-based).
@@ -2626,17 +2643,8 @@ class PositionCalculator:
 			terminal: NVDA terminal NVDAObject.
 
 		Returns:
-			Viewport-relative row (1-based), or *buffer_row* unchanged when
-			we cannot determine the terminal type or viewport height.
+			Viewport-relative row (1-based), or *buffer_row* unchanged on failure.
 		"""
-		try:
-			appName = terminal.appModule.appName.lower()
-		except (AttributeError, TypeError):
-			return buffer_row
-		# Windows Terminal: POSITION_FIRST is already viewport-relative
-		if "windowsterminal" in appName:
-			return buffer_row
-		# Estimate viewport height from window pixel dimensions
 		try:
 			loc = getattr(terminal, 'location', None)
 			if loc is None:
@@ -2671,17 +2679,6 @@ class PositionCalculator:
 		targetCopy = textInfo.copy()
 		targetCopy.collapse()
 
-		# Estimate total lines from full buffer text (cheap string op, no UIA loop).
-		# Used by _to_viewport_row to compensate for scrollback on conhost.
-		total_lines = 1
-		try:
-			all_info = terminal.makeTextInfo(textInfos.POSITION_ALL)
-			all_text = all_info.text
-			if all_text:
-				total_lines = all_text.count('\n') + 1
-		except Exception:
-			pass
-
 		# Move to the end of content to get total lines
 		startInfo.move(textInfos.UNIT_LINE, 999999, endPoint="end")
 		startInfo.collapse(end=False)
@@ -2696,8 +2693,21 @@ class PositionCalculator:
 
 		buffer_row = lineCount + 1
 
-		# Compensate for scrollback on conhost
-		row = self._to_viewport_row(buffer_row, total_lines, terminal)
+		# Compensate for scrollback on conhost.  Only do the expensive
+		# POSITION_ALL read when the terminal actually needs it — Windows
+		# Terminal is already viewport-relative, so we skip the extra UIA call.
+		if self._needs_scrollback_compensation(terminal):
+			total_lines = 1
+			try:
+				all_info = terminal.makeTextInfo(textInfos.POSITION_ALL)
+				all_text = all_info.text
+				if all_text:
+					total_lines = all_text.count('\n') + 1
+			except Exception:
+				pass
+			row = self._to_viewport_row(buffer_row, total_lines, terminal)
+		else:
+			row = buffer_row
 
 		# Calculate column by counting characters from line start
 		lineStart = targetCopy.copy()
