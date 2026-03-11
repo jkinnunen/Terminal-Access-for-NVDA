@@ -33,12 +33,21 @@ SOURCE_FILES = [
 
 # Locale code -> DeepL target language code
 LANGUAGES = {
+    "ar": "AR",
+    "cs": "CS",
     "de": "DE",
     "es": "ES",
     "fr": "FR",
+    "hu": "HU",
+    "it": "IT",
     "ja": "JA",
+    "ko": "KO",
+    "nl": "NL",
+    "pl": "PL",
     "pt": "PT-BR",
     "ru": "RU",
+    "tr": "TR",
+    "uk": "UK",
     "zh_CN": "ZH-HANS",
     "zh_TW": "ZH-HANT",
 }
