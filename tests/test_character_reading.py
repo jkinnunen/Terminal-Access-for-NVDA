@@ -266,6 +266,134 @@ class TestCharacterReading(unittest.TestCase):
 			cp_mock.processSpeechSymbol = original_fn
 			_get_symbol_description.cache_clear()
 
+	# -- _getEffective and profile override tests --
+
+	def test_getEffective_returns_profile_override(self):
+		"""_getEffective returns profile value when explicitly set."""
+		from globalPlugins.terminalAccess import GlobalPlugin, ApplicationProfile
+
+		plugin = GlobalPlugin()
+		profile = ApplicationProfile('lazygit', 'Lazygit')
+		profile.keyEcho = False
+		profile.punctuationLevel = 3  # PUNCT_ALL
+		profile.cursorTrackingMode = 3  # CT_WINDOW
+		plugin._currentProfile = profile
+
+		self.assertFalse(plugin._getEffective("keyEcho"))
+		self.assertEqual(plugin._getEffective("punctuationLevel"), 3)
+		self.assertEqual(plugin._getEffective("cursorTrackingMode"), 3)
+
+	def test_getEffective_falls_back_to_global_when_none(self):
+		"""_getEffective falls back to global config when profile attr is None."""
+		from globalPlugins.terminalAccess import GlobalPlugin, ApplicationProfile
+
+		plugin = GlobalPlugin()
+		profile = ApplicationProfile('someapp', 'Some App')
+		# All settings default to None on new profiles
+		self.assertIsNone(profile.keyEcho)
+		self.assertIsNone(profile.punctuationLevel)
+		plugin._currentProfile = profile
+
+		# Should return global values (from conftest defaults)
+		self.assertTrue(plugin._getEffective("keyEcho"))
+		self.assertEqual(plugin._getEffective("punctuationLevel"), 2)  # PUNCT_MOST
+
+	def test_getEffective_falls_back_to_global_without_profile(self):
+		"""_getEffective reads global config when no profile is active."""
+		from globalPlugins.terminalAccess import GlobalPlugin
+
+		plugin = GlobalPlugin()
+		plugin._currentProfile = None
+
+		self.assertTrue(plugin._getEffective("keyEcho"))
+		self.assertEqual(plugin._getEffective("cursorTrackingMode"), 1)  # CT_STANDARD
+
+	def test_getEffective_profile_overrides_global(self):
+		"""Profile value wins even when it differs from global config."""
+		import sys
+		from globalPlugins.terminalAccess import GlobalPlugin, ApplicationProfile
+
+		plugin = GlobalPlugin()
+		config_mock = sys.modules['config']
+		original = config_mock.conf["terminalAccess"]["keyEcho"]
+		config_mock.conf["terminalAccess"]["keyEcho"] = False
+
+		try:
+			profile = ApplicationProfile('myapp', 'My App')
+			profile.keyEcho = True
+			plugin._currentProfile = profile
+
+			# Profile says True, global says False → True wins
+			self.assertTrue(plugin._getEffective("keyEcho"))
+		finally:
+			config_mock.conf["terminalAccess"]["keyEcho"] = original
+
+	def test_isKeyEchoActive_profile_disables(self):
+		"""_isKeyEchoActive returns False when profile sets keyEcho=False."""
+		from globalPlugins.terminalAccess import GlobalPlugin, ApplicationProfile
+
+		plugin = GlobalPlugin()
+		profile = ApplicationProfile('lazygit', 'Lazygit')
+		profile.keyEcho = False
+		plugin._currentProfile = profile
+
+		self.assertFalse(plugin._isKeyEchoActive())
+
+	def test_isKeyEchoActive_profile_quietMode_disables(self):
+		"""_isKeyEchoActive returns False when profile sets quietMode=True."""
+		from globalPlugins.terminalAccess import GlobalPlugin, ApplicationProfile
+
+		plugin = GlobalPlugin()
+		profile = ApplicationProfile('less', 'less')
+		profile.quietMode = True
+		plugin._currentProfile = profile
+
+		self.assertFalse(plugin._isKeyEchoActive())
+
+	def test_isKeyEchoActive_no_profile_uses_global(self):
+		"""Without a profile, _isKeyEchoActive reads global config."""
+		from globalPlugins.terminalAccess import GlobalPlugin
+
+		plugin = GlobalPlugin()
+		plugin._currentProfile = None
+		self.assertTrue(plugin._isKeyEchoActive())
+
+	@patch('globalPlugins.terminalAccess.ui')
+	def test_event_typedCharacter_suppressed_by_profile(self, mock_ui):
+		"""Typing in a TUI app with keyEcho=False profile should produce no echo."""
+		from globalPlugins.terminalAccess import GlobalPlugin, ApplicationProfile
+
+		plugin = GlobalPlugin()
+		plugin.isTerminalApp = MagicMock(return_value=True)
+		plugin._positionCalculator = MagicMock()
+
+		profile = ApplicationProfile('lazygit', 'Lazygit')
+		profile.keyEcho = False
+		plugin._currentProfile = profile
+
+		plugin.event_typedCharacter(Mock(), lambda: None, 'q')
+		mock_ui.message.assert_not_called()
+
+	def test_shouldProcessSymbol_uses_profile_punctuation(self):
+		"""_shouldProcessSymbol uses profile punctuationLevel override."""
+		from globalPlugins.terminalAccess import GlobalPlugin, ApplicationProfile, PUNCT_ALL, PUNCT_NONE
+
+		plugin = GlobalPlugin()
+
+		# Profile with PUNCT_ALL → every symbol should be processed
+		profile = ApplicationProfile('git', 'Git')
+		profile.punctuationLevel = PUNCT_ALL
+		plugin._currentProfile = profile
+		self.assertTrue(plugin._shouldProcessSymbol('!'))
+		self.assertTrue(plugin._shouldProcessSymbol('.'))
+
+		# Profile with PUNCT_NONE → no symbols processed
+		profile.punctuationLevel = PUNCT_NONE
+		# Reset cached level so it picks up the change
+		plugin._cachedPunctLevel = -1
+		self.assertFalse(plugin._shouldProcessSymbol('!'))
+		self.assertFalse(plugin._shouldProcessSymbol('.'))
+
 	def test_gestures_dont_propagate_to_globalCommands(self):
 		"""Test that comma and period gestures don't call globalCommands."""
 		from globalPlugins.terminalAccess import GlobalPlugin

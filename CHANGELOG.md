@@ -25,6 +25,11 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 - Punctuation pronunciation now respects NVDA's configured language instead of using raw Unicode
   character names (e.g., "dot" instead of "full stop" for period). Symbol names are resolved
   through NVDA's `characterProcessing` module, matching the user's NVDA language setting.
+- All application profile setting overrides now take effect at runtime. Profile-specific values
+  for key echo, quiet mode, punctuation level, cursor tracking mode, repeated symbols,
+  indentation, and line pause are applied when the corresponding profile is active, instead of
+  always reading the global config. Toggle and cycle scripts update the active profile's
+  in-memory override so changes take immediate effect.
 - Corrected ~30 wrong gesture references in QUICKSTART.md (e.g., `NVDA+Alt+I` → `NVDA+I`).
 - Added missing Tab Management and Profiles keyboard command sections to HTML user guide.
 

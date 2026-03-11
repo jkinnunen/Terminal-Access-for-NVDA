@@ -5515,6 +5515,24 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# Translators: Message announced when entering a terminal application
 				ui.message(_("Terminal Access support active. Press NVDA+shift+f1 for help."))
 
+	def _getEffective(self, key: str):
+		"""Return the effective value of a Terminal Access setting.
+
+		When an application profile is active and it explicitly overrides
+		*key* (i.e. the attribute is not ``None``), that value is returned.
+		Otherwise the global ``config.conf["terminalAccess"]`` value is used.
+
+		This ensures that profile-specific settings (e.g. ``keyEcho = False``
+		for lazygit, ``punctuationLevel = PUNCT_MOST`` for git) take effect
+		at runtime while still falling back to the user's global preferences
+		for settings the profile does not override.
+		"""
+		if self._currentProfile is not None:
+			val = getattr(self._currentProfile, key, None)
+			if val is not None:
+				return val
+		return config.conf["terminalAccess"][key]
+
 	def _isKeyEchoActive(self) -> bool:
 		"""Check if the addon should perform its own key echo.
 
@@ -5522,9 +5540,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		or NVDA's native speak-typed-characters setting is already enabled
 		(to avoid duplicate announcements).
 		"""
-		if not config.conf["terminalAccess"]["keyEcho"]:
+		if not self._getEffective("keyEcho"):
 			return False
-		if config.conf["terminalAccess"]["quietMode"]:
+		if self._getEffective("quietMode"):
 			return False
 		# When NVDA's own character echo is on, let NVDA handle it
 		# to avoid speaking every character twice.
@@ -5566,8 +5584,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Process the character for speech
 		if ch:
 			# Check if we should condense repeated symbols
-			if config.conf["terminalAccess"]["repeatedSymbols"]:
-				repeatedSymbolsValues = config.conf["terminalAccess"]["repeatedSymbolsValues"]
+			if self._getEffective("repeatedSymbols"):
+				repeatedSymbolsValues = self._getEffective("repeatedSymbolsValues")
 
 				# Check if this character is in the list of symbols to condense
 				if ch in repeatedSymbolsValues:
@@ -5607,7 +5625,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not _braille_available:
 			return
 		try:
-			if config.conf["terminalAccess"]["quietMode"]:
+			if self._getEffective("quietMode"):
 				return
 			if braille.handler.displaySize > 0:
 				braille.handler.message(text)
@@ -5692,7 +5710,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			obj: The terminal object.
 		"""
 		try:
-			trackingMode = config.conf["terminalAccess"]["cursorTrackingMode"]
+			trackingMode = self._getEffective("cursorTrackingMode")
 			match trackingMode:
 				case 0:  # CT_OFF
 					return
@@ -6113,10 +6131,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gesture.send()
 			return
 		
-		currentState = config.conf["terminalAccess"]["quietMode"]
-		config.conf["terminalAccess"]["quietMode"] = not currentState
-		
-		if config.conf["terminalAccess"]["quietMode"]:
+		currentState = self._getEffective("quietMode")
+		newState = not currentState
+		# Write to global config; also update profile override if one is active
+		# so the toggle takes immediate effect.
+		config.conf["terminalAccess"]["quietMode"] = newState
+		if self._currentProfile is not None and self._currentProfile.quietMode is not None:
+			self._currentProfile.quietMode = newState
+
+		if newState:
 			# Translators: Message when quiet mode is enabled
 			ui.message(_("Quiet mode on"))
 		else:
@@ -6168,10 +6191,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gesture.send()
 			return
 
-		currentState = config.conf["terminalAccess"]["indentationOnLineRead"]
-		config.conf["terminalAccess"]["indentationOnLineRead"] = not currentState
+		currentState = self._getEffective("indentationOnLineRead")
+		newState = not currentState
+		config.conf["terminalAccess"]["indentationOnLineRead"] = newState
+		if self._currentProfile is not None and self._currentProfile.indentationOnLineRead is not None:
+			self._currentProfile.indentationOnLineRead = newState
 
-		if config.conf["terminalAccess"]["indentationOnLineRead"]:
+		if newState:
 			# Translators: Message when indentation announcement is enabled
 			ui.message(_("Indentation announcement on"))
 		else:
@@ -6389,13 +6415,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		# Get current mode
-		currentMode = config.conf["terminalAccess"]["cursorTrackingMode"]
+		currentMode = self._getEffective("cursorTrackingMode")
 
 		# Cycle to next mode
 		nextMode = (currentMode + 1) % 4
 
 		# Update configuration
 		config.conf["terminalAccess"]["cursorTrackingMode"] = nextMode
+		if self._currentProfile is not None and self._currentProfile.cursorTrackingMode is not None:
+			self._currentProfile.cursorTrackingMode = nextMode
 
 		# Announce new mode
 		modeNames = {
@@ -6958,7 +6986,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			moveFunction: The function to call to read the line (e.g., script_review_currentLine)
 		"""
 		# Check if indentation should be announced
-		shouldAnnounceIndentation = config.conf["terminalAccess"]["indentationOnLineRead"]
+		shouldAnnounceIndentation = self._getEffective("indentationOnLineRead")
 
 		# Get line text before reading it aloud
 		if shouldAnnounceIndentation:
@@ -7117,7 +7145,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		Returns:
 			bool: True if the symbol should be announced, False otherwise.
 		"""
-		level = config.conf["terminalAccess"]["punctuationLevel"]
+		level = self._getEffective("punctuationLevel")
 
 		if level == PUNCT_ALL:
 			return True
@@ -7174,9 +7202,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gesture.send()
 			return
 
-		currentLevel = config.conf["terminalAccess"]["punctuationLevel"]
+		currentLevel = self._getEffective("punctuationLevel")
 		newLevel = (currentLevel - 1) % 4
 		config.conf["terminalAccess"]["punctuationLevel"] = newLevel
+		if self._currentProfile is not None and self._currentProfile.punctuationLevel is not None:
+			self._currentProfile.punctuationLevel = newLevel
 
 		# Announce new level
 		levelNames = {
@@ -7199,9 +7229,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gesture.send()
 			return
 
-		currentLevel = config.conf["terminalAccess"]["punctuationLevel"]
+		currentLevel = self._getEffective("punctuationLevel")
 		newLevel = (currentLevel + 1) % 4
 		config.conf["terminalAccess"]["punctuationLevel"] = newLevel
+		if self._currentProfile is not None and self._currentProfile.punctuationLevel is not None:
+			self._currentProfile.punctuationLevel = newLevel
 
 		# Announce new level
 		levelNames = {
