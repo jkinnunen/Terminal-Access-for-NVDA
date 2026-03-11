@@ -415,6 +415,13 @@ _SUPPORTED_TERMINALS: frozenset[str] = frozenset([
 	"royalts",          # Royal TS
 ])
 
+# Applications that share a process name prefix with a supported terminal
+# but are NOT terminals themselves.  Checked before _SUPPORTED_TERMINALS.
+_NON_TERMINAL_APPS: frozenset[str] = frozenset([
+	"securefx",         # VanDyke SecureFX (SFTP client, shares branding with SecureCRT)
+	"sfxcl",            # SecureFX command-line utility
+])
+
 # Frozenset of built-in profile names that cannot be removed
 _BUILTIN_PROFILE_NAMES: frozenset[str] = frozenset([
 	'vim', 'tmux', 'htop', 'less', 'git', 'nano', 'irssi',
@@ -5372,10 +5379,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not isinstance(appName, str):
 			return False
 
-		# Cache lookup — avoids re-scanning 30 substrings on every event.
+		# Cache lookup — avoids re-scanning substrings on every event.
 		cached = self._terminalAppCache.get(appName)
 		if cached is not None:
 			return cached
+
+		# Reject known non-terminal apps before checking the inclusion list
+		if any(exc in appName for exc in _NON_TERMINAL_APPS):
+			self._terminalAppCache[appName] = False
+			return False
 
 		result = any(term in appName for term in _SUPPORTED_TERMINALS)
 		self._terminalAppCache[appName] = result

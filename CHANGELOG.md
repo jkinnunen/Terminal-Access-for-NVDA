@@ -33,6 +33,9 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
   indentation, and line pause are applied when the corresponding profile is active, instead of
   always reading the global config. Toggle and cycle scripts update the active profile's
   in-memory override so changes take immediate effect.
+- VanDyke SecureFX (SFTP client) is no longer detected as a terminal application. An exclusion
+  list is checked before the supported-terminals list so non-terminal apps that share branding
+  with a supported terminal are correctly rejected.
 - Corrected ~30 wrong gesture references in QUICKSTART.md (e.g., `NVDA+Alt+I` → `NVDA+I`).
 - Added missing Tab Management and Profiles keyboard command sections to HTML user guide.
 
