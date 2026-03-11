@@ -2,7 +2,7 @@
 
 All notable changes to Terminal Access for NVDA will be documented in this file.
 
-## [Unreleased]
+## [1.2.0] - 2026-03-10
 
 ### Added
 
@@ -10,12 +10,16 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
   output. Supports HTTP/HTTPS/FTP URLs, www-prefixed URLs, file:// protocol, and OSC 8 terminal
   hyperlinks. Interactive dialog with filter box, and actions to open in browser, copy to
   clipboard, or navigate to the line containing the URL.
+- Bookmark gestures (NVDA+Alt+0-9 for set, Alt+0-9 for jump) now appear in NVDA's Input Gestures
+  dialog, allowing users to discover and remap them.
 
 ### Fixed
 
 - Punctuation pronunciation now respects NVDA's configured language instead of using raw Unicode
   character names (e.g., "dot" instead of "full stop" for period). Symbol names are resolved
   through NVDA's `characterProcessing` module, matching the user's NVDA language setting.
+- Corrected ~30 wrong gesture references in QUICKSTART.md (e.g., `NVDA+Alt+I` → `NVDA+I`).
+- Added missing Tab Management and Profiles keyboard command sections to HTML user guide.
 
 ## [1.1.0] - 2026-03-03
 
