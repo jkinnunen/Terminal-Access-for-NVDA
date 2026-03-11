@@ -65,6 +65,12 @@ Terminal Access enables screen reader users to efficiently navigate and interact
 - **Tab creation and navigation** - Keyboard shortcuts for creating and switching between tabs
 - **Automatic tab detection** - Identifies when you switch tabs and updates context accordingly
 
+### URL List
+- **Extract URLs from terminal output** - Press **NVDA+Alt+U** (or `E` in command layer) to scan the buffer for URLs
+- **Interactive dialog** - Filterable list showing URL, line number, and context
+- **Actions** - Open in browser, copy to clipboard, or navigate to the line
+- **Broad URL support** - HTTP/HTTPS, FTP, www-prefixed, file://, and OSC 8 hyperlinks
+
 ### System Features
 - **Key echo** to hear characters as you type
 - **Quiet mode** to temporarily disable automatic announcements

@@ -270,6 +270,18 @@
 		the previous match. This is much faster than manually scanning through hundreds of lines.
 	</div>
 
+	<h4>URL List</h4>
+	<p>Extract and interact with URLs found in terminal output.</p>
+	<div class="info">
+		<strong>Example Usage:</strong> After running <code>pip install nonexistent-package</code> or any command
+		that prints URLs, press <code>NVDA+Alt+U</code> (or <code>E</code> in the command layer) to scan the
+		terminal buffer for URLs. An interactive dialog opens with a filterable list showing each URL, its line
+		number, and surrounding context. Select a URL and press <strong>Open</strong> to launch it in your
+		browser, <strong>Copy URL</strong> to copy it to the clipboard, or <strong>Move to line</strong> to
+		jump to the line containing the URL. Supports HTTP/HTTPS, FTP, www-prefixed, file://, and OSC 8
+		terminal hyperlinks. Duplicate URLs are automatically deduplicated.
+	</div>
+
 	<h4>Window Management</h4>
 	<p>Define and monitor specific regions of the terminal screen.</p>
 	<div class="info">
@@ -422,17 +434,18 @@
 			<tr><td><code>PgUp / PgDn</code></td><td>Top/bottom of buffer</td><td><code>Shift+Arrows</code></td><td>Read to edge</td></tr>
 			<tr><td><code>a</code></td><td>Say all</td><td><code>;</code></td><td>Announce position</td></tr>
 			<tr><td><code>Shift+A</code></td><td>Read attributes</td><td><code>f</code></td><td>Search output</td></tr>
-			<tr><td><code>F3 / Shift+F3</code></td><td>Next/prev match</td><td><code>q</code></td><td>Toggle quiet mode</td></tr>
-			<tr><td><code>n</code></td><td>Toggle new output</td><td><code>d</code></td><td>Toggle indentation</td></tr>
-			<tr><td><code>[ / ]</code></td><td>Punctuation level</td><td><code>p</code></td><td>Active profile</td></tr>
-			<tr><td><code>r</code></td><td>Toggle mark</td><td><code>c / Shift+C</code></td><td>Copy linear/rectangular</td></tr>
-			<tr><td><code>x</code></td><td>Clear marks</td><td><code>v</code></td><td>Copy mode</td></tr>
-			<tr><td><code>w / Shift+W</code></td><td>Read/set window</td><td><code>Ctrl+W</code></td><td>Clear window</td></tr>
-			<tr><td><code>*</code></td><td>Cycle tracking mode</td><td><code>0-9</code></td><td>Jump to bookmark</td></tr>
-			<tr><td><code>Shift+0-9</code></td><td>Set bookmark</td><td><code>b</code></td><td>List bookmarks</td></tr>
-			<tr><td><code>t / Shift+T</code></td><td>New tab / list tabs</td><td><code>h / g</code></td><td>Prev/next command</td></tr>
-			<tr><td><code>Shift+H / Shift+L</code></td><td>Scan/list history</td><td><code>s</code></td><td>Open settings</td></tr>
-			<tr><td><code>F1</code></td><td>Open user guide</td><td><code>Escape</code></td><td>Exit layer</td></tr>
+			<tr><td><code>F3 / Shift+F3</code></td><td>Next/prev match</td><td><code>e</code></td><td>List URLs</td></tr>
+			<tr><td><code>q</code></td><td>Toggle quiet mode</td><td><code>n</code></td><td>Toggle new output</td></tr>
+			<tr><td><code>d</code></td><td>Toggle indentation</td><td><code>[ / ]</code></td><td>Punctuation level</td></tr>
+			<tr><td><code>p</code></td><td>Active profile</td><td><code>r</code></td><td>Toggle mark</td></tr>
+			<tr><td><code>c / Shift+C</code></td><td>Copy linear/rectangular</td><td><code>x</code></td><td>Clear marks</td></tr>
+			<tr><td><code>v</code></td><td>Copy mode</td><td><code>w / Shift+W</code></td><td>Read/set window</td></tr>
+			<tr><td><code>Ctrl+W</code></td><td>Clear window</td><td><code>*</code></td><td>Cycle tracking mode</td></tr>
+			<tr><td><code>0-9</code></td><td>Jump to bookmark</td><td><code>Shift+0-9</code></td><td>Set bookmark</td></tr>
+			<tr><td><code>b</code></td><td>List bookmarks</td><td><code>t / Shift+T</code></td><td>New tab / list tabs</td></tr>
+			<tr><td><code>h / g</code></td><td>Prev/next command</td><td><code>Shift+H / Shift+L</code></td><td>Scan/list history</td></tr>
+			<tr><td><code>s</code></td><td>Open settings</td><td><code>F1</code></td><td>Open user guide</td></tr>
+			<tr><td><code>Escape</code></td><td>Exit layer</td><td></td><td></td></tr>
 		</tbody>
 	</table>
 	<div class="note">
@@ -788,6 +801,22 @@
 			<tr>
 				<td><code>NVDA+Shift+F3</code></td>
 				<td>Jump to previous search match</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h3>URL List</h3>
+	<table>
+		<thead>
+			<tr>
+				<th>Command</th>
+				<th>Description</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>NVDA+Alt+U</code></td>
+				<td>List URLs found in terminal output</td>
 			</tr>
 		</tbody>
 	</table>

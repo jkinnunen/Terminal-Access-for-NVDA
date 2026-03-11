@@ -4,6 +4,13 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **URL list (NVDA+Alt+U / command layer: E)**: Extract and list all URLs found in terminal
+  output. Supports HTTP/HTTPS/FTP URLs, www-prefixed URLs, file:// protocol, and OSC 8 terminal
+  hyperlinks. Interactive dialog with filter box, and actions to open in browser, copy to
+  clipboard, or navigate to the line containing the URL.
+
 ## [1.1.0] - 2026-03-03
 
 ### Added

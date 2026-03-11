@@ -89,6 +89,7 @@ These direct gestures can be remapped in NVDA's Input Gestures dialog under "Ter
 | **Home/End** | Jump to start/end of line |
 | **PageUp/Down** | Jump to top/bottom of buffer |
 | **Shift+Arrows** | Read to edge (left/right/up/down) |
+| **E** | List URLs in terminal output |
 | **F** | Search terminal output |
 | **Q** | Toggle quiet mode |
 | **D** | Toggle indentation announcement |
@@ -112,6 +113,7 @@ These direct gestures can be remapped in NVDA's Input Gestures dialog under "Ter
 | **NVDA+Alt+Home/End** | Jump to start/end of line |
 | **NVDA+Alt+PageUp/Down** | Jump to top/bottom of buffer |
 | **NVDA+Alt+Shift+Arrows** | Read to edge (left/right/up/down) |
+| **NVDA+Alt+U** | List URLs in terminal output |
 
 ## Settings (2 minutes)
 

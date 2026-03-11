@@ -93,6 +93,7 @@ import os
 import re
 import time
 import threading
+import webbrowser
 import unicodedata
 from scriptHandler import script
 import scriptHandler
@@ -202,6 +203,8 @@ _COMMAND_LAYER_MAP = {
 	# Help & settings
 	"kb:f1": "showHelp",
 	"kb:s": "openSettings",
+	# URL list (elements)
+	"kb:e": "listUrls",
 	# Layer exit
 	"kb:escape": "exitCommandLayer",
 }
@@ -259,6 +262,7 @@ _DEFAULT_GESTURES = {
 	"kb:NVDA+f": "searchOutput",
 	"kb:NVDA+f3": "findNext",
 	"kb:NVDA+shift+f3": "findPrevious",
+	"kb:NVDA+alt+u": "listUrls",
 }
 
 # Cursor tracking mode constants
@@ -392,6 +396,43 @@ _PROMPT_PATTERNS: list[re.Pattern[str]] = [
 	# Generic prompt with colon or arrow
 	re.compile(r'^[^\s>:]+[>:]\s*(.+)$'),
 ]
+
+# Compiled URL extraction patterns for UrlExtractorManager.
+# OSC 8 hyperlinks embedded by modern terminals: ESC]8;;URL BEL display_text ESC]8;; BEL
+_OSC8_URL_PATTERN: re.Pattern[str] = re.compile(
+	r'\x1b\]8;'           # OSC 8 start
+	r'[^;]*;'             # optional params (id=xxx, etc.)
+	r'([^\x07\x1b]+)'     # capture the URL
+	r'(?:\x07|\x1b\\)'    # BEL or ST terminator
+)
+
+# Plain-text URL pattern applied after ANSI stripping.
+_URL_PATTERN: re.Pattern[str] = re.compile(
+	r'(?:'
+	# Standard http/https/ftp URLs
+	r'(?:https?|ftp)://[^\s<>\[\]()\"\'`{}|\\^]+'
+	r'|'
+	# www. prefixed URLs (common in terminal output)
+	r'www\.[^\s<>\[\]()\"\'`{}|\\^]+'
+	r'|'
+	# file:// protocol
+	r'file://[^\s<>\[\]()\"\'`{}|\\^]+'
+	r')',
+	re.IGNORECASE
+)
+
+
+def _clean_url(url: str) -> str:
+	"""Strip trailing punctuation that is likely not part of the URL."""
+	# Strip trailing periods, commas, semicolons that are almost never URL-final
+	while url and url[-1] in '.,;:!?':
+		url = url[:-1]
+	# Strip unbalanced trailing bracket/paren characters
+	pairs = {'(': ')', '[': ']', '<': '>'}
+	for open_char, close_char in pairs.items():
+		while url.endswith(close_char) and url.count(close_char) > url.count(open_char):
+			url = url[:-1]
+	return url
 
 
 def _read_terminal_text_on_main(terminal_obj, position=None, timeout: float = 2.0):
@@ -4691,6 +4732,272 @@ class CommandHistoryManager:
 		self._tab_manager = tab_manager
 
 
+# ── URL entry data structure ─────────────────────────────────────────
+UrlEntry = collections.namedtuple('UrlEntry', ['url', 'line_num', 'line_text', 'source', 'count'])
+
+
+class UrlExtractorManager:
+	"""
+	Extract and manage URLs found in terminal output.
+
+	Scans terminal buffer for URLs (HTTP/HTTPS/FTP, www-prefixed,
+	file:// protocol, and OSC 8 terminal hyperlinks) and provides
+	a navigable list with copy/open/move-to actions.
+	"""
+
+	def __init__(self, terminal_obj, tab_manager=None):
+		self._terminal = terminal_obj
+		self._tab_manager = tab_manager
+		self._urls: list = []  # list of UrlEntry
+
+	def extract_urls(self) -> list:
+		"""Scan terminal buffer and return deduplicated URLs with context.
+
+		Returns:
+			List of UrlEntry namedtuples ordered by first occurrence.
+		"""
+		if not self._terminal:
+			return []
+
+		try:
+			info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
+			raw_text = info.text
+		except Exception:
+			return []
+
+		if not raw_text:
+			return []
+
+		# Phase 1: Extract OSC 8 hyperlinks from raw text (before ANSI strip)
+		osc8_urls: dict[str, int] = {}  # url -> first line_num
+		raw_lines = raw_text.split('\n')
+		for line_num, line in enumerate(raw_lines, start=1):
+			for match in _OSC8_URL_PATTERN.finditer(line):
+				url = _clean_url(match.group(1).strip())
+				if url and url not in osc8_urls:
+					osc8_urls[url] = line_num
+
+		# Phase 2: Extract plain-text URLs after ANSI stripping
+		clean_text = ANSIParser._STRIP_PATTERN.sub('', raw_text)
+		lines = clean_text.split('\n')
+
+		# Deduplicate preserving first-occurrence order
+		seen: collections.OrderedDict = collections.OrderedDict()
+
+		# Add OSC 8 URLs first
+		for url, line_num in osc8_urls.items():
+			line_text = lines[line_num - 1].strip() if line_num <= len(lines) else ''
+			seen[url] = {'line_num': line_num, 'line_text': line_text, 'source': 'osc8', 'count': 1}
+
+		# Scan each line for plain-text URLs
+		for line_num, line in enumerate(lines, start=1):
+			for match in _URL_PATTERN.finditer(line):
+				url = _clean_url(match.group(0).strip())
+				if not url:
+					continue
+				if url in seen:
+					seen[url]['count'] += 1
+				else:
+					seen[url] = {
+						'line_num': line_num,
+						'line_text': line.strip(),
+						'source': 'text',
+						'count': 1,
+					}
+
+		self._urls = [
+			UrlEntry(url=url, line_num=info['line_num'], line_text=info['line_text'],
+			         source=info['source'], count=info['count'])
+			for url, info in seen.items()
+		]
+		return list(self._urls)
+
+	def get_url_count(self) -> int:
+		"""Return number of extracted URLs."""
+		return len(self._urls)
+
+	def copy_url(self, index: int) -> bool:
+		"""Copy URL at index to clipboard."""
+		if 0 <= index < len(self._urls):
+			api.copyToClip(self._urls[index].url)
+			return True
+		return False
+
+	def open_url(self, index: int) -> bool:
+		"""Open URL at index in default browser."""
+		if 0 <= index < len(self._urls):
+			url = self._urls[index].url
+			# Ensure scheme for www. URLs
+			if url.lower().startswith('www.'):
+				url = 'https://' + url
+			try:
+				webbrowser.open(url)
+				return True
+			except Exception:
+				return False
+		return False
+
+	def update_terminal(self, terminal_obj):
+		"""Update terminal reference and clear cached URLs."""
+		self._terminal = terminal_obj
+		self._urls = []
+
+	def set_tab_manager(self, tab_manager):
+		"""Set or update tab manager."""
+		self._tab_manager = tab_manager
+
+
+class UrlListDialog(wx.Dialog):
+	"""
+	Dialog for displaying and interacting with URLs found in terminal output.
+
+	Modeled after NVDA's Elements List (NVDA+F7) but designed for terminal
+	focus mode where the Elements List is unavailable.
+	"""
+
+	def __init__(self, parent, urls, manager):
+		super().__init__(
+			parent,
+			# Translators: Title for URL list dialog
+			title=_("URL List - Terminal Access"),
+			style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+		)
+		self._urls = urls  # list of UrlEntry
+		self._filtered_urls = list(urls)
+		self._manager = manager
+
+		main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+		# Filter
+		filter_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		# Translators: Label for URL filter text box
+		filter_label = wx.StaticText(self, label=_("&Filter:"))
+		filter_sizer.Add(filter_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+		self._filter_ctrl = wx.TextCtrl(self)
+		self._filter_ctrl.Bind(wx.EVT_TEXT, self._on_filter)
+		filter_sizer.Add(self._filter_ctrl, 1, wx.EXPAND)
+		main_sizer.Add(filter_sizer, 0, wx.EXPAND | wx.ALL, 5)
+
+		# List
+		self._list_ctrl = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+		# Translators: Column header for URL list index
+		self._list_ctrl.InsertColumn(0, _("#"), width=40)
+		# Translators: Column header for URL
+		self._list_ctrl.InsertColumn(1, _("URL"), width=320)
+		# Translators: Column header for line number
+		self._list_ctrl.InsertColumn(2, _("Line"), width=55)
+		# Translators: Column header for line context
+		self._list_ctrl.InsertColumn(3, _("Context"), width=220)
+		self._list_ctrl.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_open)
+		main_sizer.Add(self._list_ctrl, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
+
+		# Buttons
+		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		# Translators: Button to open URL in browser
+		self._open_btn = wx.Button(self, label=_("&Open"))
+		# Translators: Button to copy URL to clipboard
+		self._copy_btn = wx.Button(self, label=_("&Copy URL"))
+		# Translators: Button to move cursor to URL line
+		self._move_btn = wx.Button(self, label=_("&Move to line"))
+		close_btn = wx.Button(self, wx.ID_CLOSE, label=_("Close"))
+
+		self._open_btn.Bind(wx.EVT_BUTTON, self._on_open)
+		self._copy_btn.Bind(wx.EVT_BUTTON, self._on_copy)
+		self._move_btn.Bind(wx.EVT_BUTTON, self._on_move)
+		close_btn.Bind(wx.EVT_BUTTON, self._on_close)
+		self.Bind(wx.EVT_CLOSE, self._on_close)
+
+		btn_sizer.Add(self._open_btn, 0, wx.RIGHT, 5)
+		btn_sizer.Add(self._copy_btn, 0, wx.RIGHT, 5)
+		btn_sizer.Add(self._move_btn, 0, wx.RIGHT, 5)
+		btn_sizer.Add(close_btn, 0)
+		main_sizer.Add(btn_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
+
+		self.SetSizer(main_sizer)
+		self._populate_list()
+		self.SetSize(680, 420)
+		self.CenterOnScreen()
+
+		# Focus the list
+		if self._list_ctrl.GetItemCount() > 0:
+			self._list_ctrl.Select(0)
+			self._list_ctrl.Focus(0)
+			self._list_ctrl.SetFocus()
+		else:
+			self._filter_ctrl.SetFocus()
+
+	def _populate_list(self):
+		"""Fill the list control with the current filtered URLs."""
+		self._list_ctrl.DeleteAllItems()
+		for i, entry in enumerate(self._filtered_urls):
+			idx = self._list_ctrl.InsertItem(i, str(i + 1))
+			self._list_ctrl.SetItem(idx, 1, entry.url)
+			self._list_ctrl.SetItem(idx, 2, str(entry.line_num))
+			context = entry.line_text[:80] if entry.line_text else ''
+			self._list_ctrl.SetItem(idx, 3, context)
+
+	def _on_filter(self, event):
+		"""Filter URLs as the user types."""
+		filter_text = self._filter_ctrl.GetValue().lower()
+		if filter_text:
+			self._filtered_urls = [
+				u for u in self._urls
+				if filter_text in u.url.lower() or filter_text in u.line_text.lower()
+			]
+		else:
+			self._filtered_urls = list(self._urls)
+		self._populate_list()
+		if self._list_ctrl.GetItemCount() > 0:
+			self._list_ctrl.Select(0)
+			self._list_ctrl.Focus(0)
+
+	def _get_selected_index(self) -> int:
+		"""Return the index into _filtered_urls of the selected list item."""
+		return self._list_ctrl.GetFirstSelected()
+
+	def _on_open(self, event):
+		"""Open selected URL in the default browser."""
+		sel = self._get_selected_index()
+		if sel < 0:
+			return
+		entry = self._filtered_urls[sel]
+		url = entry.url
+		if url.lower().startswith('www.'):
+			url = 'https://' + url
+		try:
+			webbrowser.open(url)
+		except Exception:
+			pass
+		self.Close()
+
+	def _on_copy(self, event):
+		"""Copy selected URL to clipboard."""
+		sel = self._get_selected_index()
+		if sel < 0:
+			return
+		api.copyToClip(self._filtered_urls[sel].url)
+		# Translators: Announced after URL is copied
+		ui.message(_("URL copied"))
+		self.Close()
+
+	def _on_move(self, event):
+		"""Close dialog and announce which line the URL is on."""
+		sel = self._get_selected_index()
+		if sel < 0:
+			return
+		entry = self._filtered_urls[sel]
+		self.Close()
+		# Translators: Announced when moving to a URL line
+		ui.message(_("Line {num}: {text}").format(num=entry.line_num, text=entry.line_text[:100]))
+
+	def _on_close(self, event):
+		"""Close the dialog."""
+		if self.IsModal():
+			self.EndModal(wx.ID_CLOSE)
+		else:
+			self.Destroy()
+
+
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""
 	Terminal Access Global Plugin for NVDA
@@ -4757,6 +5064,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	Help:
 		NVDA+Shift+F1    - Open Terminal Access user guide
+
+	URL List:
+		NVDA+Alt+U       - List URLs in terminal output (open, copy, navigate)
 
 	==== DESIGN PATTERNS ====
 	- Base navigation: NVDA+{letter} (no Alt required)
@@ -4866,6 +5176,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# Command history manager for navigation (Section 8.1 - v1.0.31+)
 		self._commandHistoryManager = None  # Initialized when terminal is bound
+
+		# URL extractor manager for URL detection and navigation (Section 8.4)
+		self._urlExtractorManager = None  # Initialized when terminal is bound
 
 		# Track and scope gesture bindings to terminal focus only
 		self._terminalGestures = self._collectTerminalGestures()
@@ -5123,6 +5436,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				# Update terminal reference when terminal is rebound
 				self._commandHistoryManager.update_terminal(obj)
+
+			# Initialize UrlExtractorManager for this terminal (Section 8.4)
+			if not self._urlExtractorManager:
+				self._urlExtractorManager = UrlExtractorManager(obj, self._tabManager)
+			else:
+				self._urlExtractorManager.update_terminal(obj)
 
 			# Clear position cache when switching terminals
 			self._positionCalculator.clear_cache()
@@ -7611,6 +7930,39 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			# Translators: Message when no commands in history
 			ui.message(_("No commands in history"))
+
+	# Section 8.4: URL extraction and navigation (v1.2.0+)
+
+	@script(
+		# Translators: Description for listing URLs in terminal output
+		description=_("List URLs found in terminal output"),
+		gesture="kb:NVDA+alt+u",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_listUrls(self, gesture):
+		"""List and interact with URLs found in terminal output."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+
+		if not self._urlExtractorManager:
+			# Translators: Error when URL extractor not ready
+			ui.message(_("URL list not available"))
+			return
+
+		urls = self._urlExtractorManager.extract_urls()
+
+		if not urls:
+			# Translators: Announced when no URLs found
+			ui.message(_("No URLs found"))
+			return
+
+		def show_url_dialog():
+			dlg = UrlListDialog(gui.mainFrame, urls, self._urlExtractorManager)
+			dlg.ShowModal()
+			dlg.Destroy()
+
+		wx.CallAfter(show_url_dialog)
 
 	# Section 8.2: Output search functionality gestures (v1.0.30+)
 

@@ -89,9 +89,10 @@ While in the command layer, the following keys are active:
 | **Shift+H** | Scan command history |
 | **Shift+L** | List command history |
 
-#### Search
+#### Search & URL List
 | Key | Action |
 |-----|--------|
+| **E** | List URLs found in terminal output |
 | **F** | Search terminal output |
 | **F3** | Next search match |
 | **Shift+F3** | Previous search match |
@@ -110,6 +111,19 @@ When you press **V** in the command layer, you enter copy mode. The keys **L** (
 ### Customizing Gestures
 
 All Terminal Access commands (both layer and direct) are registered under the "Terminal Access" category in NVDA's Input Gestures dialog. You can remap any gesture to suit your workflow.
+
+### URL List
+
+Press **E** in the command layer (or **NVDA+Alt+U** directly) to scan the terminal buffer for URLs. An interactive dialog opens with:
+
+- **Filter box** — type to narrow results
+- **URL list** — shows each URL, its line number, and surrounding text context
+- **Open** (Alt+O) — opens the selected URL in your default browser
+- **Copy URL** (Alt+C) — copies the URL to the clipboard
+- **Move to line** (Alt+M) — announces the line containing the URL
+- **Close** (Escape) — closes the dialog
+
+Supported URL types: HTTP/HTTPS, FTP, www-prefixed, file://, and OSC 8 terminal hyperlinks. Duplicate URLs are deduplicated automatically.
 
 ---
 
