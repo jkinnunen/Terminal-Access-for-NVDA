@@ -86,7 +86,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install build dependencies
-        run: pip install scons
+        run: pip install scons markdown
 
       - name: Extract version from buildVars.py
         id: version
