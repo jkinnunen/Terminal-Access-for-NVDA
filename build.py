@@ -18,21 +18,28 @@ from pathlib import Path
 import buildVars
 
 def generate_manifest():
-	"""Generate manifest.ini from buildVars.py to keep them in sync."""
+	"""Generate manifest.ini from manifest.ini.tpl and buildVars.py."""
 	info = buildVars.addon_info
 	manifest_path = Path("addon") / "manifest.ini"
-	lines = [
-		f'name = "{info["addon_name"]}"',
-		f'summary = "{info["addon_summary"]}"',
-		f'description = "{info["addon_description"]}"',
-		f'author = "{info["addon_author"]}"',
-		f'url = "{info["addon_url"]}"',
-		f'docFileName = "{info["addon_docFileName"]}"',
-		f'minimumNVDAVersion = "{info["addon_minimumNVDAVersion"]}"',
-		f'lastTestedNVDAVersion = "{info["addon_lastTestedNVDAVersion"]}"',
-		f'version = "{info["addon_version"]}"',
-	]
-	manifest_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+	tpl_path = Path("manifest.ini.tpl")
+	if tpl_path.exists():
+		tpl = tpl_path.read_text(encoding="utf-8")
+		content = tpl.format(**info)
+	else:
+		# Fallback: generate directly from addon_info
+		content = (
+			f'name = {info["addon_name"]}\n'
+			f'summary = "{info["addon_summary"]}"\n'
+			f'description = """{info["addon_description"]}"""\n'
+			f'author = "{info["addon_author"]}"\n'
+			f'url = {info["addon_url"]}\n'
+			f'version = {info["addon_version"]}\n'
+			f'docFileName = {info["addon_docFileName"]}\n'
+			f'minimumNVDAVersion = {info["addon_minimumNVDAVersion"]}\n'
+			f'lastTestedNVDAVersion = {info["addon_lastTestedNVDAVersion"]}\n'
+			f'updateChannel = {info["addon_updateChannel"]}\n'
+		)
+	manifest_path.write_text(content, encoding="utf-8")
 	print(f"Generated {manifest_path} (version {info['addon_version']})")
 
 
