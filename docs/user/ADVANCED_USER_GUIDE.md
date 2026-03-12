@@ -123,7 +123,9 @@ Press **E** in the command layer (or **NVDA+Alt+U** directly) to scan the termin
 - **Move to line** (Alt+M) — announces the line containing the URL
 - **Close** (Escape) — closes the dialog
 
-Supported URL types: HTTP/HTTPS, FTP, www-prefixed, file://, and OSC 8 terminal hyperlinks. Duplicate URLs are deduplicated automatically.
+Supported URL types: HTTP/HTTPS, FTP, www-prefixed, and OSC 8 terminal hyperlinks. Duplicate URLs are deduplicated automatically.
+
+**Security note:** URLs with `file://`, `javascript:`, or other non-web schemes are detected and listed but cannot be opened from the dialog. Attempting to open one will produce a spoken message: "Cannot open this URL type for security reasons." This prevents malicious terminal output from tricking users into launching dangerous local resources.
 
 ---
 
@@ -219,6 +221,12 @@ The profile will be added to your installed profiles list. If a profile with the
 
 **Note**: Default profiles (vim, tmux, htop, less, git, nano, irssi) cannot be deleted.
 
+### Profile Setting Overrides
+
+When an application profile is active, its settings override the global Terminal Access settings. For example, if the `less` profile sets `keyEcho = false`, key echo is disabled while `less` is running, regardless of the global setting.
+
+If you toggle a setting (e.g., quiet mode) while a profile is active, the change is saved to that profile's overrides rather than the global settings. When you switch to a different application, the global settings are restored.
+
 ### Creating Custom Profiles
 
 While a profile editor dialog is planned for future releases, you can currently create custom profiles by:
@@ -257,7 +265,7 @@ Example profile JSON structure:
 
 ## Third-Party Terminal Support
 
-**New in v1.0.26**: Terminal Access now supports 13 popular third-party terminal emulators in addition to the 5 built-in Windows terminals.
+Terminal Access supports 23 third-party terminal emulators in addition to the 5 built-in Windows terminals (30 total).
 
 ### Supported Terminals
 
@@ -268,7 +276,7 @@ Example profile JSON structure:
 - **pwsh**: PowerShell Core (cross-platform)
 - **conhost**: Console Host
 
-#### Third-Party Terminal Emulators (v1.0.26+)
+#### Third-Party Terminal Emulators
 
 1. **Cmder**: Portable console emulator for Windows
    - Popular among developers
@@ -319,6 +327,46 @@ Example profile JSON structure:
     - Windows 10/11 native
     - Fluent Design System
     - Touch-friendly
+
+11. **Ghostty**: Fast, native terminal emulator
+    - Written in Zig for performance
+    - Cross-platform with native UI
+
+12. **Rio**: Hardware-accelerated terminal
+    - Written in Rust
+    - GPU-powered rendering
+
+13. **Wave Terminal**: Modern terminal with inline rendering
+    - Inline file previews and widgets
+    - Web-based extensibility
+
+14. **Contour**: GPU-accelerated terminal emulator
+    - VT extensions support
+    - Modern rendering
+
+15. **Cool Retro Term**: Retro CRT terminal emulator
+    - Vintage CRT visual effects
+    - Customizable appearance
+
+16. **MobaXterm**: Enhanced terminal for Windows
+    - Built-in X11 server and SSH client
+    - Tabbed sessions and SFTP browser
+
+17. **SecureCRT**: Professional SSH and terminal emulation
+    - Enterprise-grade remote access
+    - Note: VanDyke SecureFX (SFTP client) is intentionally excluded as it is not a terminal
+
+18. **Tera Term**: Open-source terminal emulator
+    - Lightweight SSH and serial connections
+    - Macro scripting support
+
+19. **mRemoteNG**: Multi-remote connection manager
+    - Supports SSH, RDP, VNC, and more
+    - Tabbed interface for multiple sessions
+
+20. **Royal TS**: Cross-platform remote management
+    - Enterprise connection management
+    - Credential management and team sharing
 
 ### Using Third-Party Terminals
 
@@ -514,6 +562,19 @@ Large rectangular selections (>100 rows) run in background threads:
 - **Progress Dialog**: Shows completion percentage
 - **Cancellation Support**: Cancel long-running operations
 - **Operation Queue**: Prevents overlapping operations
+
+### Native Acceleration
+
+When the native component is available (`termaccess.dll`), CPU-bound text processing is offloaded to compiled Rust code:
+
+- **ANSI escape stripping**: Faster removal of color/formatting codes from terminal output
+- **Text diffing**: Efficient change detection for new output announcements
+- **Search**: Regex and literal pattern matching with built-in ANSI stripping
+- **Unicode width**: Accurate CJK/combining character width calculation using the `unicode-width` crate
+
+A background **helper process** (`termaccess-helper.exe`) reads terminal buffers via UIA on a separate thread, keeping NVDA's main thread responsive. For terminals without UIA TextPattern support (some conhost configurations, mintty, older PuTTY builds), the helper falls back to reading via the Win32 Console API (`ReadConsoleOutputCharacterW`).
+
+All native features fall back gracefully to pure Python when the native components are unavailable — no user action is required.
 
 ---
 

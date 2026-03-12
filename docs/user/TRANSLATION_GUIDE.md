@@ -1,7 +1,7 @@
 # Terminal Access for NVDA - Translation Guide
 
-**Version:** 1.0.32+
-**Last Updated:** 2026-02-21
+**Version:** 1.2.7+
+**Last Updated:** 2026-03-12
 
 ## Overview
 
@@ -15,28 +15,55 @@ This guide explains how to contribute translations for Terminal Access for NVDA.
 addon/
 └── locale/
     ├── tdsr.pot           # Translation template (DO NOT EDIT)
-    ├── es/                # Spanish
+    ├── ar/                # Arabic
     │   └── LC_MESSAGES/
-    │       └── nvda.po    # Spanish translation file
-    ├── fr/                # French
+    │       └── nvda.po
+    ├── cs/                # Czech
     │   └── LC_MESSAGES/
     │       └── nvda.po
     ├── de/                # German
     │   └── LC_MESSAGES/
     │       └── nvda.po
-    ├── pt/                # Portuguese
+    ├── es/                # Spanish
     │   └── LC_MESSAGES/
     │       └── nvda.po
-    ├── zh_CN/             # Chinese (Simplified)
+    ├── fr/                # French
     │   └── LC_MESSAGES/
     │       └── nvda.po
-    ├── zh_TW/             # Chinese (Traditional)
+    ├── hu/                # Hungarian
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    ├── it/                # Italian
     │   └── LC_MESSAGES/
     │       └── nvda.po
     ├── ja/                # Japanese
     │   └── LC_MESSAGES/
     │       └── nvda.po
-    └── ru/                # Russian
+    ├── ko/                # Korean
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    ├── nl/                # Dutch
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    ├── pl/                # Polish
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    ├── pt/                # Portuguese
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    ├── ru/                # Russian
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    ├── tr/                # Turkish
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    ├── uk/                # Ukrainian
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    ├── zh_CN/             # Chinese (Simplified)
+    │   └── LC_MESSAGES/
+    │       └── nvda.po
+    └── zh_TW/             # Chinese (Traditional)
         └── LC_MESSAGES/
             └── nvda.po
 ```

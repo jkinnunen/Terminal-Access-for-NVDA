@@ -69,13 +69,16 @@ Terminal Access enables screen reader users to efficiently navigate and interact
 - **Extract URLs from terminal output** - Press **NVDA+Alt+U** (or `E` in command layer) to scan the buffer for URLs
 - **Interactive dialog** - Filterable list showing URL, line number, and context
 - **Actions** - Open in browser, copy to clipboard, or navigate to the line
-- **Broad URL support** - HTTP/HTTPS, FTP, www-prefixed, file://, and OSC 8 hyperlinks
+- **Broad URL support** - HTTP/HTTPS, FTP, www-prefixed, and OSC 8 hyperlinks (file:// URLs are detected but blocked from opening for security)
 
 ### System Features
 - **Key echo** to hear characters as you type
 - **Quiet mode** to temporarily disable automatic announcements
 - **Copy functionality** for terminal content with flexible selection
 - **Configurable settings** through NVDA's settings dialog
+- **Per-gesture unbinding** - Disable individual direct shortcuts to resolve conflicts with other add-ons
+- **Native acceleration** - CPU-bound text processing offloaded to a native Rust DLL for improved responsiveness, with automatic fallback to pure Python
+- **17 languages** - Arabic, Chinese (Simplified/Traditional), Czech, Dutch, French, German, Hungarian, Italian, Japanese, Korean, Polish, Portuguese, Russian, Spanish, Turkish, Ukrainian
 
 ## Supported Terminals
 
@@ -91,7 +94,7 @@ Terminal Access enables screen reader users to efficiently navigate and interact
 - Automatic detection and optimized profile
 - Full support for Linux commands and tools
 
-**Third-Party Terminal Emulators (13):**
+**Third-Party Terminal Emulators (23):**
 - Cmder - Portable console emulator
 - ConEmu - Console emulator with tabs (32-bit and 64-bit)
 - mintty - Git Bash and Cygwin terminal
@@ -103,8 +106,18 @@ Terminal Access enables screen reader users to efficiently navigate and interact
 - WezTerm - GPU-accelerated with multiplexing
 - Tabby - Modern terminal with SSH support
 - FluentTerminal - UWP-based terminal
+- Ghostty - Fast, native terminal emulator
+- Rio - Hardware-accelerated terminal built with Rust
+- Wave Terminal - Modern terminal with inline rendering
+- Contour - GPU-accelerated terminal with VT extensions
+- Cool Retro Term - Retro CRT terminal emulator
+- MobaXterm - Enhanced terminal with X11 server and SSH
+- SecureCRT - Professional SSH and terminal emulation
+- Tera Term - Open-source terminal emulator
+- mRemoteNG - Multi-remote connection manager
+- Royal TS - Cross-platform remote management
 
-**Total: 19 supported terminal applications (including WSL)**
+**Total: 30 supported terminal applications (including WSL)**
 
 For detailed information about each terminal and third-party terminal support, see the [User Guide](addon/doc/en/readme.html). For WSL-specific information, see [WSL_TESTING_GUIDE.md](docs/user/WSL_TESTING_GUIDE.md).
 
@@ -141,11 +154,11 @@ Terminal Access provides keyboard shortcuts for efficient terminal navigation. F
 - Then press: **i** (current line), **o/u** (next/prev line), **k** (current word), **a** (say all), **f** (search), **Escape** (exit layer)
 
 **Direct Gestures (alternative):**
-- **NVDA+Alt+U/I/O** - Read previous/current/next line
-- **NVDA+Alt+J/K/L** - Read previous/current/next word
-- **NVDA+Alt+F** - Search terminal output
-- **NVDA+Alt+[/]** - Adjust punctuation level
-- **NVDA+Alt+Q** - Toggle quiet mode
+- **NVDA+U/I/O** - Read previous/current/next line
+- **NVDA+J/K/L** - Read previous/current/next word
+- **NVDA+F** - Search terminal output
+- **NVDA+[/]** - Adjust punctuation level
+- **NVDA+Shift+Q** - Toggle quiet mode
 
 All gestures can be remapped in NVDA's Input Gestures dialog under "Terminal Access". For the complete list, see the [User Guide](addon/doc/en/readme.html).
 
@@ -184,6 +197,8 @@ Access Terminal Access settings through:
 **Cursor Delay** - Delay in milliseconds (0-1000) before announcing cursor position changes. Lower values provide instant feedback but may overwhelm during rapid movement. Default: 20ms.
 
 **Default Profile** - Select a profile to use when no application-specific profile is detected. Allows you to have custom settings apply by default rather than global settings. Use NVDA+F10 to check which profile is currently active and which is set as default.
+
+**Direct Gesture Bindings** - A checklist of all direct keyboard shortcuts (e.g., NVDA+I, NVDA+K). Uncheck any gesture to disable it, useful for resolving conflicts with other NVDA add-ons or built-in commands. Unchecked gestures remain accessible through the command layer (NVDA+'). The command layer and help gestures are always available and cannot be disabled.
 
 ### Settings Interactions
 

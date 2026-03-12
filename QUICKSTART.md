@@ -8,8 +8,8 @@ Terminal Access for NVDA is an add-on that enhances terminal accessibility on Wi
 
 ## Installation (1 minute)
 
-1. Download `terminalAccess-1.0.17.nvda-addon`
-2. Press Enter on the file
+1. Download the latest `.nvda-addon` file from the [GitHub Releases page](https://github.com/PratikP1/Terminal-Access-for-NVDA/releases/latest)
+2. Press Enter on the downloaded file
 3. Confirm installation
 4. Restart NVDA
 
