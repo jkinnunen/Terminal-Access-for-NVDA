@@ -8,3 +8,4 @@ description = "Core text processing algorithms for Terminal Access for NVDA"
 [dependencies]
 regex = { workspace = true }
 lru = { workspace = true }
+unicode-width = { workspace = true }

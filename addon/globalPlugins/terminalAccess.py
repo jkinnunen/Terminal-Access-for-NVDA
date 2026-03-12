@@ -1283,6 +1283,12 @@ class UnicodeWidthHelper:
 			int: Display width (0, 1, or 2 columns)
 		"""
 		try:
+			from native.termaccess_bridge import native_char_width, native_available
+			if native_available():
+				return native_char_width(char)
+		except Exception:
+			pass
+		try:
 			import wcwidth
 			width = wcwidth.wcwidth(char)
 			# wcwidth returns -1 for control characters, treat as 0
@@ -1305,6 +1311,12 @@ class UnicodeWidthHelper:
 		Returns:
 			int: Total display width in columns
 		"""
+		try:
+			from native.termaccess_bridge import native_text_width, native_available
+			if native_available():
+				return native_text_width(text)
+		except Exception:
+			pass
 		try:
 			import wcwidth
 			width = wcwidth.wcswidth(text)
@@ -1340,6 +1352,12 @@ class UnicodeWidthHelper:
 		"""
 		if not text:
 			return ""
+		try:
+			from native.termaccess_bridge import native_extract_column_range, native_available
+			if native_available():
+				return native_extract_column_range(text, startCol, endCol)
+		except Exception:
+			pass
 
 		result = []
 		currentCol = 1
@@ -1381,6 +1399,12 @@ class UnicodeWidthHelper:
 		"""
 		if not text:
 			return 0
+		try:
+			from native.termaccess_bridge import native_find_column_position, native_available
+			if native_available():
+				return native_find_column_position(text, targetCol)
+		except Exception:
+			pass
 
 		currentCol = 1
 		for i, char in enumerate(text):

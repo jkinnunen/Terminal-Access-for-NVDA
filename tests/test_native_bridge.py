@@ -32,6 +32,10 @@ try:
 		native_search_text,
 		NativePositionCache,
 		get_native_version,
+		native_char_width,
+		native_text_width,
+		native_extract_column_range,
+		native_find_column_position,
 	)
 	_HAS_NATIVE = native_available()
 except Exception:
@@ -436,6 +440,78 @@ class TestNativeResourceCleanup(unittest.TestCase):
 		for _ in range(1000):
 			result = native_strip_ansi(text)
 			self.assertEqual(len(result), 1000)
+
+
+@unittest.skipUnless(_HAS_NATIVE, _skip_msg)
+class TestUnicodeWidth(unittest.TestCase):
+	"""Tests for native unicode width functions."""
+
+	def test_native_char_width_ascii(self):
+		"""ASCII characters should be width 1."""
+		result = native_char_width('A')
+		self.assertEqual(result, 1)
+
+	def test_native_char_width_cjk(self):
+		"""CJK characters should be width 2."""
+		result = native_char_width('\u4e2d')
+		self.assertEqual(result, 2)
+
+	def test_native_char_width_empty(self):
+		"""Empty string should return 0."""
+		result = native_char_width('')
+		self.assertEqual(result, 0)
+
+	def test_native_text_width_ascii(self):
+		"""Pure ASCII text width equals length."""
+		result = native_text_width("Hello")
+		self.assertEqual(result, 5)
+
+	def test_native_text_width_cjk(self):
+		"""Mixed ASCII and CJK text."""
+		result = native_text_width("Hello\u4e16\u754c")
+		self.assertEqual(result, 9)  # 5 + 2*2
+
+	def test_native_text_width_empty(self):
+		"""Empty text width is 0."""
+		result = native_text_width("")
+		self.assertEqual(result, 0)
+
+	def test_native_extract_column_range_ascii(self):
+		"""Extract from ASCII text."""
+		result = native_extract_column_range("Hello World", 1, 5)
+		self.assertEqual(result, "Hello")
+
+	def test_native_extract_column_range_middle(self):
+		"""Extract middle range from ASCII text."""
+		result = native_extract_column_range("Hello World", 7, 11)
+		self.assertEqual(result, "World")
+
+	def test_native_extract_column_range_cjk(self):
+		"""Extract range with CJK characters."""
+		# A=col1, B=col2, \u4e2d=col3-4, \u6587=col5-6, C=col7, D=col8
+		result = native_extract_column_range("AB\u4e2d\u6587CD", 3, 6)
+		self.assertEqual(result, "\u4e2d\u6587")
+
+	def test_native_extract_column_range_empty(self):
+		"""Empty text returns empty."""
+		result = native_extract_column_range("", 1, 5)
+		self.assertEqual(result, "")
+
+	def test_native_find_column_position(self):
+		"""Find char index for column."""
+		result = native_find_column_position("Hello", 3)
+		self.assertEqual(result, 2)
+
+	def test_native_find_column_position_cjk(self):
+		"""Find char index in CJK text."""
+		# A=col1, B=col2, \u4e2d=col3-4
+		result = native_find_column_position("AB\u4e2d\u6587", 3)
+		self.assertEqual(result, 2)
+
+	def test_native_find_column_position_empty(self):
+		"""Empty text returns 0."""
+		result = native_find_column_position("", 3)
+		self.assertEqual(result, 0)
 
 
 if __name__ == "__main__":

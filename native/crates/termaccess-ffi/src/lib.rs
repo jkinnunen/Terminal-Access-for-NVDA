@@ -44,7 +44,7 @@ pub extern "C" fn ta_version_len() -> usize {
 pub unsafe extern "C" fn ta_free_string(ptr: *mut u8, len: usize) {
     if !ptr.is_null() && len > 0 {
         // Reconstruct the Box<[u8]> and drop it
-        let _ = Box::from_raw(slice::from_raw_parts_mut(ptr, len));
+        let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len));
     }
 }
 
@@ -317,11 +317,11 @@ pub unsafe extern "C" fn ta_search_results_free(results: *mut TaSearchResults) {
         let matches_slice = slice::from_raw_parts(r.matches, r.match_count);
         for m in matches_slice {
             if !m.line_text_ptr.is_null() && m.line_text_len > 0 {
-                let _ = Box::from_raw(slice::from_raw_parts_mut(m.line_text_ptr, m.line_text_len));
+                let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(m.line_text_ptr, m.line_text_len));
             }
         }
         // Then free the matches array itself
-        let _ = Box::from_raw(slice::from_raw_parts_mut(r.matches, r.match_count));
+        let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(r.matches, r.match_count));
     }
 
     (*results).matches = ptr::null_mut();
@@ -441,4 +441,85 @@ pub unsafe extern "C" fn ta_position_cache_invalidate(
     };
 
     (*handle).invalidate(key);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Unicode Width
+// ═══════════════════════════════════════════════════════════════
+
+/// Get display width of a Unicode codepoint.
+/// Returns 0, 1, or 2. Returns 0 for invalid codepoints.
+#[no_mangle]
+pub extern "C" fn ta_char_width(codepoint: u32) -> u32 {
+    match char::from_u32(codepoint) {
+        Some(c) => termaccess_core::unicode_width::char_width(c),
+        None => 0,
+    }
+}
+
+/// Calculate total display width of a UTF-8 text string.
+/// Returns the total width, or u32::MAX on error (null pointer, invalid UTF-8).
+///
+/// # Safety
+/// `text_ptr` must point to `text_len` valid UTF-8 bytes, or be null.
+#[no_mangle]
+pub unsafe extern "C" fn ta_text_width(
+    text_ptr: *const u8,
+    text_len: usize,
+) -> u32 {
+    let text = match read_utf8(text_ptr, text_len) {
+        Ok(s) => s,
+        Err(_) => return u32::MAX,
+    };
+    termaccess_core::unicode_width::text_width(text)
+}
+
+/// Extract text from a column range (1-based, inclusive).
+/// Caller must free *out_ptr via ta_free_string.
+///
+/// # Safety
+/// - `text_ptr` must point to `text_len` valid UTF-8 bytes, or be null.
+/// - `out_ptr` and `out_len` must be valid, non-null pointers.
+#[no_mangle]
+pub unsafe extern "C" fn ta_extract_column_range(
+    text_ptr: *const u8,
+    text_len: usize,
+    start_col: u32,
+    end_col: u32,
+    out_ptr: *mut *mut u8,
+    out_len: *mut usize,
+) -> i32 {
+    if out_ptr.is_null() || out_len.is_null() {
+        return ERR_NULL_POINTER;
+    }
+
+    let text = match read_utf8(text_ptr, text_len) {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+
+    let result = termaccess_core::unicode_width::extract_column_range(text, start_col, end_col);
+    let (ptr, len) = string_to_ffi(result);
+    *out_ptr = ptr;
+    *out_len = len;
+
+    ERR_OK
+}
+
+/// Find the char index for a target column position (1-based).
+/// Returns the 0-based char index, or u32::MAX on error.
+///
+/// # Safety
+/// `text_ptr` must point to `text_len` valid UTF-8 bytes, or be null.
+#[no_mangle]
+pub unsafe extern "C" fn ta_find_column_position(
+    text_ptr: *const u8,
+    text_len: usize,
+    target_col: u32,
+) -> u32 {
+    let text = match read_utf8(text_ptr, text_len) {
+        Ok(s) => s,
+        Err(_) => return u32::MAX,
+    };
+    termaccess_core::unicode_width::find_column_position(text, target_col)
 }
