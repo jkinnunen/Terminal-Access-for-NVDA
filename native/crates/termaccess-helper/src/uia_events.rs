@@ -16,8 +16,6 @@ use std::collections::HashMap;
 use termaccess_core::ansi_strip::strip_ansi;
 use termaccess_core::text_differ::{DiffKind, DiffResult, TextDiffer};
 
-use crate::uia_reader::UiaReader;
-
 /// Per-HWND state: a `TextDiffer` that tracks the last-known text.
 struct TerminalState {
     differ: TextDiffer,
@@ -70,18 +68,25 @@ impl SubscriptionManager {
 
     /// Check all subscribed terminals for text changes.
     ///
-    /// Reads current text from each subscribed HWND via UIA, strips ANSI
-    /// escape sequences, and runs the differ. Returns a list of changes
-    /// for terminals with non-trivial diffs (Initial and Unchanged are
-    /// filtered out).
+    /// The `read_text` closure reads the current text for a given HWND.
+    /// This abstraction allows the caller to try UIA first, then
+    /// Console API, or any other reader — the subscription manager
+    /// doesn't care about the source.
+    ///
+    /// The text is stripped of ANSI escape sequences and diffed.
+    /// Returns changes for terminals with non-trivial diffs (Initial
+    /// and Unchanged are filtered out).
     ///
     /// Terminals that fail to read (e.g. closed window) are silently
     /// skipped — they remain subscribed for retry on the next check.
-    pub fn check(&mut self, reader: &UiaReader) -> Vec<DiffChange> {
+    pub fn check<F>(&mut self, mut read_text: F) -> Vec<DiffChange>
+    where
+        F: FnMut(isize) -> Result<String, std::io::Error>,
+    {
         let mut changes = Vec::new();
 
         for (&hwnd, state) in &mut self.subscriptions {
-            match reader.read_text(hwnd) {
+            match read_text(hwnd) {
                 Ok(raw_text) => {
                     let clean = strip_ansi(&raw_text);
                     let result: DiffResult = state.differ.update(&clean);
@@ -100,7 +105,7 @@ impl SubscriptionManager {
                     }
                 }
                 Err(_) => {
-                    // Terminal might be closed or UIA failed — skip this cycle
+                    // Terminal might be closed or read failed — skip this cycle
                 }
             }
         }

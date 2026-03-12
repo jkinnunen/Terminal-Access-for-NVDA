@@ -39,6 +39,17 @@ pub enum Request {
         id: u64,
         hwnd: isize,
     },
+    /// Search terminal text for a pattern.
+    ///
+    /// The helper reads the terminal buffer via UIA and searches it
+    /// in a single round-trip — no buffer transfer to Python needed.
+    SearchText {
+        id: u64,
+        hwnd: isize,
+        pattern: String,
+        case_sensitive: bool,
+        use_regex: bool,
+    },
     Shutdown {
         id: u64,
     },
@@ -53,6 +64,7 @@ impl Request {
             | Request::ReadLines { id, .. }
             | Request::Subscribe { id, .. }
             | Request::Unsubscribe { id, .. }
+            | Request::SearchText { id, .. }
             | Request::Shutdown { id, .. } => *id,
         }
     }
@@ -61,6 +73,17 @@ impl Request {
 // ═══════════════════════════════════════════════════════════════
 //  Response messages (Rust → Python)
 // ═══════════════════════════════════════════════════════════════
+
+/// A single search match in a `SearchResult` response.
+#[derive(Debug, Clone, Serialize)]
+pub struct SearchMatchResult {
+    /// 0-based line index in the text.
+    pub line_index: u32,
+    /// Character offset within the line where the match starts.
+    pub char_offset: u32,
+    /// The full (ANSI-stripped) text of the matching line.
+    pub line_text: String,
+}
 
 /// A response sent from the helper process to the Python addon.
 #[derive(Debug, Clone, Serialize)]
@@ -83,6 +106,14 @@ pub enum Response {
     },
     UnsubscribeOk {
         id: u64,
+    },
+    /// Search results: matching lines with their indices and offsets.
+    SearchResult {
+        id: u64,
+        matches: Vec<SearchMatchResult>,
+        /// Total number of lines in the terminal buffer.
+        /// Used by the Python bookmark walk to know how many lines to traverse.
+        total_lines: u32,
     },
     Error {
         id: u64,
@@ -443,5 +474,87 @@ mod tests {
         // Verify the length prefix is correct
         let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
         assert_eq!(len as usize, buf.len() - 4);
+    }
+
+    #[test]
+    fn test_search_text_request() {
+        let json = br#"{"type":"search_text","id":10,"hwnd":555,"pattern":"error","case_sensitive":false,"use_regex":false}"#;
+        let req: Request = serde_json::from_slice(json).unwrap();
+        match req {
+            Request::SearchText {
+                id,
+                hwnd,
+                pattern,
+                case_sensitive,
+                use_regex,
+            } => {
+                assert_eq!(id, 10);
+                assert_eq!(hwnd, 555);
+                assert_eq!(pattern, "error");
+                assert!(!case_sensitive);
+                assert!(!use_regex);
+            }
+            _ => panic!("Wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_search_text_request_regex() {
+        let json = br#"{"type":"search_text","id":11,"hwnd":123,"pattern":"^err.*","case_sensitive":true,"use_regex":true}"#;
+        let req: Request = serde_json::from_slice(json).unwrap();
+        match req {
+            Request::SearchText {
+                id,
+                case_sensitive,
+                use_regex,
+                ..
+            } => {
+                assert_eq!(id, 11);
+                assert!(case_sensitive);
+                assert!(use_regex);
+            }
+            _ => panic!("Wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_search_result_response() {
+        let resp = Response::SearchResult {
+            id: 10,
+            matches: vec![
+                SearchMatchResult {
+                    line_index: 0,
+                    char_offset: 5,
+                    line_text: "test error here".to_string(),
+                },
+                SearchMatchResult {
+                    line_index: 3,
+                    char_offset: 0,
+                    line_text: "error: again".to_string(),
+                },
+            ],
+            total_lines: 5,
+        };
+        let json = serde_json::to_string(&Outgoing::Response(resp)).unwrap();
+        assert!(json.contains("\"type\":\"search_result\""));
+        assert!(json.contains("\"id\":10"));
+        assert!(json.contains("\"line_index\":0"));
+        assert!(json.contains("\"char_offset\":5"));
+        assert!(json.contains("test error here"));
+        assert!(json.contains("\"line_index\":3"));
+        assert!(json.contains("\"total_lines\":5"));
+    }
+
+    #[test]
+    fn test_search_result_empty() {
+        let resp = Response::SearchResult {
+            id: 12,
+            matches: vec![],
+            total_lines: 10,
+        };
+        let json = serde_json::to_string(&Outgoing::Response(resp)).unwrap();
+        assert!(json.contains("\"type\":\"search_result\""));
+        assert!(json.contains("\"matches\":[]"));
+        assert!(json.contains("\"total_lines\":10"));
     }
 }

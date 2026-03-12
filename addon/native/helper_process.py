@@ -340,6 +340,56 @@ class HelperProcess:
         except Exception:
             return False
 
+    def search_text(
+        self,
+        hwnd: int,
+        pattern: str,
+        case_sensitive: bool = False,
+        use_regex: bool = False,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Search terminal text via the helper process.
+
+        The helper reads the terminal buffer via UIA and runs the search
+        in a single IPC round-trip — no buffer transfer to Python needed.
+
+        Returns a list of match dicts ``{line_index, char_offset, line_text}``
+        on success, or ``None`` on error.
+
+        Raises ``ValueError`` for invalid regex patterns.
+        """
+        if not self.is_running:
+            return None
+
+        try:
+            resp = self._send_request(
+                "search_text",
+                hwnd=hwnd,
+                pattern=pattern,
+                case_sensitive=case_sensitive,
+                use_regex=use_regex,
+            )
+            if resp is None:
+                return None
+            if resp.get("type") == "search_result":
+                return resp.get("matches", [])
+            if resp.get("type") == "error":
+                code = resp.get("code", "")
+                if code == "invalid_regex":
+                    raise ValueError(
+                        f"Invalid regex pattern: {resp.get('message', pattern)}"
+                    )
+                log.debug(
+                    "search_text error: %s: %s",
+                    code,
+                    resp.get("message"),
+                )
+            return None
+        except ValueError:
+            raise
+        except Exception:
+            log.debug("search_text failed", exc_info=True)
+            return None
+
     # ───────────────────────────────────────────────────────────
     #  Subscription operations
     # ───────────────────────────────────────────────────────────

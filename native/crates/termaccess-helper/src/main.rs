@@ -25,6 +25,7 @@
 //!
 //! Usage: `termaccess-helper.exe --pipe-name \\.\pipe\termaccess-{pid}-{uuid}`
 
+mod console_reader;
 mod pipe_server;
 mod protocol;
 mod security;
@@ -151,17 +152,23 @@ fn run_pipe_loop(pipe_name: &str) -> io::Result<()> {
                     && last_sub_check.elapsed() >= SUBSCRIPTION_CHECK_INTERVAL
                 {
                     last_sub_check = Instant::now();
-                    if let Some(reader) = uia.as_ref() {
-                        let changes = subs.check(reader);
-                        for change in changes {
-                            let notif = Notification::TextDiff {
-                                hwnd: change.hwnd,
-                                kind: change.kind as u32,
-                                content: change.content,
-                            };
-                            if pipe.send_notification(notif).is_err() {
-                                return Ok(());
+                    let changes = subs.check(|hwnd| {
+                        // Try UIA first, then Console API fallback.
+                        if let Some(reader) = uia.as_ref() {
+                            if let Ok(text) = reader.read_text(hwnd) {
+                                return Ok(text);
                             }
+                        }
+                        console_reader::read_console_text(hwnd)
+                    });
+                    for change in changes {
+                        let notif = Notification::TextDiff {
+                            hwnd: change.hwnd,
+                            kind: change.kind as u32,
+                            content: change.content,
+                        };
+                        if pipe.send_notification(notif).is_err() {
+                            return Ok(());
                         }
                     }
                 }
@@ -211,6 +218,27 @@ fn run_pipe_loop(pipe_name: &str) -> io::Result<()> {
     Ok(())
 }
 
+/// Try to read terminal text using UIA first, then Console API fallback.
+///
+/// Returns the text on success, or an error string on failure.
+fn read_text_with_fallback(uia: &Option<UiaReader>, hwnd: isize) -> Result<String, String> {
+    // Try UIA first (preferred — richer content, works with ConPTY).
+    if let Some(reader) = uia {
+        match reader.read_text(hwnd) {
+            Ok(text) => return Ok(text),
+            Err(e) => {
+                eprintln!("UIA read failed for hwnd {hwnd}, trying Console API: {e}");
+            }
+        }
+    }
+
+    // Fallback: Win32 Console API (works for non-UIA conhost terminals).
+    match console_reader::read_console_text(hwnd) {
+        Ok(text) => Ok(text),
+        Err(e) => Err(format!("Both UIA and Console API failed: {e}")),
+    }
+}
+
 /// Process a single request, send the response, return `true` to continue
 /// or `false` on shutdown.
 fn handle_request(
@@ -226,19 +254,16 @@ fn handle_request(
         }
 
         Request::ReadText { id, hwnd } => {
-            let response = match uia {
-                Some(reader) => match reader.read_text(*hwnd) {
-                    Ok(text) => {
-                        let line_count = text.lines().count() as u32;
-                        Response::TextResult {
-                            id: *id,
-                            text,
-                            line_count,
-                        }
+            let response = match read_text_with_fallback(uia, *hwnd) {
+                Ok(text) => {
+                    let line_count = text.lines().count() as u32;
+                    Response::TextResult {
+                        id: *id,
+                        text,
+                        line_count,
                     }
-                    Err(e) => Response::error(*id, "uia_error", e.to_string()),
-                },
-                None => Response::error(*id, "not_ready", "UIA not initialized"),
+                }
+                Err(e) => Response::error(*id, "read_failed", e),
             };
             pipe.send_response(response)?;
             Ok(true)
@@ -250,12 +275,24 @@ fn handle_request(
             start_row,
             end_row,
         } => {
-            let response = match uia {
-                Some(reader) => match reader.read_lines(*hwnd, *start_row, *end_row) {
-                    Ok(lines) => Response::LinesResult { id: *id, lines },
-                    Err(e) => Response::error(*id, "uia_error", e.to_string()),
-                },
-                None => Response::error(*id, "not_ready", "UIA not initialized"),
+            let response = match read_text_with_fallback(uia, *hwnd) {
+                Ok(all_text) => {
+                    let lines: Vec<&str> = all_text.split('\n').collect();
+                    let start = (*start_row - 1).max(0) as usize;
+                    let end = (*end_row as usize).min(lines.len());
+                    if start >= lines.len() {
+                        Response::LinesResult {
+                            id: *id,
+                            lines: Vec::new(),
+                        }
+                    } else {
+                        Response::LinesResult {
+                            id: *id,
+                            lines: lines[start..end].iter().map(|s| s.to_string()).collect(),
+                        }
+                    }
+                }
+                Err(e) => Response::error(*id, "read_failed", e),
             };
             pipe.send_response(response)?;
             Ok(true)
@@ -270,6 +307,41 @@ fn handle_request(
         Request::Unsubscribe { id, hwnd } => {
             subs.unsubscribe(*hwnd);
             pipe.send_response(Response::UnsubscribeOk { id: *id })?;
+            Ok(true)
+        }
+
+        Request::SearchText {
+            id,
+            hwnd,
+            ref pattern,
+            case_sensitive,
+            use_regex,
+        } => {
+            let response = match read_text_with_fallback(uia, *hwnd) {
+                Ok(text) => {
+                    use termaccess_core::search;
+                    let line_count = text.split('\n').count() as u32;
+                    match search::search_text(&text, pattern, *case_sensitive, *use_regex) {
+                        Ok(matches) => Response::SearchResult {
+                            id: *id,
+                            matches: matches
+                                .into_iter()
+                                .map(|m| protocol::SearchMatchResult {
+                                    line_index: m.line_index,
+                                    char_offset: m.char_offset,
+                                    line_text: m.line_text,
+                                })
+                                .collect(),
+                            total_lines: line_count,
+                        },
+                        Err(search::SearchError::InvalidRegex(msg)) => {
+                            Response::error(*id, "invalid_regex", msg)
+                        }
+                    }
+                }
+                Err(e) => Response::error(*id, "read_failed", e),
+            };
+            pipe.send_response(response)?;
             Ok(true)
         }
 

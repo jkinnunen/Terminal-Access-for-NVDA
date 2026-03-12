@@ -4583,48 +4583,116 @@ class OutputSearchManager:
 				return offset if offset >= 0 else 0
 
 		try:
-			# Get all terminal content
-			info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
-			all_text = info.text
+			# ─── Fast path: helper-side search (no buffer transfer) ───
+			# When the helper is running, it reads the terminal buffer via
+			# UIA and searches it in one IPC round-trip.  This avoids the
+			# expensive makeTextInfo(POSITION_ALL) call entirely.
+			helper_search_result = None
+			try:
+				helper = _get_helper()
+			except Exception:
+				helper = None
 
-			if not all_text:
-				return 0
+			if helper is not None and helper.is_running:
+				hwnd = getattr(self._terminal, "windowHandle", None)
+				if hwnd:
+					try:
+						resp = helper.search_text(
+							hwnd, pattern, case_sensitive, use_regex,
+						)
+						if resp is not None:
+							helper_search_result = resp
+					except ValueError:
+						raise
+					except Exception:
+						pass
 
-			# Strip ANSI escape sequences that some terminals leave in the
-			# text buffer.  Without this, embedded formatting codes can
-			# break substring matching for terms the user can clearly see.
-			all_text = _strip_ansi(all_text)
-
-			# Split into lines and build a set of matching line numbers first
-			# (0-indexed internally, converted to 1-indexed for storage).
-			lines = all_text.split('\n')
-
-			if use_regex:
-				flags = 0 if case_sensitive else re.IGNORECASE
-				compiled = re.compile(pattern, flags)
-				matching_indices = [i for i, line in enumerate(lines) if compiled.search(line)]
+			if helper_search_result is not None:
+				# Helper returned matches — build matching_indices and
+				# line_text/offset maps from the response.
+				resp = helper_search_result
+				matching_indices = [m["line_index"] for m in resp.get("matches", [])]
+				native_offset_map = {
+					m["line_index"]: m["char_offset"]
+					for m in resp.get("matches", [])
+				}
+				helper_line_texts = {
+					m["line_index"]: m["line_text"]
+					for m in resp.get("matches", [])
+				}
+				total_lines = resp.get("total_lines", 0)
+				lines = None  # Not available in helper path
 			else:
-				search_pattern = pattern if case_sensitive else pattern.lower()
-				matching_indices = [
-					i for i, line in enumerate(lines)
-					if search_pattern in (line if case_sensitive else line.lower())
-				]
+				# ─── Standard path: read buffer + match locally ───
+				info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
+				all_text = info.text
+
+				if not all_text:
+					return 0
+
+				# Strip ANSI escape sequences that some terminals leave
+				# in the text buffer.
+				all_text = _strip_ansi(all_text)
+
+				# Split into lines and build matching indices.
+				lines = all_text.split('\n')
+				total_lines = len(lines)
+				helper_line_texts = None
+
+				# Try Rust-accelerated search first.
+				native_offset_map = None
+				if _native_available:
+					try:
+						native_matches = _native_search_text(
+							all_text, pattern, case_sensitive, use_regex,
+						)
+						matching_indices = [m[0] for m in native_matches]
+						native_offset_map = {m[0]: m[1] for m in native_matches}
+					except ValueError:
+						raise
+					except Exception:
+						native_offset_map = None
+
+				if native_offset_map is None:
+					# Python fallback: match line by line.
+					if use_regex:
+						flags = 0 if case_sensitive else re.IGNORECASE
+						compiled = re.compile(pattern, flags)
+						matching_indices = [i for i, line in enumerate(lines) if compiled.search(line)]
+					else:
+						search_pattern = pattern if case_sensitive else pattern.lower()
+						matching_indices = [
+							i for i, line in enumerate(lines)
+							if search_pattern in (line if case_sensitive else line.lower())
+						]
 
 			if not matching_indices:
 				return 0
 
+			# ─── Bookmark walk ───
 			# Single forward pass from POSITION_FIRST: walk line by line,
 			# collecting bookmarks only for matching lines.
-			# This replaces the previous per-match O(line_num) walk with a
-			# single O(total_lines) walk for the entire search.
+			def _get_line_text(line_index):
+				"""Get line text from whichever source is available."""
+				if helper_line_texts is not None and line_index in helper_line_texts:
+					return helper_line_texts[line_index]
+				if lines is not None and line_index < len(lines):
+					return lines[line_index]
+				return ""
+
+			walk_end = total_lines - 1 if total_lines > 0 else 0
 			try:
 				cursor = self._terminal.makeTextInfo(textInfos.POSITION_FIRST)
 				match_set = set(matching_indices)
-				for line_index in range(len(lines) - 1 if lines[-1] == '' else len(lines)):
+				for line_index in range(walk_end + 1):
 					if line_index in match_set:
-						char_offset = _find_match_offset(lines[line_index], pattern, case_sensitive, use_regex)
-						_store_match(cursor, lines[line_index], line_index + 1, char_offset)
-					if line_index < len(lines) - 1:
+						line_text = _get_line_text(line_index)
+						if native_offset_map is not None and line_index in native_offset_map:
+							char_offset = native_offset_map[line_index]
+						else:
+							char_offset = _find_match_offset(line_text, pattern, case_sensitive, use_regex)
+						_store_match(cursor, line_text, line_index + 1, char_offset)
+					if line_index < walk_end:
 						moved = cursor.move(textInfos.UNIT_LINE, 1)
 						if not moved:
 							break
@@ -4635,8 +4703,12 @@ class OutputSearchManager:
 					try:
 						line_info = self._terminal.makeTextInfo(textInfos.POSITION_FIRST)
 						line_info.move(textInfos.UNIT_LINE, i)
-						char_offset = _find_match_offset(lines[i], pattern, case_sensitive, use_regex)
-						_store_match(line_info, lines[i], i + 1, char_offset)
+						line_text = _get_line_text(i)
+						if native_offset_map is not None and i in native_offset_map:
+							char_offset = native_offset_map[i]
+						else:
+							char_offset = _find_match_offset(line_text, pattern, case_sensitive, use_regex)
+						_store_match(line_info, line_text, i + 1, char_offset)
 					except Exception:
 						pass
 

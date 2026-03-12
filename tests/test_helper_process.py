@@ -398,5 +398,103 @@ class TestTextDiffDispatch(unittest.TestCase):
         })
 
 
+class TestSearchText(unittest.TestCase):
+    """Verify search_text method on HelperProcess."""
+
+    def setUp(self):
+        with patch("native.helper_process._find_helper_exe", return_value="fake.exe"):
+            self.helper = HelperProcess()
+        # Make the helper appear running
+        self.helper._started = True
+        self.helper._ready.set()
+
+    @patch.object(HelperProcess, "_send_request")
+    def test_search_text_returns_matches(self, mock_send):
+        """search_text returns match list on success."""
+        mock_send.return_value = {
+            "type": "search_result",
+            "matches": [
+                {"line_index": 0, "char_offset": 5, "line_text": "test error here"},
+                {"line_index": 3, "char_offset": 0, "line_text": "error: again"},
+            ],
+            "total_lines": 5,
+        }
+        result = self.helper.search_text(12345, "error")
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["line_index"], 0)
+        self.assertEqual(result[0]["char_offset"], 5)
+        self.assertEqual(result[1]["line_text"], "error: again")
+
+    @patch.object(HelperProcess, "_send_request")
+    def test_search_text_empty_matches(self, mock_send):
+        """search_text returns empty list when no matches found."""
+        mock_send.return_value = {
+            "type": "search_result",
+            "matches": [],
+            "total_lines": 10,
+        }
+        result = self.helper.search_text(12345, "notfound")
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result), 0)
+
+    @patch.object(HelperProcess, "_send_request")
+    def test_search_text_error_returns_none(self, mock_send):
+        """search_text returns None on generic error."""
+        mock_send.return_value = {
+            "type": "error",
+            "id": 1,
+            "code": "uia_error",
+            "message": "Window not found",
+        }
+        result = self.helper.search_text(12345, "error")
+        self.assertIsNone(result)
+
+    @patch.object(HelperProcess, "_send_request")
+    def test_search_text_invalid_regex_raises(self, mock_send):
+        """search_text raises ValueError for invalid regex."""
+        mock_send.return_value = {
+            "type": "error",
+            "id": 1,
+            "code": "invalid_regex",
+            "message": "Invalid regex pattern: [invalid",
+        }
+        with self.assertRaises(ValueError):
+            self.helper.search_text(12345, "[invalid", use_regex=True)
+
+    @patch.object(HelperProcess, "_send_request")
+    def test_search_text_passes_params(self, mock_send):
+        """search_text passes all parameters to _send_request."""
+        mock_send.return_value = {
+            "type": "search_result",
+            "matches": [],
+            "total_lines": 0,
+        }
+        self.helper.search_text(
+            999, "pattern", case_sensitive=True, use_regex=True,
+        )
+        mock_send.assert_called_once_with(
+            "search_text",
+            hwnd=999,
+            pattern="pattern",
+            case_sensitive=True,
+            use_regex=True,
+        )
+
+    def test_search_text_not_running_returns_none(self):
+        """search_text returns None when helper is not running."""
+        self.helper._started = False
+        self.helper._ready.clear()
+        result = self.helper.search_text(12345, "error")
+        self.assertIsNone(result)
+
+    @patch.object(HelperProcess, "_send_request")
+    def test_search_text_none_response_returns_none(self, mock_send):
+        """search_text returns None when _send_request returns None."""
+        mock_send.return_value = None
+        result = self.helper.search_text(12345, "error")
+        self.assertIsNone(result)
+
+
 if __name__ == "__main__":
     unittest.main()
