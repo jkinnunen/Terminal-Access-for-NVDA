@@ -56,10 +56,11 @@ impl SubscriptionManager {
             match reader.read_text(hwnd) {
                 Ok(text) => {
                     if text != *last_text {
+                        // Check BEFORE updating: skip the initial empty →
+                        // first-read transition to avoid flooding on subscribe.
+                        let was_empty = last_text.is_empty();
                         *last_text = text.clone();
-                        // Skip the initial empty → first-read transition
-                        // to avoid flooding on subscribe.
-                        if !last_text.is_empty() || !changes.is_empty() {
+                        if !was_empty {
                             changes.push((hwnd, text));
                         }
                     }

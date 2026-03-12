@@ -137,7 +137,11 @@ class TestMaybeRestart(unittest.TestCase):
         self.helper._restart_count = 3
 
         # Simulate successful start: _start_process sets _restart_count=0
+        # and restores _proc (which _maybe_restart clears during cleanup)
         def fake_start():
+            mock_proc = MagicMock()
+            mock_proc.pid = 9999
+            self.helper._proc = mock_proc
             self.helper._started = True
             self.helper._ready.set()
             self.helper._restart_count = 0
@@ -147,13 +151,43 @@ class TestMaybeRestart(unittest.TestCase):
         self.assertEqual(self.helper._restart_count, 0)
 
     @patch.object(HelperProcess, "_start_process", side_effect=RuntimeError("boom"))
-    def test_restart_failure_does_not_crash(self, mock_start):
-        """_start_process failure is caught, no exception raised."""
+    def test_restart_failure_retries_until_max(self, mock_start):
+        """_start_process failures are caught and retried up to max attempts."""
         self.helper._stopping = False
         self.helper._restart_count = 0
-        # Should not raise
+
+        # Capture dispatched notifications
+        dispatched = []
+        self.helper._dispatch_notification = lambda msg: dispatched.append(msg)
+
+        # Should not raise — retries all 6 attempts, then gives up
         self.helper._maybe_restart()
-        self.assertEqual(self.helper._restart_count, 1)
+        self.assertEqual(
+            self.helper._restart_count, HelperProcess._MAX_RESTART_ATTEMPTS
+        )
+        self.assertEqual(mock_start.call_count, HelperProcess._MAX_RESTART_ATTEMPTS)
+        # Should have dispatched helper_crashed after exhausting retries
+        self.assertEqual(len(dispatched), 1)
+        self.assertEqual(dispatched[0]["type"], "helper_crashed")
+
+    @patch.object(HelperProcess, "_start_process", side_effect=RuntimeError("boom"))
+    def test_stopping_during_retry_loop_exits(self, mock_start):
+        """Setting _stopping during retry loop causes _maybe_restart to exit."""
+        self.helper._stopping = False
+        self.helper._restart_count = 0
+
+        call_count = [0]
+        original_sleep = self.mock_sleep.side_effect
+
+        def stop_after_two_sleeps(delay):
+            call_count[0] += 1
+            if call_count[0] >= 2:
+                self.helper._stopping = True
+
+        self.mock_sleep.side_effect = stop_after_two_sleeps
+        self.helper._maybe_restart()
+        # Should have stopped early, not reached max attempts
+        self.assertLess(self.helper._restart_count, HelperProcess._MAX_RESTART_ATTEMPTS)
 
 
 class TestSubscribedHwndsTracking(unittest.TestCase):

@@ -633,57 +633,88 @@ class HelperProcess:
                 log.debug("Notification callback error", exc_info=True)
 
     # ───────────────────────────────────────────────────────────
-    #  Auto-restart (for future use)
+    #  Auto-restart with exponential backoff
     # ───────────────────────────────────────────────────────────
 
     def _maybe_restart(self):
         """Attempt to restart the helper after a crash.
 
         Uses exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s (cap).
-        Gives up after ``_MAX_RESTART_ATTEMPTS`` consecutive failures and
-        dispatches a ``helper_crashed`` notification so subscribers can
-        fall back to polling.
+        Retries up to ``_MAX_RESTART_ATTEMPTS`` consecutive failures,
+        then dispatches a ``helper_crashed`` notification so subscribers
+        can fall back to polling.
+
+        Runs iteratively to handle consecutive failures without
+        recursion or leaving the helper permanently dead.
         """
-        if self._stopping:
-            return
+        while True:
+            if self._stopping:
+                return
 
-        if self._restart_count >= self._MAX_RESTART_ATTEMPTS:
-            log.error(
-                "Helper restart limit reached (%d attempts), giving up",
+            if self._restart_count >= self._MAX_RESTART_ATTEMPTS:
+                log.error(
+                    "Helper restart limit reached (%d attempts), giving up",
+                    self._restart_count,
+                )
+                self._dispatch_notification({"type": "helper_crashed"})
+                return
+
+            idx = min(self._restart_count, len(self._RESTART_DELAYS) - 1)
+            delay = self._RESTART_DELAYS[idx]
+            self._restart_count += 1
+
+            log.warning(
+                "Helper crashed, restarting in %.1fs (attempt %d/%d)",
+                delay,
                 self._restart_count,
+                self._MAX_RESTART_ATTEMPTS,
             )
-            self._dispatch_notification({"type": "helper_crashed"})
-            return
 
-        idx = min(self._restart_count, len(self._RESTART_DELAYS) - 1)
-        delay = self._RESTART_DELAYS[idx]
-        self._restart_count += 1
+            self._close_pipe()
+            self._started = False
+            self._ready.clear()
 
-        log.warning(
-            "Helper crashed, restarting in %.1fs (attempt %d/%d)",
-            delay,
-            self._restart_count,
-            self._MAX_RESTART_ATTEMPTS,
-        )
-
-        self._close_pipe()
-        self._started = False
-        self._ready.clear()
-
-        time.sleep(delay)
-
-        try:
-            self._start_process()
-            log.info("Helper restarted successfully (PID %d)", self._proc.pid)
-            # Re-subscribe any active HWNDs
-            for hwnd in list(self._subscribed_hwnds):
+            # Clean up the old process to avoid handle leaks
+            old_proc = self._proc
+            self._proc = None
+            if old_proc is not None:
                 try:
-                    resp = self._send_request("subscribe", hwnd=hwnd)
-                    if resp and resp.get("type") == "subscribe_ok":
-                        log.debug("Re-subscribed hwnd %d after restart", hwnd)
-                    else:
-                        self._subscribed_hwnds.discard(hwnd)
+                    old_proc.wait(timeout=1.0)
+                except subprocess.TimeoutExpired:
+                    old_proc.kill()
+                    try:
+                        old_proc.wait(timeout=1.0)
+                    except Exception:
+                        pass
                 except Exception:
-                    self._subscribed_hwnds.discard(hwnd)
-        except Exception:
-            log.exception("Failed to restart helper (attempt %d)", self._restart_count)
+                    pass
+
+            time.sleep(delay)
+
+            # Re-check stopping flag after the sleep — stop() may have
+            # been called while we were waiting.
+            if self._stopping:
+                return
+
+            try:
+                self._start_process()
+                pid = self._proc.pid if self._proc else 0
+                log.info("Helper restarted successfully (PID %d)", pid)
+                # Re-subscribe any active HWNDs
+                for hwnd in list(self._subscribed_hwnds):
+                    try:
+                        resp = self._send_request("subscribe", hwnd=hwnd)
+                        if resp and resp.get("type") == "subscribe_ok":
+                            log.debug("Re-subscribed hwnd %d after restart", hwnd)
+                        else:
+                            self._subscribed_hwnds.discard(hwnd)
+                    except Exception:
+                        self._subscribed_hwnds.discard(hwnd)
+                return  # Restart succeeded — the new reader thread takes over
+            except Exception:
+                log.exception(
+                    "Failed to restart helper (attempt %d/%d)",
+                    self._restart_count,
+                    self._MAX_RESTART_ATTEMPTS,
+                )
+                # Loop back to try again with the next backoff delay

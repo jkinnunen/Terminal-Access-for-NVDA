@@ -63,8 +63,9 @@ fn string_to_ffi(s: String) -> (*mut u8, usize) {
 /// Read a UTF-8 string from a raw pointer + length.
 ///
 /// # Safety
-/// `ptr` must point to `len` valid UTF-8 bytes, or be null (returns empty).
-unsafe fn read_utf8(ptr: *const u8, len: usize) -> Result<&'static str, i32> {
+/// `ptr` must point to `len` valid UTF-8 bytes that remain valid for `'a`,
+/// or be null (returns empty).
+unsafe fn read_utf8<'a>(ptr: *const u8, len: usize) -> Result<&'a str, i32> {
     if ptr.is_null() || len == 0 {
         return Ok("");
     }
