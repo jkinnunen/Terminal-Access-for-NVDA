@@ -606,15 +606,19 @@ def get_helper():
 	"""Get or create the singleton HelperProcess instance.
 
 	Uses double-check locking for thread safety.  The helper is
-	started lazily on first call.  Returns the HelperProcess
-	instance, or None if it could not be started.
+	started lazily on first call.  Returns the running instance,
+	or None if unavailable.
+
+	If the helper exists but is not running (crashed and auto-restarting),
+	returns None so callers fall back gracefully.  The existing instance
+	handles its own restart via ``_maybe_restart()``.
 	"""
 	global _helper_instance
-	if _helper_instance is not None and _helper_instance.is_running:
-		return _helper_instance
+	if _helper_instance is not None:
+		return _helper_instance if _helper_instance.is_running else None
 	with _helper_lock:
-		if _helper_instance is not None and _helper_instance.is_running:
-			return _helper_instance
+		if _helper_instance is not None:
+			return _helper_instance if _helper_instance.is_running else None
 		try:
 			from native.helper_process import HelperProcess
 			helper = HelperProcess()

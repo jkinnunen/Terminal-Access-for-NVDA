@@ -293,5 +293,64 @@ class TestHelperProcess(unittest.TestCase):
         self.assertEqual(resp["id"], 8)
 
 
+    def test_rapid_pings(self):
+        """100 rapid pings all get correct responses."""
+        self.client.read_message()  # helper_ready
+
+        for i in range(100):
+            self.client.write_message({"type": "ping", "id": 1000 + i})
+
+        for i in range(100):
+            resp = self.client.read_message()
+            self.assertIsNotNone(resp, f"No response for ping {i}")
+            self.assertEqual(resp["type"], "pong")
+            self.assertEqual(resp["id"], 1000 + i)
+
+    def test_subscribe_unsubscribe_rapid(self):
+        """Rapid subscribe/unsubscribe cycles don't crash."""
+        self.client.read_message()  # helper_ready
+
+        for i in range(10):
+            self.client.write_message({
+                "type": "subscribe", "id": 2000 + i * 2, "hwnd": 99999,
+            })
+            resp = self.client.read_message()
+            self.assertIsNotNone(resp)
+            self.assertEqual(resp["type"], "subscribe_ok")
+
+            self.client.write_message({
+                "type": "unsubscribe", "id": 2001 + i * 2, "hwnd": 99999,
+            })
+            resp = self.client.read_message()
+            self.assertIsNotNone(resp)
+            self.assertEqual(resp["type"], "unsubscribe_ok")
+
+    def test_pipe_disconnect_exits(self):
+        """Client closing the pipe causes helper to exit promptly."""
+        self.client.read_message()  # helper_ready
+        self.client.close()
+        # Helper should exit within a few seconds (broken pipe detection)
+        exit_code = self.proc.wait(timeout=5)
+        self.assertIsNotNone(exit_code)
+        # Prevent tearDown from trying to kill an already-exited process
+        self.proc = subprocess.Popen(
+            ["cmd", "/c", "exit", "0"],
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+
+    def test_unknown_message_returns_error(self):
+        """Unknown message type returns an error response (id=0)."""
+        self.client.read_message()  # helper_ready
+
+        self.client.write_message({"type": "nonexistent", "id": 42})
+        resp = self.client.read_message()
+        self.assertIsNotNone(resp)
+        self.assertEqual(resp["type"], "error")
+        # The helper can't deserialize the unknown type so it doesn't
+        # have access to the original id — returns id=0.
+        self.assertEqual(resp["id"], 0)
+        self.assertEqual(resp["code"], "invalid_request")
+
+
 if __name__ == "__main__":
     unittest.main()

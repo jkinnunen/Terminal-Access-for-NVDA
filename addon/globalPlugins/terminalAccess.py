@@ -3546,6 +3546,7 @@ class NewOutputAnnouncer:
 				try:
 					if helper.subscribe(hwnd, on_text_changed=self._on_text_changed):
 						self._subscribed_hwnd = hwnd
+						helper.on("helper_crashed", self._on_helper_crashed)
 						log.debug("Subscribed to hwnd %d via helper", hwnd)
 						return
 				except Exception:
@@ -3570,6 +3571,7 @@ class NewOutputAnnouncer:
 				try:
 					helper.unsubscribe(hwnd)
 					helper.off("text_changed", self._on_text_changed)
+					helper.off("helper_crashed", self._on_helper_crashed)
 				except Exception:
 					pass
 			self._subscribed_hwnd = None
@@ -3589,6 +3591,26 @@ class NewOutputAnnouncer:
 		subscribed = getattr(self, "_subscribed_hwnd", None)
 		if subscribed is not None and hwnd == subscribed and text:
 			self.feed(text)
+
+	def _on_helper_crashed(self, msg) -> None:
+		"""Callback when the helper process gives up restarting.
+
+		Falls back to polling mode so output detection continues even
+		after the helper dies permanently.
+		"""
+		if getattr(self, "_subscribed_hwnd", None) is None:
+			return  # Not in subscription mode
+
+		log.warning("Helper crashed permanently, falling back to polling")
+		self._subscribed_hwnd = None
+
+		# Start polling thread as fallback
+		if self._poll_thread is None:
+			self._stop_polling.clear()
+			self._poll_thread = threading.Thread(
+				target=self._poll_loop, daemon=True
+			)
+			self._poll_thread.start()
 
 	def _poll_loop(self) -> None:
 		"""

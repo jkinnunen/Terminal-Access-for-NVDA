@@ -174,6 +174,18 @@ fn run_pipe_loop(pipe_name: &str) -> io::Result<()> {
                         if e.kind() == io::ErrorKind::BrokenPipe {
                             break;
                         }
+                        if e.kind() == io::ErrorKind::InvalidData {
+                            // Unknown message type or malformed JSON — try to
+                            // extract the id and send an error response so the
+                            // client doesn't hang.
+                            eprintln!("Ignoring invalid request: {e}");
+                            let _ = pipe.send_response(Response::Error {
+                                id: 0,
+                                code: "invalid_request".into(),
+                                message: e.to_string(),
+                            });
+                            continue;
+                        }
                         return Err(e);
                     }
                 };

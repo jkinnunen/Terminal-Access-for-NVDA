@@ -179,6 +179,9 @@ class HelperProcess:
     # Auto-restart backoff parameters
     _RESTART_DELAYS = [1.0, 2.0, 4.0, 8.0, 16.0, 30.0]
 
+    # Stop trying to restart after this many consecutive failures
+    _MAX_RESTART_ATTEMPTS = 6
+
     # Timeout for waiting for a response (seconds)
     _RESPONSE_TIMEOUT = 5.0
 
@@ -200,6 +203,9 @@ class HelperProcess:
         # Notification callbacks: type → list of callbacks
         self._notification_callbacks: Dict[str, List[Callable]] = {}
         self._callback_lock = threading.Lock()
+
+        # Track subscribed HWNDs for re-subscribe on restart
+        self._subscribed_hwnds: set = set()
 
         self._stopping = False
         self._restart_count = 0
@@ -356,7 +362,10 @@ class HelperProcess:
 
         try:
             resp = self._send_request("subscribe", hwnd=hwnd)
-            return resp is not None and resp.get("type") == "subscribe_ok"
+            if resp is not None and resp.get("type") == "subscribe_ok":
+                self._subscribed_hwnds.add(hwnd)
+                return True
+            return False
         except Exception:
             log.debug("subscribe failed", exc_info=True)
             return False
@@ -371,7 +380,10 @@ class HelperProcess:
 
         try:
             resp = self._send_request("unsubscribe", hwnd=hwnd)
-            return resp is not None and resp.get("type") == "unsubscribe_ok"
+            if resp is not None and resp.get("type") == "unsubscribe_ok":
+                self._subscribed_hwnds.discard(hwnd)
+                return True
+            return False
         except Exception:
             log.debug("unsubscribe failed", exc_info=True)
             return False
@@ -597,12 +609,13 @@ class HelperProcess:
                 # This is a notification — dispatch to callbacks
                 self._dispatch_notification(msg)
 
-        # If we exit unexpectedly, wake up any waiting callers
+        # If we exit unexpectedly, wake up any waiting callers and restart
         if not self._stopping:
             log.warning("Helper reader thread exiting (pipe closed)")
             with self._pending_lock:
                 for pending in self._pending.values():
                     pending.set({"type": "error", "code": "disconnected", "message": "Pipe closed"})
+            self._maybe_restart()
 
     def _dispatch_notification(self, msg: Dict[str, Any]):
         """Dispatch a notification message to registered callbacks."""
@@ -627,8 +640,19 @@ class HelperProcess:
         """Attempt to restart the helper after a crash.
 
         Uses exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s (cap).
+        Gives up after ``_MAX_RESTART_ATTEMPTS`` consecutive failures and
+        dispatches a ``helper_crashed`` notification so subscribers can
+        fall back to polling.
         """
         if self._stopping:
+            return
+
+        if self._restart_count >= self._MAX_RESTART_ATTEMPTS:
+            log.error(
+                "Helper restart limit reached (%d attempts), giving up",
+                self._restart_count,
+            )
+            self._dispatch_notification({"type": "helper_crashed"})
             return
 
         idx = min(self._restart_count, len(self._RESTART_DELAYS) - 1)
@@ -636,9 +660,10 @@ class HelperProcess:
         self._restart_count += 1
 
         log.warning(
-            "Helper crashed, restarting in %.1fs (attempt %d)",
+            "Helper crashed, restarting in %.1fs (attempt %d/%d)",
             delay,
             self._restart_count,
+            self._MAX_RESTART_ATTEMPTS,
         )
 
         self._close_pipe()
@@ -649,6 +674,16 @@ class HelperProcess:
 
         try:
             self._start_process()
-            log.info("Helper restarted successfully")
+            log.info("Helper restarted successfully (PID %d)", self._proc.pid)
+            # Re-subscribe any active HWNDs
+            for hwnd in list(self._subscribed_hwnds):
+                try:
+                    resp = self._send_request("subscribe", hwnd=hwnd)
+                    if resp and resp.get("type") == "subscribe_ok":
+                        log.debug("Re-subscribed hwnd %d after restart", hwnd)
+                    else:
+                        self._subscribed_hwnds.discard(hwnd)
+                except Exception:
+                    self._subscribed_hwnds.discard(hwnd)
         except Exception:
-            log.exception("Failed to restart helper")
+            log.exception("Failed to restart helper (attempt %d)", self._restart_count)
