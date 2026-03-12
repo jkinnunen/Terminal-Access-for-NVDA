@@ -305,5 +305,98 @@ class TestNotificationCallbacks(unittest.TestCase):
         self.assertEqual(received[0]["type"], "helper_crashed")
 
 
+class TestTextDiffDispatch(unittest.TestCase):
+    """Verify text_diff notification dispatch and backward compatibility."""
+
+    def setUp(self):
+        with patch("native.helper_process._find_helper_exe", return_value=None):
+            self.helper = HelperProcess()
+
+    def test_text_diff_appended_dispatches_to_diff_listener(self):
+        """text_diff with kind=2 (Appended) dispatches to text_diff callbacks."""
+        received = []
+        self.helper.on("text_diff", lambda h, k, c: received.append((h, k, c)))
+        self.helper._dispatch_notification({
+            "type": "text_diff", "hwnd": 100, "kind": 2, "content": "new line\n"
+        })
+        self.assertEqual(received, [(100, 2, "new line\n")])
+
+    def test_text_diff_appended_backward_compat(self):
+        """text_diff with kind=2 also dispatches to text_changed listeners."""
+        received_diff = []
+        received_changed = []
+        self.helper.on("text_diff", lambda h, k, c: received_diff.append((h, k, c)))
+        self.helper.on("text_changed", lambda h, t: received_changed.append((h, t)))
+        self.helper._dispatch_notification({
+            "type": "text_diff", "hwnd": 100, "kind": 2, "content": "new line\n"
+        })
+        # Both should receive the notification
+        self.assertEqual(len(received_diff), 1)
+        self.assertEqual(len(received_changed), 1)
+        self.assertEqual(received_changed[0], (100, "new line\n"))
+
+    def test_text_diff_last_line_updated_dispatches(self):
+        """text_diff with kind=4 (LastLineUpdated) dispatches correctly."""
+        received = []
+        self.helper.on("text_diff", lambda h, k, c: received.append((h, k, c)))
+        self.helper._dispatch_notification({
+            "type": "text_diff", "hwnd": 200, "kind": 4, "content": "progress: 75%"
+        })
+        self.assertEqual(received, [(200, 4, "progress: 75%")])
+
+    def test_text_diff_last_line_updated_backward_compat(self):
+        """text_diff with kind=4 also dispatches to text_changed."""
+        received = []
+        self.helper.on("text_changed", lambda h, t: received.append((h, t)))
+        self.helper._dispatch_notification({
+            "type": "text_diff", "hwnd": 200, "kind": 4, "content": "progress: 75%"
+        })
+        self.assertEqual(received, [(200, "progress: 75%")])
+
+    def test_text_diff_changed_empty_content_no_backward_compat(self):
+        """text_diff with kind=3 (Changed) and empty content skips text_changed."""
+        received_diff = []
+        received_changed = []
+        self.helper.on("text_diff", lambda h, k, c: received_diff.append((h, k, c)))
+        self.helper.on("text_changed", lambda h, t: received_changed.append((h, t)))
+        self.helper._dispatch_notification({
+            "type": "text_diff", "hwnd": 300, "kind": 3, "content": ""
+        })
+        # text_diff should receive it
+        self.assertEqual(len(received_diff), 1)
+        self.assertEqual(received_diff[0], (300, 3, ""))
+        # text_changed should NOT (empty content)
+        self.assertEqual(len(received_changed), 0)
+
+    def test_text_diff_initial_no_backward_compat(self):
+        """text_diff with kind=0 (Initial) does not dispatch to text_changed."""
+        received = []
+        self.helper.on("text_changed", lambda h, t: received.append((h, t)))
+        self.helper._dispatch_notification({
+            "type": "text_diff", "hwnd": 400, "kind": 0, "content": ""
+        })
+        self.assertEqual(len(received), 0)
+
+    def test_text_diff_unchanged_no_backward_compat(self):
+        """text_diff with kind=1 (Unchanged) does not dispatch to text_changed."""
+        received = []
+        self.helper.on("text_changed", lambda h, t: received.append((h, t)))
+        self.helper._dispatch_notification({
+            "type": "text_diff", "hwnd": 500, "kind": 1, "content": ""
+        })
+        self.assertEqual(len(received), 0)
+
+    def test_text_diff_callback_error_does_not_crash(self):
+        """Callback exceptions in text_diff handling don't propagate."""
+        def bad_callback(h, k, c):
+            raise RuntimeError("oops")
+
+        self.helper.on("text_diff", bad_callback)
+        # Should not raise
+        self.helper._dispatch_notification({
+            "type": "text_diff", "hwnd": 600, "kind": 2, "content": "test"
+        })
+
+
 if __name__ == "__main__":
     unittest.main()

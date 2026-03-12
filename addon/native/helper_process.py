@@ -618,8 +618,47 @@ class HelperProcess:
             self._maybe_restart()
 
     def _dispatch_notification(self, msg: Dict[str, Any]):
-        """Dispatch a notification message to registered callbacks."""
+        """Dispatch a notification message to registered callbacks.
+
+        Handles ``text_diff`` (diff-based), ``text_changed`` (full-text,
+        backward compat), and generic notifications.
+
+        For ``text_diff``, callbacks receive ``(hwnd, kind, content)``.
+        For backward compatibility, ``text_diff`` with actionable content
+        (kind 2=Appended, 3=Changed, 4=LastLineUpdated) also dispatches
+        to ``text_changed`` listeners with ``(hwnd, content)``.
+        """
         msg_type = msg.get("type", "")
+
+        if msg_type == "text_diff":
+            hwnd = msg.get("hwnd", 0)
+            kind = msg.get("kind", 0)
+            content = msg.get("content", "")
+
+            # Dispatch to text_diff listeners: cb(hwnd, kind, content)
+            with self._callback_lock:
+                diff_cbs = list(self._notification_callbacks.get("text_diff", []))
+            for cb in diff_cbs:
+                try:
+                    cb(hwnd, kind, content)
+                except Exception:
+                    log.debug("text_diff callback error", exc_info=True)
+
+            # Backward compat: also dispatch to text_changed listeners
+            # for kinds that carry actionable content.
+            # kind 2=Appended, 3=Changed, 4=LastLineUpdated
+            if kind in (2, 3, 4) and content:
+                with self._callback_lock:
+                    changed_cbs = list(
+                        self._notification_callbacks.get("text_changed", [])
+                    )
+                for cb in changed_cbs:
+                    try:
+                        cb(hwnd, content)
+                    except Exception:
+                        log.debug("text_changed compat callback error", exc_info=True)
+            return
+
         with self._callback_lock:
             callbacks = list(self._notification_callbacks.get(msg_type, []))
 

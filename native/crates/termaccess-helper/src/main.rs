@@ -153,8 +153,12 @@ fn run_pipe_loop(pipe_name: &str) -> io::Result<()> {
                     last_sub_check = Instant::now();
                     if let Some(reader) = uia.as_ref() {
                         let changes = subs.check(reader);
-                        for (hwnd, text) in changes {
-                            let notif = Notification::TextChanged { hwnd, text };
+                        for change in changes {
+                            let notif = Notification::TextDiff {
+                                hwnd: change.hwnd,
+                                kind: change.kind as u32,
+                                content: change.content,
+                            };
                             if pipe.send_notification(notif).is_err() {
                                 return Ok(());
                             }

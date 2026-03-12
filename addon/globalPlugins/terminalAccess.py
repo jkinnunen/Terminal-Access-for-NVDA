@@ -120,6 +120,7 @@ try:
 		NativePositionCache as _NativePositionCache,
 		get_helper as _get_helper,
 		stop_helper as _stop_helper,
+		start_helper_eagerly as _start_helper_eagerly,
 	)
 	_native_available = _native_available_fn()
 except Exception:
@@ -127,6 +128,8 @@ except Exception:
 	def _get_helper():
 		return None
 	def _stop_helper():
+		pass
+	def _start_helper_eagerly():
 		pass
 
 try:
@@ -3445,6 +3448,54 @@ class NewOutputAnnouncer:
 
 		self._schedule_coalesce(new_content, replace=False, ta_conf=ta_conf)
 
+	def feed_diff(self, kind: int, content: str) -> None:
+		"""Feed a pre-computed diff result from the helper process.
+
+		Unlike :meth:`feed`, this bypasses the local TextDiffer since the
+		helper already performed ANSI stripping and diff detection. This
+		avoids duplicate work and removes the need to transfer the full
+		terminal buffer over the pipe.
+
+		Args:
+			kind: Diff kind from the helper (2=Appended, 3=Changed,
+				4=LastLineUpdated).
+			content: The diff content (appended lines or updated last line).
+		"""
+		# Throttle: skip if the last feed was very recent
+		now = time.time()
+		if (now - self._last_feed_time) < self._MIN_FEED_INTERVAL:
+			return
+		self._last_feed_time = now
+
+		# Respect quiet mode and master toggle
+		try:
+			ta_conf = config.conf["terminalAccess"]
+			if ta_conf["quietMode"] or not ta_conf["announceNewOutput"]:
+				return
+		except Exception:
+			return
+
+		stripped = content.strip()
+		if not stripped:
+			return
+
+		# The helper already strips ANSI, but if the user has stripAnsiInOutput
+		# enabled and somehow ANSI slipped through, strip again as safety net.
+		try:
+			if ta_conf["stripAnsiInOutput"]:
+				content = _strip_ansi(content)
+				if not content.strip():
+					return
+		except Exception:
+			pass
+
+		if kind == self._DIFF_KIND_LAST_LINE_UPDATED:
+			self._schedule_coalesce(content, replace=True, ta_conf=ta_conf)
+		elif kind == self._DIFF_KIND_APPENDED:
+			self._schedule_coalesce(content, replace=False, ta_conf=ta_conf)
+		# kind == _DIFF_KIND_CHANGED: content is empty (full screen change),
+		# nothing to announce.
+
 	def _schedule_coalesce(self, content: str, *, replace: bool, ta_conf) -> None:
 		"""
 		Accumulate (or replace) pending text and ensure a coalesce timer is running.
@@ -3544,10 +3595,11 @@ class NewOutputAnnouncer:
 			hwnd = getattr(self._terminal_obj, "windowHandle", None)
 			if hwnd is not None:
 				try:
-					if helper.subscribe(hwnd, on_text_changed=self._on_text_changed):
+					if helper.subscribe(hwnd):
 						self._subscribed_hwnd = hwnd
+						helper.on("text_diff", self._on_text_diff)
 						helper.on("helper_crashed", self._on_helper_crashed)
-						log.debug("Subscribed to hwnd %d via helper", hwnd)
+						log.debug("Subscribed to hwnd %d via helper (diff mode)", hwnd)
 						return
 				except Exception:
 					log.debug("Subscription failed, falling back to polling", exc_info=True)
@@ -3570,7 +3622,7 @@ class NewOutputAnnouncer:
 			if helper is not None:
 				try:
 					helper.unsubscribe(hwnd)
-					helper.off("text_changed", self._on_text_changed)
+					helper.off("text_diff", self._on_text_diff)
 					helper.off("helper_crashed", self._on_helper_crashed)
 				except Exception:
 					pass
@@ -3585,12 +3637,26 @@ class NewOutputAnnouncer:
 			self._poll_thread.join(timeout=1.0)
 		self._poll_thread = None
 
-	def _on_text_changed(self, hwnd: int, text: str) -> None:
-		"""Callback for helper process text_changed notifications."""
-		# Only process if this is for our terminal
+	# Mapping from Rust DiffKind numeric values to Python-side processing.
+	# 0 = Initial, 1 = Unchanged, 2 = Appended, 3 = Changed, 4 = LastLineUpdated
+	_DIFF_KIND_APPENDED = 2
+	_DIFF_KIND_CHANGED = 3
+	_DIFF_KIND_LAST_LINE_UPDATED = 4
+
+	def _on_text_diff(self, hwnd: int, kind: int, content: str) -> None:
+		"""Callback for helper process text_diff notifications.
+
+		Receives pre-diffed content from the helper, bypassing the local
+		TextDiffer. The helper already strips ANSI and computes diffs.
+
+		Args:
+			hwnd: Window handle of the terminal.
+			kind: Diff kind (2=Appended, 3=Changed, 4=LastLineUpdated).
+			content: The diff content (appended text or updated last line).
+		"""
 		subscribed = getattr(self, "_subscribed_hwnd", None)
-		if subscribed is not None and hwnd == subscribed and text:
-			self.feed(text)
+		if subscribed is not None and hwnd == subscribed and content:
+			self.feed_diff(kind, content)
 
 	def _on_helper_crashed(self, msg) -> None:
 		"""Callback when the helper process gives up restarting.
@@ -5500,6 +5566,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# is anything to poll.
 		self._newOutputAnnouncer = NewOutputAnnouncer()
 
+		# Start the helper process eagerly on a background thread so it's warm
+		# by the time a terminal is focused.  Non-blocking and non-fatal.
+		threading.Thread(target=_start_helper_eagerly, daemon=True).start()
+
 		# Tab manager for managing terminal tabs (Section 9 - v1.0.39+)
 		self._tabManager = None  # Initialized when terminal is bound
 
@@ -6034,6 +6104,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		Also updates the terminal object reference for polling.
 
+		When the helper process is subscribed and pushing diff notifications,
+		the expensive ``makeTextInfo(POSITION_ALL)`` read is skipped entirely —
+		the helper's 50ms push loop handles output detection. This eliminates
+		the 10KB-1MB UIA read from the main thread on every caret event.
+
 		This is a best-effort helper: any exception is silently ignored so it
 		never disrupts normal caret handling.
 
@@ -6043,6 +6118,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			# Update terminal object for polling (in case it changed)
 			self._newOutputAnnouncer.set_terminal(obj)
+			# When the helper is subscribed and pushing diffs, skip the expensive
+			# POSITION_ALL read — the helper handles output detection at 50ms.
+			if getattr(self._newOutputAnnouncer, "_subscribed_hwnd", None) is not None:
+				return
 			# Gate the expensive POSITION_ALL read behind cheap config/throttle checks.
 			# On conhost this avoids reading the entire buffer (10KB-1MB) hundreds of
 			# times per second when announceNewOutput is off or in quiet mode.

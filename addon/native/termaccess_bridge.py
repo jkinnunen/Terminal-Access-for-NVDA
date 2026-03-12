@@ -631,6 +631,19 @@ def get_helper():
 			return None
 
 
+def start_helper_eagerly():
+	"""Start the helper process in the background so it's ready when needed.
+
+	Called from ``GlobalPlugin.__init__()`` on a daemon thread so it
+	doesn't block addon startup.  If the helper fails to start, this is
+	not fatal — it will be retried on first use via :func:`get_helper`.
+	"""
+	try:
+		get_helper()
+	except Exception:
+		pass  # not fatal — will retry on first use
+
+
 def stop_helper():
 	"""Stop the helper process if running."""
 	global _helper_instance

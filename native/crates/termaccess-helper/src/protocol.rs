@@ -101,6 +101,19 @@ pub enum Response {
 pub enum Notification {
     HelperReady,
     TextChanged { hwnd: isize, text: String },
+    /// Diff-based text change notification.
+    ///
+    /// `kind` maps to `DiffKind` from `termaccess-core`:
+    ///   0 = Initial, 1 = Unchanged, 2 = Appended,
+    ///   3 = Changed, 4 = LastLineUpdated.
+    ///
+    /// `content` holds the appended text (kind=2), updated last line
+    /// (kind=4), or is empty for other kinds.
+    TextDiff {
+        hwnd: isize,
+        kind: u32,
+        content: String,
+    },
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -301,6 +314,46 @@ mod tests {
         let notif = Notification::HelperReady;
         let json = serde_json::to_string(&Outgoing::Notification(notif)).unwrap();
         assert!(json.contains("\"type\":\"helper_ready\""));
+    }
+
+    #[test]
+    fn test_text_diff_notification_appended() {
+        let notif = Notification::TextDiff {
+            hwnd: 456,
+            kind: 2, // Appended
+            content: "new line\n".to_string(),
+        };
+        let json = serde_json::to_string(&Outgoing::Notification(notif)).unwrap();
+        assert!(json.contains("\"type\":\"text_diff\""));
+        assert!(json.contains("\"hwnd\":456"));
+        assert!(json.contains("\"kind\":2"));
+        assert!(json.contains("\"content\":\"new line\\n\""));
+    }
+
+    #[test]
+    fn test_text_diff_notification_changed() {
+        let notif = Notification::TextDiff {
+            hwnd: 789,
+            kind: 3, // Changed
+            content: String::new(),
+        };
+        let json = serde_json::to_string(&Outgoing::Notification(notif)).unwrap();
+        assert!(json.contains("\"type\":\"text_diff\""));
+        assert!(json.contains("\"kind\":3"));
+        assert!(json.contains("\"content\":\"\""));
+    }
+
+    #[test]
+    fn test_text_diff_notification_last_line_updated() {
+        let notif = Notification::TextDiff {
+            hwnd: 100,
+            kind: 4, // LastLineUpdated
+            content: "progress: 75%".to_string(),
+        };
+        let json = serde_json::to_string(&Outgoing::Notification(notif)).unwrap();
+        assert!(json.contains("\"type\":\"text_diff\""));
+        assert!(json.contains("\"kind\":4"));
+        assert!(json.contains("progress: 75%"));
     }
 
     #[test]
