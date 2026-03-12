@@ -5257,6 +5257,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# URL extractor manager for URL detection and navigation (Section 8.4)
 		self._urlExtractorManager = None  # Initialized when terminal is bound
+		self._urlDialogOpen = False  # Guard against multiple URL list instances
 
 		# Track and scope gesture bindings to terminal focus only
 		self._terminalGestures = self._collectTerminalGestures()
@@ -8072,6 +8073,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gesture.send()
 			return
 
+		# Prevent multiple dialog instances
+		if self._urlDialogOpen:
+			# Translators: Announced when URL list dialog is already open
+			ui.message(_("URL list already open"))
+			return
+
 		if not self._urlExtractorManager:
 			# Translators: Error when URL extractor not ready
 			ui.message(_("URL list not available"))
@@ -8096,9 +8103,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# Translators: Announced when URL list is loading with count of URLs found
 		ui.message(_("{count} URLs found").format(count=len(urls)))
+		self._urlDialogOpen = True
 
 		def show_url_dialog():
 			try:
+				gui.mainFrame.prePopup()
 				dlg = UrlListDialog(gui.mainFrame, urls, self._urlExtractorManager)
 				dlg.ShowModal()
 				dlg.Destroy()
@@ -8110,6 +8119,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					pass
 				# Translators: Error when URL dialog fails to open
 				ui.message(_("Error opening URL list"))
+			finally:
+				gui.mainFrame.postPopup()
+				self._urlDialogOpen = False
 
 		wx.CallAfter(show_url_dialog)
 
