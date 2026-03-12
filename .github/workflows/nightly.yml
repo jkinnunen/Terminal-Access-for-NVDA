@@ -50,7 +50,16 @@ jobs:
         if: steps.check_changes.outputs.has_changes == 'true'
         id: version
         run: |
-          VERSION=$(python3 -c "import buildVars; print(buildVars.addon_info['addon_version'])")
+          VERSION=$(python3 -c "
+          import re, sys
+          with open('buildVars.py') as f:
+              m = re.search(r'addon_version\s*=\s*[\"\\x27]([^\"\\x27]+)[\"\\x27]', f.read())
+          if m:
+              print(m.group(1))
+          else:
+              print('Error: addon_version not found in buildVars.py', file=sys.stderr)
+              sys.exit(1)
+          ")
           NIGHTLY_VERSION="${VERSION}-nightly.$(date +%Y%m%d)"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "nightly_version=$NIGHTLY_VERSION" >> $GITHUB_OUTPUT
@@ -60,7 +69,7 @@ jobs:
         if: steps.check_changes.outputs.has_changes == 'true'
         run: |
           # Temporarily modify buildVars.py for nightly version
-          sed -i "s/\"addon_version\": \".*\"/\"addon_version\": \"${{ steps.version.outputs.nightly_version }}\"/" buildVars.py
+          sed -i "s/addon_version=\"[^\"]*\"/addon_version=\"${{ steps.version.outputs.nightly_version }}\"/" buildVars.py
 
       - name: Install build dependencies
         if: steps.check_changes.outputs.has_changes == 'true'

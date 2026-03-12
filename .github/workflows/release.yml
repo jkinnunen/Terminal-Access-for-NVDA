@@ -22,31 +22,36 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      
+
+      - name: Install build dependencies
+        run: pip install scons
+
       - name: Extract version from buildVars.py
         id: version
         run: |
-          # Extract version with error handling
+          # Extract version using regex to avoid importing buildVars.py
+          # (which requires site_scons/SCons dependencies)
           if [ ! -f buildVars.py ]; then
             echo "Error: buildVars.py not found" >&2
             exit 1
           fi
-          
+
           VERSION=$(python3 -c "
-          try:
-              import buildVars
-              print(buildVars.addon_info['addon_version'])
-          except Exception as e:
-              print(f'Error reading version from buildVars.py: {e}', file=__import__('sys').stderr)
-              exit(1)
-          " 2>&1)
-          
+          import re, sys
+          with open('buildVars.py') as f:
+              m = re.search(r'addon_version\s*=\s*[\"\\x27]([^\"\\x27]+)[\"\\x27]', f.read())
+          if m:
+              print(m.group(1))
+          else:
+              print('Error: addon_version not found in buildVars.py', file=sys.stderr)
+              sys.exit(1)
+          ")
+
           if [ $? -ne 0 ]; then
             echo "Error: Failed to extract version from buildVars.py" >&2
-            echo "$VERSION" >&2
             exit 1
           fi
-          
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Detected version: $VERSION"
       
