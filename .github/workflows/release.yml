@@ -153,16 +153,27 @@ jobs:
         if: steps.check_tag.outputs.exists == 'false'
         id: changelog
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           if [ -f CHANGELOG.md ]; then
-            CHANGELOG=$(awk '/^## \[/{if(++count==2)exit;if(count==1)next}count==1' CHANGELOG.md)
+            # Extract the section for this version: skip [Unreleased], find
+            # ## [VERSION], capture until the next ## [ heading.
+            CHANGELOG=$(awk -v ver="$VERSION" '
+              /^## \[Unreleased\]/ { next }
+              /^## \[/ {
+                if (found) exit
+                if (index($0, "[" ver "]")) { found=1; next }
+              }
+              found { print }
+            ' CHANGELOG.md)
             if [ -z "$CHANGELOG" ]; then
-              CHANGELOG="Release version ${{ steps.version.outputs.version }}"
+              CHANGELOG="Release version $VERSION"
             fi
           else
-            CHANGELOG="Release version ${{ steps.version.outputs.version }}"
+            CHANGELOG="Release version $VERSION"
           fi
           echo "$CHANGELOG" > changelog.txt
-          echo "Changelog extracted"
+          echo "--- Changelog for v$VERSION ---"
+          cat changelog.txt
 
       - name: Create GitHub Release
         if: steps.check_tag.outputs.exists == 'false'
