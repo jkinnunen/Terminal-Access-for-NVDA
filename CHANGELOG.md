@@ -4,14 +4,6 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 ## [Unreleased]
 
-### Fixed
-
-- **Settings panel not loading**: The settings panel failed to launch from NVDA preferences
-  because a throwaway loop variable `_` in the gesture bindings section shadowed the `_()`
-  translation function, causing `UnboundLocalError` on every translatable string in the panel.
-
-## [1.3.0] - 2026-03-12
-
 ### Added
 
 - **Native Rust acceleration layer**: CPU-bound text processing (ANSI stripping, diff computation,
@@ -30,14 +22,29 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
   falling back to Python `wcwidth` and then ASCII width assumptions.
 - **Helper auto-restart**: Exponential backoff with crash recovery — the helper process restarts
   automatically on unexpected termination, with configurable max retries and backoff intervals.
+- **Local release workflow**: `release.py` provides a gated 6-step local release workflow that
+  validates version, changelog, tests, build, and manifest before pushing to main.
+
+### Fixed
+
+- **Settings panel not loading**: The settings panel failed to launch from NVDA preferences
+  because a throwaway loop variable `_` in the gesture bindings section shadowed the `_()`
+  translation function, causing `UnboundLocalError` on every translatable string in the panel.
+- **Intermittent "unknown" announcements**: NVDA's "Report dynamic content changes" is now
+  automatically suppressed while a terminal is focused, preventing spurious "unknown" speech
+  caused by transient UIA elements during rapid terminal updates. The user's original setting
+  is restored when focus leaves the terminal.
+- **CI release missing changelog**: The release workflow's changelog extraction skipped the
+  versioned section and fell back to a generic message. Fixed to properly extract the release
+  notes for the version being published.
+- **CI release missing build dependency**: Added `markdown` to the release workflow's
+  `pip install` to match the build chain's import requirements.
 
 ### Changed
 
-- **Nightly CI pipeline**: Restructured from a single Ubuntu job to a 3-job pipeline
-  (`check-changes` → `build-native` on Windows x86/x64 → `nightly-build` on Ubuntu) so that
-  nightly builds include the native Rust DLL and helper EXE for both architectures.
 - **Architecture documentation**: Major update to `docs/developer/ARCHITECTURE.md` documenting the
   native acceleration layer, FFI interface, IPC protocol, fallback chains, and CI/CD pipeline.
+- **Removed nightly CI workflow**: The daily nightly build pipeline has been removed.
 
 ## [1.2.7] - 2026-03-12
 
