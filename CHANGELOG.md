@@ -4,16 +4,6 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 ## [Unreleased]
 
-### Fixed
-
-- **Search not returning results**: The helper-side search path returned a bare list
-  of match dicts, but the search manager expected a dict with `matches` and `total_lines`
-  keys, causing an `AttributeError` silently swallowed by a broad exception handler.
-  Fixed by returning the full IPC response dict from the helper and adding diagnostic
-  logging to all search error paths.
-
-## [1.3.1] - 2026-03-13
-
 ### Added
 
 - **Native Rust acceleration layer**: CPU-bound text processing (ANSI stripping, diff computation,
@@ -37,6 +27,11 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 ### Fixed
 
+- **Search not returning results**: The helper-side search path returned a bare list
+  of match dicts, but the search manager expected a dict with `matches` and `total_lines`
+  keys, causing an `AttributeError` silently swallowed by a broad exception handler.
+  Fixed by returning the full IPC response dict from the helper and adding diagnostic
+  logging to all search error paths.
 - **Settings panel not loading**: The settings panel failed to launch from NVDA preferences
   because a throwaway loop variable `_` in the gesture bindings section shadowed the `_()`
   translation function, causing `UnboundLocalError` on every translatable string in the panel.
