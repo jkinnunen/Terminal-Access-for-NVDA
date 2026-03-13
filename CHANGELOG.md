@@ -4,6 +4,12 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Settings panel not loading**: The settings panel failed to launch from NVDA preferences
+  because a throwaway loop variable `_` in the gesture bindings section shadowed the `_()`
+  translation function, causing `UnboundLocalError` on every translatable string in the panel.
+
 ## [1.3.0] - 2026-03-12
 
 ### Added

@@ -9160,7 +9160,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		except (KeyError, TypeError):
 			raw = ""
 		excluded = set(g.strip() for g in raw.split(",") if g.strip())
-		for i, (gesture, _) in enumerate(self._gestureItems):
+		for i, (gesture, _script) in enumerate(self._gestureItems):
 			self.gestureCheckList.Check(i, gesture not in excluded)
 
 		# Translators: Help text for gesture bindings
@@ -9297,7 +9297,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 
 		# Save gesture exclusions
 		unchecked = []
-		for i, (gesture, _) in enumerate(self._gestureItems):
+		for i, (gesture, _script) in enumerate(self._gestureItems):
 			if not self.gestureCheckList.IsChecked(i):
 				unchecked.append(gesture)
 		config.conf["terminalAccess"]["unboundGestures"] = ",".join(unchecked)
