@@ -23,10 +23,10 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Provides enhanced terminal accessibility for Windows Terminal and PowerShell, enabling screen reader users to efficiently navigate and interact with command-line interfaces. Inspired by TDSR (Terminal Data Structure Reader) and incorporates functionality from both TDSR and Speakup. Advanced features inspired by community suggestions and discussions."""),
 	# version
-	addon_version="2.0.0-beta",
+	addon_version="2.0.0-beta.2",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""v2.0.0-beta: 24 bug fixes across Python and Rust, 36 fuzz tests, privacy settings panel, ANSI stripping hardened across all speech output paths, combining character support in column extraction, config validation for all settings keys."""),
+	addon_changelog=_("""v2.0.0-beta.2: table mode for columnar output, command finder, transcript export, first-run tutorial, progress milestone announcements, profile editor, and sound scheme settings. The full user guide now ships in the add-on (NVDA+shift+f1). The verbosity setting now gates optional speech, and ANSI stripping now handles escape sequences split by a terminal read."""),
 	# Author(s)
 	addon_author="Pratik Patel",
 	# URL for the add-on documentation support

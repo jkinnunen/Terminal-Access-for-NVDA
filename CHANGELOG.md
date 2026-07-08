@@ -2,7 +2,7 @@
 
 All notable changes to Terminal Access for NVDA will be documented in this file.
 
-## [2.0.0-beta.2] - Unreleased
+## [2.0.0-beta.2] - 2026-07-08
 
 ### Added
 
