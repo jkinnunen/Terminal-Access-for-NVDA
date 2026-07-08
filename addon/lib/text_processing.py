@@ -137,6 +137,10 @@ class ANSIParser:
 		r'|P[^\x1b]*\x1b\\'               # DCS sequences (ST terminated)
 		r'|[()][A-Z0-9]'                   # Charset designation (e.g., (B, )0)
 		r'|[a-zA-Z0-9=><~]'               # Two-char ESC sequences (e.g., M, 7, 8)
+		# Incomplete introducers from a read that split mid-sequence. These
+		# come last so complete sequences above always match first.
+		r'|\[[0-9;?]*'                    # truncated CSI (ESC[ with optional params, no final byte)
+		r'|\][^\x07\x1b]*'                # truncated OSC (ESC] with no terminator)
 		r')'
 	)
 

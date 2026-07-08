@@ -24,8 +24,7 @@ pub fn strip_ansi(input: &str) -> String {
             continue;
         }
 
-        // ESC found — record position so we can restore on incomplete sequence
-        let esc_start = i;
+        // ESC found
         i += 1;
         if i >= len {
             // Lone ESC at end — preserve it (Python regex wouldn't match it)
@@ -48,10 +47,10 @@ pub fn strip_ansi(input: &str) -> String {
                 // Final byte (0x40-0x7E) completes the sequence
                 if i < len && (bytes[i] >= 0x40 && bytes[i] <= 0x7E) {
                     i += 1;
-                } else {
-                    // Incomplete CSI — restore all bytes (Python regex wouldn't match)
-                    out.extend_from_slice(&bytes[esc_start..i]);
                 }
+                // Incomplete CSI (no final byte, e.g. a read split mid-sequence):
+                // drop the ESC introducer and its parameters, matching Python's
+                // stripANSI so the ESC byte never leaks into the output.
             }
 
             // OSC sequence: ESC ] ... BEL or ESC ] ... ESC backslash
@@ -227,10 +226,12 @@ mod tests {
     }
 
     #[test]
-    fn test_incomplete_csi_preserved() {
-        // Incomplete CSI at end of string: ESC [ without final byte
-        // Should be preserved (matches Python regex behavior)
-        assert_eq!(strip_ansi("text\x1b["), "text\x1b[");
+    fn test_incomplete_csi_stripped() {
+        // Incomplete CSI at end of string: ESC [ without final byte, as when
+        // a terminal read splits mid-sequence. The ESC introducer and any
+        // parameters are dropped so no ESC byte leaks (matches Python stripANSI).
+        assert_eq!(strip_ansi("text\x1b["), "text");
+        assert_eq!(strip_ansi("done \x1b[38;5"), "done ");
     }
 
     #[test]

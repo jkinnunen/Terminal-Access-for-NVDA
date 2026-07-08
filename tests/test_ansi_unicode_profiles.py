@@ -79,6 +79,25 @@ class TestANSIParser(unittest.TestCase):
 		clean = self.ANSIParser.stripANSI(text)
 		self.assertEqual(clean, 'Red text')
 
+	def test_strip_ansi_incomplete_sequences(self):
+		"""Truncated escape sequences leave no ESC introducer behind.
+
+		A terminal read can split mid-sequence, so the buffer may end with
+		an incomplete CSI or OSC. Stripping must not leave the ESC byte or
+		its introducer in the output.
+		"""
+		for text in (
+			'\x1b[',            # bare CSI introducer
+			'\x1b]',            # bare OSC introducer
+			'done \x1b[38;5',   # CSI truncated mid-parameter
+			'link \x1b]8;;https://x.com',  # OSC without terminator
+			'\x1b[€',           # CSI followed by a non-final byte
+		):
+			clean = self.ANSIParser.stripANSI(text)
+			self.assertNotIn('\x1b[', clean)
+			self.assertNotIn('\x1b]', clean)
+			self.assertNotIn('\x1b', clean)
+
 	def test_format_attributes_detailed(self):
 		"""Test formatting attributes in detailed mode."""
 		parser = self.ANSIParser()
