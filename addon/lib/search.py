@@ -944,125 +944,32 @@ class UrlExtractorManager:
 		self._tab_manager = tab_manager
 
 
-class UrlListDialog(wx.Dialog):
-	"""
-	Dialog for displaying and interacting with URLs found in terminal output.
+def UrlListDialog(parent, urls, manager):
+	"""Dialog for displaying and interacting with URLs found in terminal output.
+
+	Thin wrapper: builds # / URL / Line / Context rows and delegates to
+	BrowsableListDialog. Enter or the Open button opens the selected URL in
+	the browser (unsafe schemes are blocked), the Copy URL and Move to line
+	buttons act on the selection and close, a type-to-filter box matches the
+	URL and context columns, and Escape closes.
 
 	Modeled after NVDA's Elements List (NVDA+F7) but designed for terminal
 	focus mode where the Elements List is unavailable.
+
+	Args:
+		parent: Parent window.
+		urls: List of UrlEntry namedtuples with url, line_num, line_text.
+		manager: The UrlExtractorManager (kept for signature compatibility).
+
+	Returns:
+		A BrowsableListDialog instance ready for ShowModal().
 	"""
+	from lib.list_dialogs import BrowsableListDialog, build_url_rows
 
-	def __init__(self, parent, urls, manager):
-		super().__init__(
-			parent,
-			# Translators: Title for URL list dialog
-			title=_("URL List - Terminal Access"),
-			style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-		)
-		self._urls = urls  # list of UrlEntry
-		self._filtered_urls = list(urls)
-		self._manager = manager
+	rows = build_url_rows(urls)
 
-		main_sizer = wx.BoxSizer(wx.VERTICAL)
-
-		# Filter
-		filter_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		# Translators: Label for URL filter text box
-		filter_label = wx.StaticText(self, label=_("&Filter:"))
-		filter_sizer.Add(filter_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-		self._filter_ctrl = wx.TextCtrl(self)
-		self._filter_ctrl.Bind(wx.EVT_TEXT, self._on_filter)
-		filter_sizer.Add(self._filter_ctrl, 1, wx.EXPAND)
-		main_sizer.Add(filter_sizer, 0, wx.EXPAND | wx.ALL, 5)
-
-		# List
-		self._list_ctrl = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
-		# Translators: Column header for URL list index
-		self._list_ctrl.InsertColumn(0, _("#"), width=40)
-		# Translators: Column header for URL
-		self._list_ctrl.InsertColumn(1, _("URL"), width=320)
-		# Translators: Column header for line number
-		self._list_ctrl.InsertColumn(2, _("Line"), width=55)
-		# Translators: Column header for line context
-		self._list_ctrl.InsertColumn(3, _("Context"), width=220)
-		self._list_ctrl.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_open)
-		main_sizer.Add(self._list_ctrl, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
-
-		# Buttons
-		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		# Translators: Button to open URL in browser
-		self._open_btn = wx.Button(self, label=_("&Open"))
-		# Translators: Button to copy URL to clipboard
-		self._copy_btn = wx.Button(self, label=_("&Copy URL"))
-		# Translators: Button to move cursor to URL line
-		self._move_btn = wx.Button(self, label=_("&Move to line"))
-		# Use wx.ID_CANCEL so pressing Escape automatically closes the dialog
-		close_btn = wx.Button(self, wx.ID_CANCEL, label=_("Close"))
-
-		self._open_btn.Bind(wx.EVT_BUTTON, self._on_open)
-		self._copy_btn.Bind(wx.EVT_BUTTON, self._on_copy)
-		self._move_btn.Bind(wx.EVT_BUTTON, self._on_move)
-		close_btn.Bind(wx.EVT_BUTTON, self._on_close)
-		self.Bind(wx.EVT_CLOSE, self._on_close)
-
-		# Allow Escape key to close the dialog from any focused control
-		self.SetEscapeId(wx.ID_CANCEL)
-
-		btn_sizer.Add(self._open_btn, 0, wx.RIGHT, 5)
-		btn_sizer.Add(self._copy_btn, 0, wx.RIGHT, 5)
-		btn_sizer.Add(self._move_btn, 0, wx.RIGHT, 5)
-		btn_sizer.Add(close_btn, 0)
-		main_sizer.Add(btn_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
-
-		self.SetSizer(main_sizer)
-		self._populate_list()
-		self.SetSize(680, 420)
-		self.CenterOnScreen()
-
-		# Focus the list and raise to foreground
-		if self._list_ctrl.GetItemCount() > 0:
-			self._list_ctrl.Select(0)
-			self._list_ctrl.Focus(0)
-			self._list_ctrl.SetFocus()
-		else:
-			self._filter_ctrl.SetFocus()
-		self.Raise()
-
-	def _populate_list(self):
-		"""Fill the list control with the current filtered URLs."""
-		self._list_ctrl.DeleteAllItems()
-		for i, entry in enumerate(self._filtered_urls):
-			idx = self._list_ctrl.InsertItem(i, str(i + 1))
-			self._list_ctrl.SetItem(idx, 1, entry.url)
-			self._list_ctrl.SetItem(idx, 2, str(entry.line_num))
-			context = entry.line_text[:80] if entry.line_text else ''
-			self._list_ctrl.SetItem(idx, 3, context)
-
-	def _on_filter(self, event):
-		"""Filter URLs as the user types."""
-		filter_text = self._filter_ctrl.GetValue().lower()
-		if filter_text:
-			self._filtered_urls = [
-				u for u in self._urls
-				if filter_text in u.url.lower() or filter_text in u.line_text.lower()
-			]
-		else:
-			self._filtered_urls = list(self._urls)
-		self._populate_list()
-		if self._list_ctrl.GetItemCount() > 0:
-			self._list_ctrl.Select(0)
-			self._list_ctrl.Focus(0)
-
-	def _get_selected_index(self) -> int:
-		"""Return the index into _filtered_urls of the selected list item."""
-		return self._list_ctrl.GetFirstSelected()
-
-	def _on_open(self, event):
-		"""Open selected URL in the default browser."""
-		sel = self._get_selected_index()
-		if sel < 0:
-			return
-		entry = self._filtered_urls[sel]
+	def on_open(original_index):
+		entry = urls[original_index]
 		url = entry.url
 		if url.lower().startswith('www.'):
 			url = 'https://' + url
@@ -1072,146 +979,101 @@ class UrlListDialog(wx.Dialog):
 			ui.message(_("Cannot open this URL type for security reasons"))
 			return
 		try:
-			webbrowser.open(url)
+			_rt.webbrowser_module.open(url)
 		except Exception:
 			pass
-		self.Close()
 
-	def _on_copy(self, event):
-		"""Copy selected URL to clipboard."""
-		sel = self._get_selected_index()
-		if sel < 0:
-			return
-		_rt.api_module.copyToClip(self._filtered_urls[sel].url)
+	def on_copy(original_index):
+		_rt.api_module.copyToClip(urls[original_index].url)
 		# Translators: Announced after URL is copied
 		ui.message(_("URL copied"))
-		self.Close()
+		return True
 
-	def _on_move(self, event):
-		"""Close dialog and announce which line the URL is on."""
-		sel = self._get_selected_index()
-		if sel < 0:
-			return
-		entry = self._filtered_urls[sel]
-		self.Close()
+	def on_move(original_index):
+		entry = urls[original_index]
 		# Translators: Announced when moving to a URL line
-		ui.message(_("Line {num}: {text}").format(num=entry.line_num, text=entry.line_text[:100]))
+		ui.message(_("Line {num}: {text}").format(
+			num=entry.line_num, text=(entry.line_text or "")[:100]))
+		return True
 
-	def _on_close(self, event):
-		"""Close the dialog."""
-		if self.IsModal():
-			self.EndModal(wx.ID_CANCEL)
-		else:
-			self.Destroy()
+	return BrowsableListDialog(
+		parent,
+		# Translators: Title for URL list dialog
+		title=_("URL List - Terminal Access"),
+		columns=[
+			# Translators: Column header for URL list index
+			(_("#"), 40),
+			# Translators: Column header for URL
+			(_("URL"), 320),
+			# Translators: Column header for line number
+			(_("Line"), 55),
+			# Translators: Column header for line context
+			(_("Context"), 220),
+		],
+		rows=rows,
+		on_activate=on_open,
+		extra_buttons=[
+			# Translators: Button to copy URL to clipboard
+			(_("&Copy URL"), on_copy),
+			# Translators: Button to move cursor to URL line
+			(_("&Move to line"), on_move),
+		],
+		enable_search=True,
+		search_columns=(1, 3),
+	)
 
 
-class SearchResultsDialog(wx.Dialog):
+def SearchResultsDialog(parent, search_manager, on_jump_callback=None):
 	"""Dialog for browsing and jumping to search results.
 
-	Displays all matches in a list with #, Line, and Content columns.
-	The user picks a match and presses Jump (or Enter) to navigate there.
-	Modeled after BookmarkListDialog in lib/navigation.py.
+	Thin wrapper: builds # / Line / Content rows and delegates to
+	BrowsableListDialog. Enter or the Activate button records the chosen
+	match as the manager's current index (so findNext/findPrevious continue
+	from there), jumps to it, and closes. Escape closes. The match count and
+	pattern go in the dialog title so they are announced on open.
+
+	Args:
+		parent: Parent window.
+		search_manager: Manager exposing get_all_matches(),
+			_get_search_state(), _save_search_state() and
+			_jump_to_current_match().
+		on_jump_callback: Optional callable() fired after a jump.
+
+	Returns:
+		A BrowsableListDialog instance ready for ShowModal().
 	"""
+	from lib.list_dialogs import BrowsableListDialog, build_search_rows
 
-	def __init__(self, parent, search_manager, on_jump_callback=None):
-		super().__init__(
-			parent,
-			# Translators: Title for search results dialog
-			title=_("Search Results"),
-			style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-		)
-		self._manager = search_manager
-		self._on_jump_callback = on_jump_callback
-		self._matches = search_manager.get_all_matches()
-		self._build_ui()
-		self._populate()
-		self.Raise()
+	matches = search_manager.get_all_matches()
+	rows = build_search_rows(matches)
+	state = search_manager._get_search_state()
+	pattern = state.get('pattern', '')
+	# Translators: Title for search results dialog, with the match count and pattern
+	title = _("Search Results: {count} matches for '{pattern}'").format(
+		count=len(matches), pattern=pattern)
 
-	def _build_ui(self):
-		sizer = wx.BoxSizer(wx.VERTICAL)
+	def on_jump(original_index):
+		# Set the search manager's current index so findNext/findPrevious
+		# continue from this position after the dialog closes.
+		jump_state = search_manager._get_search_state()
+		jump_state['current_match_index'] = original_index
+		search_manager._save_search_state(jump_state)
+		search_manager._jump_to_current_match()
+		if on_jump_callback:
+			on_jump_callback()
 
-		# Summary label: "N matches for 'pattern'"
-		state = self._manager._get_search_state()
-		pattern = state.get('pattern', '')
-		count = len(self._matches)
-		# Translators: Summary label in search results dialog
-		label = wx.StaticText(self, label=_("{count} matches for '{pattern}'").format(
-			count=count, pattern=pattern))
-		sizer.Add(label, flag=wx.ALL, border=8)
-
-		# Results list
-		self._list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
-		# Translators: Column header for match number
-		self._list.InsertColumn(0, _("#"), width=50)
-		# Translators: Column header for line number
-		self._list.InsertColumn(1, _("Line"), width=60)
-		# Translators: Column header for line content
-		self._list.InsertColumn(2, _("Content"), width=400)
-		sizer.Add(self._list, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
-
-		# Buttons
-		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		# Translators: Button to jump to selected search match
-		self._jump_btn = wx.Button(self, label=_("&Jump"))
-		self._close_btn = wx.Button(self, wx.ID_CLOSE, label=_("&Close"))
-		btn_sizer.Add(self._jump_btn, flag=wx.RIGHT, border=4)
-		btn_sizer.Add(self._close_btn)
-		sizer.Add(btn_sizer, flag=wx.ALIGN_RIGHT | wx.ALL, border=8)
-
-		self.SetSizer(sizer)
-		self.SetSize(550, 400)
-		self.CenterOnScreen()
-
-		# Use wx.ID_CLOSE so Escape automatically closes
-		self.SetEscapeId(wx.ID_CLOSE)
-
-		# Bindings
-		self._jump_btn.Bind(wx.EVT_BUTTON, self._on_jump)
-		self._close_btn.Bind(wx.EVT_BUTTON, self._on_close)
-		self._list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_jump)
-		self._list.Bind(wx.EVT_KEY_DOWN, self._on_key)
-
-	def _populate(self):
-		for m in self._matches:
-			idx = self._list.InsertItem(self._list.GetItemCount(), str(m["num"]))
-			self._list.SetItem(idx, 1, str(m["line_num"]))
-			self._list.SetItem(idx, 2, m["text"])
-		if self._matches:
-			self._list.Select(0)
-			self._list.Focus(0)
-			self._list.SetFocus()
-
-	def _get_selected_index(self):
-		sel = self._list.GetFirstSelected()
-		if sel == -1:
-			return None
-		return sel
-
-	def _on_jump(self, event):
-		sel = self._get_selected_index()
-		if sel is not None and sel < len(self._matches):
-			# Set the search manager's current index so findNext/findPrevious
-			# continue from this position after the dialog closes.
-			state = self._manager._get_search_state()
-			state['current_match_index'] = sel
-			self._manager._save_search_state(state)
-			self._manager._jump_to_current_match()
-			if self._on_jump_callback:
-				self._on_jump_callback()
-			self.Close()
-
-	def _on_close(self, event):
-		if self.IsModal():
-			self.EndModal(wx.ID_CLOSE)
-		else:
-			self.Destroy()
-
-	def _on_key(self, event):
-		key = event.GetKeyCode()
-		if key == wx.WXK_RETURN:
-			self._on_jump(event)
-		elif key == wx.WXK_ESCAPE:
-			self.Close()
-		else:
-			event.Skip()
+	return BrowsableListDialog(
+		parent,
+		title=title,
+		columns=[
+			# Translators: Column header for match number
+			(_("#"), 50),
+			# Translators: Column header for line number
+			(_("Line"), 60),
+			# Translators: Column header for line content
+			(_("Content"), 400),
+		],
+		rows=rows,
+		on_activate=on_jump,
+	)
 

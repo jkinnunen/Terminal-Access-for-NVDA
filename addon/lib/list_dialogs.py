@@ -97,6 +97,73 @@ def export_transcript_text(lines):
     )
 
 
+def build_bookmark_rows(bookmarks):
+    """Build (number, label) rows from a bookmark list.
+
+    Args:
+        bookmarks: List of dicts with "name" and optional "label".
+
+    Returns:
+        List of (name, label) tuples.
+    """
+    return [(bm["name"], bm.get("label", "")) for bm in bookmarks]
+
+
+def build_ai_turn_rows(turns):
+    """Build AI turn rows and per-role filter choices.
+
+    Args:
+        turns: List of dicts with "role", "line_num" (0-based), "preview".
+
+    Returns:
+        (rows, filter_choices) where rows are (role, line_display, preview)
+        tuples with a 1-based line number, and filter_choices is a list of
+        (role, predicate) pairs, one per distinct role.
+    """
+    rows = [
+        (turn["role"], str(turn["line_num"] + 1), turn["preview"])
+        for turn in turns
+    ]
+    roles = sorted(set(turn["role"] for turn in turns))
+    filter_choices = [
+        (role, lambda row, r=role: row[0] == r)
+        for role in roles
+    ]
+    return rows, filter_choices
+
+
+def build_search_rows(matches):
+    """Build (number, line, content) rows from search matches.
+
+    Args:
+        matches: List of dicts with "num", "line_num", "text".
+
+    Returns:
+        List of (num, line, text) string tuples.
+    """
+    return [
+        (str(match["num"]), str(match["line_num"]), match["text"])
+        for match in matches
+    ]
+
+
+def build_url_rows(urls):
+    """Build (index, url, line, context) rows from URL entries.
+
+    Args:
+        urls: List of UrlEntry-like objects with url, line_num, line_text.
+
+    Returns:
+        List of string tuples. The index is 1-based; context is the line
+        text truncated to 80 characters.
+    """
+    rows = []
+    for i, entry in enumerate(urls, start=1):
+        context = (entry.line_text or "")[:80]
+        rows.append((str(i), entry.url, str(entry.line_num), context))
+    return rows
+
+
 def collect_commands(plugin, default_gestures=None, layer_map=None):
     """Collect every Terminal Access command for the command finder.
 
@@ -189,24 +256,35 @@ if _wx_available:
 
         def __init__(self, parent, title, columns, rows, on_activate,
                 filter_choices=None, extra_buttons=None,
-                enable_search=False, search_columns=None):
+                enable_search=False, search_columns=None,
+                rows_provider=None, key_actions=None):
             """Initialize the BrowsableListDialog.
 
             Args:
                 parent: Parent window.
                 title: Dialog title.
                 columns: List of (header, width) tuples.
-                rows: List of tuples matching the columns.
+                rows: List of tuples matching the columns. Ignored when
+                    rows_provider is given.
                 on_activate: Callable(original_row_index) fired on
                     Enter or the Activate button.
                 filter_choices: Optional list of (label, predicate)
                     tuples for a filter dropdown. An "All" entry is
                     prepended automatically.
                 extra_buttons: Optional list of (label, callback)
-                    tuples for additional buttons.
+                    tuples for additional buttons. If a callback returns
+                    True, the dialog closes; otherwise it stays open and
+                    re-populates the list.
                 enable_search: When True, show a type-to-filter box.
                 search_columns: Optional tuple of column indices the
                     search box matches against (None = all columns).
+                rows_provider: Optional callable() -> rows. When given,
+                    the list is rebuilt from it on every repopulate so
+                    mutations (such as deletions) stay in sync with the
+                    underlying data source.
+                key_actions: Optional dict mapping a wx key code to a
+                    callable(original_row_index). Fired when that key is
+                    pressed with a row selected, then the list re-populates.
             """
             super().__init__(
                 parent,
@@ -214,12 +292,14 @@ if _wx_available:
                 style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
             )
             self._columns = list(columns)
-            self._rows = list(rows)
+            self._rows_provider = rows_provider
+            self._rows = list(rows) if rows_provider is None else list(rows_provider())
             self._on_activate_cb = on_activate
             self._filter_choices = list(filter_choices or [])
             self._extra_buttons = list(extra_buttons or [])
             self._enable_search = enable_search
             self._search_columns = search_columns
+            self._key_actions = dict(key_actions or {})
             self._index_map = []
             self._build_ui()
             self._repopulate()
@@ -308,6 +388,8 @@ if _wx_available:
             return lambda row: all(p(row) for p in predicates)
 
         def _repopulate(self):
+            if self._rows_provider is not None:
+                self._rows = list(self._rows_provider())
             display_rows, self._index_map = build_display_rows(
                 self._rows, self._current_predicate()
             )
@@ -336,8 +418,10 @@ if _wx_available:
         def _on_extra_button(self, callback):
             original_index = self._selected_original_index()
             if original_index is not None:
-                callback(original_index)
-                self._repopulate()
+                if callback(original_index):
+                    self.Close()
+                else:
+                    self._repopulate()
 
         def _on_filter_changed(self, event):
             self._repopulate()
@@ -351,6 +435,11 @@ if _wx_available:
                 self._on_activate(event)
             elif key == wx.WXK_ESCAPE:
                 self.Close()
+            elif key in self._key_actions:
+                original_index = self._selected_original_index()
+                if original_index is not None:
+                    self._key_actions[key](original_index)
+                    self._repopulate()
             else:
                 event.Skip()
 else:

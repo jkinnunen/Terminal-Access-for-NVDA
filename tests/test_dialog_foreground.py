@@ -20,26 +20,61 @@ def _file_has_raise_in_class(filepath, class_name):
 	return bool(re.search(r'self\.Raise\(\)', class_body))
 
 
+def _file_has_delegate(filepath, factory_name):
+	"""Check that a factory function delegates to BrowsableListDialog.
+
+	The bookmark, section, AI turn, URL, and search dialogs are factory
+	functions that build a BrowsableListDialog. The foreground Raise()
+	lives in that shared component, so delegating to it inherits the
+	guarantee.
+	"""
+	with open(filepath, 'r') as f:
+		source = f.read()
+	pattern = rf'def {factory_name}\b.*?(?=\ndef |\nclass |\n[^\s\n#]|\Z)'
+	match = re.search(pattern, source, re.DOTALL)
+	if not match:
+		return False
+	body = match.group(0)
+	return 'BrowsableListDialog' in body
+
+
 class TestDialogForeground:
-	"""Every dialog must call self.Raise() to appear in the foreground."""
+	"""Every dialog must appear in the foreground.
 
-	def test_bookmark_list_dialog_raises(self):
-		"""BookmarkListDialog must call Raise() to appear above terminal."""
+	Standalone dialog classes call self.Raise() directly. The migrated
+	factory dialogs delegate to BrowsableListDialog, which calls Raise()
+	itself, so the guarantee is inherited.
+	"""
+
+	def test_browsable_list_dialog_raises(self):
+		"""The shared BrowsableListDialog must call Raise() for all factories."""
 		assert _file_has_raise_in_class(
+			'addon/lib/list_dialogs.py', 'BrowsableListDialog'
+		), "BrowsableListDialog must call self.Raise()"
+
+	def test_bookmark_list_dialog_delegates(self):
+		"""BookmarkListDialog inherits Raise() via BrowsableListDialog."""
+		assert _file_has_delegate(
 			'addon/lib/navigation.py', 'BookmarkListDialog'
-		), "BookmarkListDialog must call self.Raise()"
+		), "BookmarkListDialog must delegate to BrowsableListDialog"
 
-	def test_search_results_dialog_raises(self):
-		"""SearchResultsDialog must call Raise() to appear above terminal."""
-		assert _file_has_raise_in_class(
+	def test_ai_turn_list_dialog_delegates(self):
+		"""AiTurnListDialog inherits Raise() via BrowsableListDialog."""
+		assert _file_has_delegate(
+			'addon/lib/navigation.py', 'AiTurnListDialog'
+		), "AiTurnListDialog must delegate to BrowsableListDialog"
+
+	def test_search_results_dialog_delegates(self):
+		"""SearchResultsDialog inherits Raise() via BrowsableListDialog."""
+		assert _file_has_delegate(
 			'addon/lib/search.py', 'SearchResultsDialog'
-		), "SearchResultsDialog must call self.Raise()"
+		), "SearchResultsDialog must delegate to BrowsableListDialog"
 
-	def test_url_list_dialog_raises(self):
-		"""UrlListDialog must call Raise() to appear above terminal."""
-		assert _file_has_raise_in_class(
+	def test_url_list_dialog_delegates(self):
+		"""UrlListDialog inherits Raise() via BrowsableListDialog."""
+		assert _file_has_delegate(
 			'addon/lib/search.py', 'UrlListDialog'
-		), "UrlListDialog must call self.Raise()"
+		), "UrlListDialog must delegate to BrowsableListDialog"
 
 	def test_profile_selection_dialog_raises(self):
 		"""ProfileSelectionDialog must call Raise() to appear above terminal."""

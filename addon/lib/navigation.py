@@ -731,93 +731,59 @@ except ImportError:
 
 
 if _wx_available:
-	class BookmarkListDialog(wx.Dialog):
+	def BookmarkListDialog(parent, bookmark_manager):
 		"""Accessible dialog for viewing and navigating bookmarks.
 
-		Displays all bookmarks in a list with Number and Line Content columns.
-		Supports jumping via Enter/Jump button, deleting via Delete key/button,
-		and closing via Escape/Close button. Fully keyboard-navigable for
-		screen reader users.
+		Thin wrapper: builds Number / Line Content rows live from the
+		bookmark manager and delegates to BrowsableListDialog. Enter or
+		the Activate button jumps to the selected bookmark, the Delete
+		key removes it (the list re-reads from the manager), Escape closes.
+
+		Args:
+			parent: Parent window.
+			bookmark_manager: Manager exposing list_bookmarks(),
+				jump_to_bookmark(name) and remove_bookmark(name).
+
+		Returns:
+			A BrowsableListDialog instance ready for ShowModal().
 		"""
+		from lib.list_dialogs import BrowsableListDialog, build_bookmark_rows
 
-		def __init__(self, parent, bookmark_manager):
-			super().__init__(
-				parent,
-				title=_("Bookmarks"),
-				style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-			)
-			self._manager = bookmark_manager
-			self._build_ui()
-			self._populate()
-			self.Raise()
+		def rows_provider():
+			return build_bookmark_rows(bookmark_manager.list_bookmarks())
 
-		def _build_ui(self):
-			sizer = wx.BoxSizer(wx.VERTICAL)
+		def _name_at(original_index):
+			bookmarks = bookmark_manager.list_bookmarks()
+			if 0 <= original_index < len(bookmarks):
+				return bookmarks[original_index]["name"]
+			return None
 
-			self._list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
-			self._list.InsertColumn(0, _("Number"), width=80)
-			self._list.InsertColumn(1, _("Line Content"), width=400)
-			sizer.Add(self._list, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
+		def on_activate(original_index):
+			name = _name_at(original_index)
+			if name is not None:
+				bookmark_manager.jump_to_bookmark(name)
 
-			btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-			self._jump_btn = wx.Button(self, label=_("&Jump"))
-			self._delete_btn = wx.Button(self, label=_("&Delete"))
-			self._close_btn = wx.Button(self, wx.ID_CLOSE, label=_("&Close"))
-			btn_sizer.Add(self._jump_btn, flag=wx.RIGHT, border=4)
-			btn_sizer.Add(self._delete_btn, flag=wx.RIGHT, border=4)
-			btn_sizer.Add(self._close_btn)
-			sizer.Add(btn_sizer, flag=wx.ALIGN_RIGHT | wx.ALL, border=8)
+		def on_delete(original_index):
+			name = _name_at(original_index)
+			if name is not None:
+				bookmark_manager.remove_bookmark(name)
 
-			self.SetSizer(sizer)
-			self.SetSize(500, 350)
+		return BrowsableListDialog(
+			parent,
+			# Translators: Title of the bookmark list dialog
+			title=_("Bookmarks"),
+			columns=[
+				# Translators: Column header for the bookmark number
+				(_("Number"), 80),
+				# Translators: Column header for the bookmark line content
+				(_("Line Content"), 400),
+			],
+			rows=[],
+			on_activate=on_activate,
+			rows_provider=rows_provider,
+			key_actions={wx.WXK_DELETE: on_delete},
+		)
 
-			self._jump_btn.Bind(wx.EVT_BUTTON, self._on_jump)
-			self._delete_btn.Bind(wx.EVT_BUTTON, self._on_delete)
-			self._close_btn.Bind(wx.EVT_BUTTON, self._on_close)
-			self._list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_jump)
-			self._list.Bind(wx.EVT_KEY_DOWN, self._on_key)
-
-		def _populate(self):
-			self._list.DeleteAllItems()
-			bookmarks = self._manager.list_bookmarks()
-			for bm in bookmarks:
-				idx = self._list.InsertItem(self._list.GetItemCount(), bm["name"])
-				self._list.SetItem(idx, 1, bm["label"])
-			if bookmarks:
-				self._list.Select(0)
-				self._list.Focus(0)
-
-		def _get_selected_name(self):
-			sel = self._list.GetFirstSelected()
-			if sel == -1:
-				return None
-			return self._list.GetItemText(sel, 0)
-
-		def _on_jump(self, event):
-			name = self._get_selected_name()
-			if name:
-				self._manager.jump_to_bookmark(name)
-				self.Close()
-
-		def _on_delete(self, event):
-			name = self._get_selected_name()
-			if name:
-				self._manager.remove_bookmark(name)
-				self._populate()
-
-		def _on_close(self, event):
-			self.Close()
-
-		def _on_key(self, event):
-			key = event.GetKeyCode()
-			if key == wx.WXK_DELETE:
-				self._on_delete(event)
-			elif key == wx.WXK_RETURN:
-				self._on_jump(event)
-			elif key == wx.WXK_ESCAPE:
-				self.Close()
-			else:
-				event.Skip()
 	def SectionListDialog(parent, sections, jump_callback):
 		"""Accessible dialog for viewing and navigating detected sections.
 
@@ -865,128 +831,44 @@ if _wx_available:
 			filter_choices=filter_choices,
 		)
 
-	class AiTurnListDialog(wx.Dialog):
+	def AiTurnListDialog(parent, turns, jump_callback):
 		"""Accessible dialog for viewing and navigating AI conversation turns.
 
-		Displays all detected AI turns (user, assistant, system, code) with
-		Role, Line, and Preview columns. Supports filtering by role, jumping
-		via Enter, and closing via Escape.
+		Thin wrapper: builds Role / Line / Preview rows and a per-role
+		filter, then delegates to BrowsableListDialog. Enter or the
+		Activate button jumps to the selected turn, Escape closes.
+
+		Args:
+			parent: Parent window.
+			turns: List of turn dicts (role, line_num, preview).
+			jump_callback: Callable(line_num) to jump to a turn.
+
+		Returns:
+			A BrowsableListDialog instance ready for ShowModal().
 		"""
+		from lib.list_dialogs import BrowsableListDialog, build_ai_turn_rows
 
-		def __init__(self, parent, turns, jump_callback):
-			"""Initialize the AiTurnListDialog.
+		rows, filter_choices = build_ai_turn_rows(turns)
 
-			Args:
-				parent: Parent window.
-				turns: List of turn dicts (role, line_num, preview).
-				jump_callback: Callable(line_num) to jump to a turn.
-			"""
-			super().__init__(
-				parent,
-				title=_("AI Turns"),
-				style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-			)
-			self._all_turns = turns
-			self._jump_callback = jump_callback
-			self._build_ui()
-			self._populate(turns)
-			self.Raise()
+		def on_activate(original_index):
+			jump_callback(turns[original_index]["line_num"])
 
-		def _build_ui(self):
-			sizer = wx.BoxSizer(wx.VERTICAL)
-
-			# Filter controls
-			filter_sizer = wx.BoxSizer(wx.HORIZONTAL)
-			filter_sizer.Add(
-				wx.StaticText(self, label=_("&Filter by role:")),
-				flag=wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, border=4,
-			)
-			self._filter_choice = wx.Choice(self)
-			filter_sizer.Add(self._filter_choice, proportion=1)
-			sizer.Add(filter_sizer, flag=wx.EXPAND | wx.ALL, border=8)
-
-			# Turn list
-			self._list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
-			self._list.InsertColumn(0, _("Role"), width=100)
-			self._list.InsertColumn(1, _("Line"), width=60)
-			self._list.InsertColumn(2, _("Preview"), width=380)
-			sizer.Add(self._list, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
-
-			# Buttons
-			btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-			self._jump_btn = wx.Button(self, label=_("&Jump"))
-			self._close_btn = wx.Button(self, wx.ID_CLOSE, label=_("&Close"))
-			btn_sizer.Add(self._jump_btn, flag=wx.RIGHT, border=4)
-			btn_sizer.Add(self._close_btn)
-			sizer.Add(btn_sizer, flag=wx.ALIGN_RIGHT | wx.ALL, border=8)
-
-			self.SetSizer(sizer)
-			self.SetSize(560, 400)
-
-			# Populate filter choices
-			roles = sorted(set(t["role"] for t in self._all_turns))
-			self._filter_choice.Append(_("All"))
-			for r in roles:
-				self._filter_choice.Append(r)
-			self._filter_choice.SetSelection(0)
-
-			# Bind events
-			self._jump_btn.Bind(wx.EVT_BUTTON, self._on_jump)
-			self._close_btn.Bind(wx.EVT_BUTTON, self._on_close)
-			self._list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_jump)
-			self._list.Bind(wx.EVT_KEY_DOWN, self._on_key)
-			self._filter_choice.Bind(wx.EVT_CHOICE, self._on_filter)
-
-		def _populate(self, turns):
-			self._list.DeleteAllItems()
-			for turn in turns:
-				idx = self._list.InsertItem(
-					self._list.GetItemCount(), turn["role"]
-				)
-				self._list.SetItem(idx, 1, str(turn["line_num"] + 1))
-				self._list.SetItem(idx, 2, turn["preview"])
-			if turns:
-				self._list.Select(0)
-				self._list.Focus(0)
-
-		def _get_selected_line_num(self):
-			sel = self._list.GetFirstSelected()
-			if sel == -1:
-				return None
-			try:
-				return int(self._list.GetItemText(sel, 1)) - 1  # back to 0-based
-			except (ValueError, TypeError):
-				return None
-
-		def _on_jump(self, event):
-			line_num = self._get_selected_line_num()
-			if line_num is not None:
-				self._jump_callback(line_num)
-				self.Close()
-
-		def _on_close(self, event):
-			self.Close()
-
-		def _on_filter(self, event):
-			sel = self._filter_choice.GetSelection()
-			if sel <= 0:
-				# "All"
-				self._populate(self._all_turns)
-			else:
-				chosen_role = self._filter_choice.GetString(sel)
-				filtered = [
-					t for t in self._all_turns if t["role"] == chosen_role
-				]
-				self._populate(filtered)
-
-		def _on_key(self, event):
-			key = event.GetKeyCode()
-			if key == wx.WXK_RETURN:
-				self._on_jump(event)
-			elif key == wx.WXK_ESCAPE:
-				self.Close()
-			else:
-				event.Skip()
+		return BrowsableListDialog(
+			parent,
+			# Translators: Title of the AI turn list dialog
+			title=_("AI Turns"),
+			columns=[
+				# Translators: Column header for the AI turn role
+				(_("Role"), 100),
+				# Translators: Column header for the line number
+				(_("Line"), 60),
+				# Translators: Column header for the AI turn preview text
+				(_("Preview"), 380),
+			],
+			rows=rows,
+			on_activate=on_activate,
+			filter_choices=filter_choices,
+		)
 
 else:
 	# Placeholder so imports don't break in test environments without wx.
