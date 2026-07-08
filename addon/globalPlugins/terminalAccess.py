@@ -618,7 +618,7 @@ from lib.ai_turn_tokenizer import AITurnTokenizer
 from lib.streaming_delta import StreamingDeltaTracker
 from lib.progress_milestones import ProgressMilestoneTracker
 from lib.table_reader import TableDetector, TableNavigator
-from lib.audio_cues import play_cue
+from lib.audio_cues import play_cue, should_speak
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""
@@ -1199,12 +1199,71 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				self._currentProfile = None
 
+	def _verbosityLevel(self):
+		"""Return the configured verbosity level, defaulting to normal (1).
+
+		Defensive so callers work even before the config manager is bound.
+		"""
+		cfg = getattr(self, "_configManager", None)
+		if cfg is None:
+			return 1
+		try:
+			return cfg.get("verbosityLevel", 1)
+		except Exception:
+			return 1
+
 	def _announceProfileIfNew(self, obj, appName):
 		"""Announce the active profile when switching to a new terminal app."""
 		if appName == self.lastTerminalAppName:
 			return
 		if self._currentProfile:
-			ui.message(self._currentProfile.displayName)
+			name = self._currentProfile.displayName
+			verbosity = self._verbosityLevel()
+			if should_speak(verbosity, "profile_detail"):
+				detail = self._profileDetailSummary(self._currentProfile)
+				if detail:
+					name = f"{name}: {detail}"
+			ui.message(name)
+
+	@staticmethod
+	def _profileDetailSummary(profile):
+		"""Summarize a profile's non-inherited overrides for verbose speech.
+
+		Returns a short comma-separated string, or an empty string when the
+		profile overrides nothing beyond global settings.
+		"""
+		parts = []
+		if profile.punctuationLevel is not None:
+			punct = {
+				# Translators: Punctuation level in a profile summary
+				PUNCT_NONE: _("punctuation none"),
+				# Translators: Punctuation level in a profile summary
+				PUNCT_SOME: _("punctuation some"),
+				# Translators: Punctuation level in a profile summary
+				PUNCT_MOST: _("punctuation most"),
+				# Translators: Punctuation level in a profile summary
+				PUNCT_ALL: _("punctuation all"),
+			}.get(profile.punctuationLevel)
+			if punct:
+				parts.append(punct)
+		if profile.cursorTrackingMode is not None:
+			mode = {
+				# Translators: Cursor tracking mode in a profile summary
+				CT_OFF: _("tracking off"),
+				# Translators: Cursor tracking mode in a profile summary
+				CT_STANDARD: _("tracking standard"),
+				# Translators: Cursor tracking mode in a profile summary
+				CT_WINDOW: _("tracking window"),
+			}.get(profile.cursorTrackingMode)
+			if mode:
+				parts.append(mode)
+		if profile.keyEcho is False:
+			# Translators: Included in a profile summary when key echo is off
+			parts.append(_("key echo off"))
+		if profile.quietMode:
+			# Translators: Included in a profile summary when quiet mode is on
+			parts.append(_("quiet mode"))
+		return ", ".join(parts)
 
 	def _bindReviewCursor(self, obj):
 		"""Bind the review cursor to the terminal."""
@@ -3959,6 +4018,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		"""
 		if match_count > 0:
 			tones.beep(800, 50)
+			# At normal and verbose verbosity, speak the number of matches.
+			verbosity = self._verbosityLevel()
+			if should_speak(verbosity, "search_count"):
+				if match_count == 1:
+					# Translators: Announced when a search finds a single match
+					ui.message(_("1 match"))
+				else:
+					# Translators: Announced with the number of search matches
+					ui.message(_("{count} matches").format(count=match_count))
 			return True
 		else:
 			tones.beep(300, 100)
@@ -4187,8 +4255,42 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				tones.beep(220, 40)
 			elif section.category == "warning":
 				tones.beep(440, 40)
+			# At normal and verbose verbosity, name the section category
+			# so the landmark is identified, not just its line content.
+			verbosity = self._verbosityLevel()
+			if should_speak(verbosity, "section_context"):
+				label = self._sectionCategoryLabel(section.category)
+				if label:
+					ui.message(label)
 		except Exception:
 			ui.message(ANSIParser.stripANSI(section.text))
+
+	@staticmethod
+	def _sectionCategoryLabel(category):
+		"""Return a spoken label for a section category, or None to stay silent.
+
+		The plain "output" category carries no landmark meaning and is
+		never announced.
+		"""
+		labels = {
+			# Translators: Spoken section category when jumping to a shell prompt
+			"prompt": _("prompt"),
+			# Translators: Spoken section category when jumping to a command line
+			"command": _("command"),
+			# Translators: Spoken section category when jumping to an error line
+			"error": _("error"),
+			# Translators: Spoken section category when jumping to a warning line
+			"warning": _("warning"),
+			# Translators: Spoken section category when jumping to a stack trace
+			"stack_trace": _("stack trace"),
+			# Translators: Spoken section category when jumping to a progress line
+			"progress": _("progress"),
+			# Translators: Spoken section category when jumping to a timestamped line
+			"timestamp": _("timestamp"),
+			# Translators: Spoken section category when jumping to a heading line
+			"heading": _("heading"),
+		}
+		return labels.get(category)
 
 	@script(
 		# Translators: Description for jumping to the next section boundary
