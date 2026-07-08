@@ -115,10 +115,16 @@ class TestGestureBindingsVisibility(unittest.TestCase):
 		# - showHelp: always available (in _ALWAYS_BOUND)
 		# - copyLine/copyScreen/exitCopyMode: guarded by self.copyMode
 		# - exitCommandLayer: guarded by self._inCommandLayer
+		# - table mode scripts: guarded by self._tableNavigator
 		always_active = {
 			'script_showHelp',
 			'script_copyLine', 'script_copyScreen', 'script_exitCopyMode',
 			'script_exitCommandLayer',
+			'script_tablePreviousRow', 'script_tableNextRow',
+			'script_tablePreviousColumn', 'script_tableNextColumn',
+			'script_tableFirstColumn', 'script_tableLastColumn',
+			'script_tableColumnHeader', 'script_tableRowSummary',
+			'script_exitTableMode',
 		}
 		# Scripts that delegate to _navigateAiElement (which has the guard)
 		delegated_to_helper = {

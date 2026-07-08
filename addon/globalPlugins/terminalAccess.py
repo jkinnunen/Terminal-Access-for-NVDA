@@ -224,6 +224,10 @@ _COMMAND_LAYER_MAP = {
 	"kb:f1": "showHelp",
 	"kb:s": "openSettings",
 	"kb:shift+f1": "checkGestureConflicts",
+	"kb:shift+h": "replayTutorial",
+	"kb:h": "findCommand",
+	# Transcript export
+	"kb:control+s": "exportTranscript",
 	# URL list (elements)
 	"kb:e": "listUrls",
 	# Summarization
@@ -241,8 +245,25 @@ _COMMAND_LAYER_MAP = {
 	"kb:shift+n": "prevSection",
 	# Streaming delta
 	"kb:shift+d": "whatChanged",
+	# Table mode
+	"kb:g": "toggleTableMode",
 	# Layer exit
 	"kb:escape": "exitCommandLayer",
+}
+
+# Table mode key map: while table mode is active these keys navigate the
+# detected table cell by cell. Bound on entry, removed on exit, mirroring
+# the copy mode pattern.
+_TABLE_MODE_BINDINGS = {
+	"kb:upArrow": "tablePreviousRow",
+	"kb:downArrow": "tableNextRow",
+	"kb:leftArrow": "tablePreviousColumn",
+	"kb:rightArrow": "tableNextColumn",
+	"kb:home": "tableFirstColumn",
+	"kb:end": "tableLastColumn",
+	"kb:control+upArrow": "tableColumnHeader",
+	"kb:space": "tableRowSummary",
+	"kb:escape": "exitTableMode",
 }
 
 # Default gesture bindings: gesture string → script name (without "script_" prefix).
@@ -323,6 +344,8 @@ _DEFAULT_GESTURES = {
 	"kb:NVDA+alt+shift+b": "prevCodeBlock",
 	# Streaming delta
 	"kb:NVDA+shift+d": "whatChanged",
+	# Table mode
+	"kb:NVDA+alt+g": "toggleTableMode",
 }
 
 # Gestures that are always active regardless of context.
@@ -593,6 +616,8 @@ from lib.privacy import PrivacyGuard
 from lib.code_block_reader import CodeBlockDetector
 from lib.ai_turn_tokenizer import AITurnTokenizer
 from lib.streaming_delta import StreamingDeltaTracker
+from lib.progress_milestones import ProgressMilestoneTracker
+from lib.table_reader import TableDetector, TableNavigator
 from lib.audio_cues import play_cue
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -689,6 +714,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	# both textChange and caret fire in quick succession. The caret movement
 	# is a side effect of the output, not user navigation.
 	_OUTPUT_CARET_GRACE: float = 0.1
+	# Minimum interval (seconds) between progress milestone buffer reads.
+	# textChange can fire many times per second during rapid output;
+	# reading the last buffer line involves COM/UIA calls, so throttle.
+	_PROGRESS_CHECK_INTERVAL: float = 0.5
 
 	# Class-level gesture map: ALL gestures are bound so they appear in
 	# NVDA's Input Gestures dialog under the Terminal Access category.
@@ -719,6 +748,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._lastTypedCharTime: float = 0.0
 		self._lastTextChangeTime: float = 0.0
 		self._lastOutputActivityTime: float = 0.0
+		self._lastProgressCheckTime: float = 0.0
 
 		# Content generation counter — incremented whenever terminal content changes.
 		# Used to invalidate per-line TextInfo caches in _announceStandardCursor.
@@ -760,6 +790,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._searchDialogOpen = False
 		self._urlDialogOpen = False
 
+		# Table mode state (modal, like copy mode). _tableNavigator is
+		# non-None only while table mode is active.
+		self._tableNavigator = None
+		self._tableRow = 0
+		self._tableCol = 0
+
 	def _initManagers(self):
 		"""Initialize feature managers (lazy — populated on first terminal focus)."""
 		self._configManager = ConfigManager()
@@ -786,15 +822,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Error/warning line detector for audio cues during line navigation
 		self._errorDetector = ErrorLineDetector()
 
+		# Progress milestone tracker for percentage announcements during
+		# long operations (complements streaming suppression)
+		self._progressTracker = ProgressMilestoneTracker()
+
 		# Section tokenizer for semantic navigation
 		self._sectionTokenizer = SectionTokenizer()
 
 		# AI turn tokenizer for navigating AI CLI conversations
 		self._aiTurnTokenizer = AITurnTokenizer()
-
-		# Caret burst detector for streaming output suppression
-		from lib.streaming_delta import CaretBurstDetector
-		self._burstDetector = CaretBurstDetector()
 
 		# Extractive summarizer for terminal output
 		self._outputSummarizer = OutputSummarizer()
@@ -897,6 +933,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if getattr(self, "copyMode", False):
 			self._exitCopyModeBindings()
 			self.copyMode = False
+		# Exit table mode silently when focus leaves terminal
+		if getattr(self, "_tableNavigator", None) is not None:
+			self._exitTableModeBindings()
 		return False
 
 	def terminate(self):
@@ -1145,7 +1184,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		from lib.terminal_overlay import TerminalAccessTerminal
 		if isinstance(obj, TerminalAccessTerminal):
 			obj._configManager = self._configManager
-			obj._burstDetector = self._burstDetector
 
 	def _detectAndApplyProfile(self, obj):
 		"""Detect and activate the appropriate application profile."""
@@ -1181,12 +1219,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				pass
 
 	def _announceHelpIfNeeded(self, appName):
-		"""Announce help availability on first focus to a terminal."""
+		"""Announce help availability on first focus to a terminal.
+
+		On the very first terminal focus ever (tutorialShown False), a
+		short spoken tutorial replaces the one-line message and the flag
+		is set so the tutorial never auto-plays again.
+		"""
 		if not self.announcedHelp or appName != self.lastTerminalAppName:
 			self.lastTerminalAppName = appName
 			self.announcedHelp = True
-			# Translators: Message announced when entering a terminal application
-			ui.message(_("Terminal Access support active. Press NVDA+shift+f1 for help."))
+			from lib.tutorial import should_offer_tutorial, build_tutorial_message
+			if should_offer_tutorial(self._configManager):
+				ui.message(build_tutorial_message())
+				self._configManager.set("tutorialShown", True)
+			else:
+				# Translators: Message announced when entering a terminal application
+				ui.message(_("Terminal Access support active. Press NVDA+shift+f1 for help."))
 			# Check for conflicts silently on first focus
 			self._checkConflictsSilently()
 
@@ -1427,6 +1475,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# was caused by output, not user navigation.
 		self._lastTextChangeTime = time.monotonic()
 
+		if self._configManager.get("progressMilestones", True):
+			self._checkProgressMilestone()
+
 		# In quiet mode, skip nextHandler (no speech)
 		if not isQuietMode:
 			nextHandler()
@@ -1438,6 +1489,28 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if (self._configManager.get("errorAudioCues", True)
 					and self._configManager.get("errorAudioCuesInQuietMode", False)):
 				self._checkErrorAudioCue()
+
+	def _checkProgressMilestone(self):
+		"""Announce a progress milestone found on the last buffer line.
+
+		Called from event_textChange. Throttled to one buffer read per
+		_PROGRESS_CHECK_INTERVAL because textChange fires rapidly during
+		streaming output and each read costs COM/UIA calls.
+		"""
+		now = time.monotonic()
+		if (now - self._lastProgressCheckTime) < self._PROGRESS_CHECK_INTERVAL:
+			return
+		self._lastProgressCheckTime = now
+		try:
+			info = self._boundTerminal.makeTextInfo(textInfos.POSITION_LAST)
+			info.expand(textInfos.UNIT_LINE)
+			milestone = self._progressTracker.update(info.text)
+			if milestone is not None:
+				# Translators: Spoken when terminal output reaches a progress
+				# milestone, for example 25, 50, 75, or 100 percent.
+				ui.message(_("{percent} percent").format(percent=milestone))
+		except (RuntimeError, AttributeError, TypeError, LookupError):
+			pass
 
 	def _checkErrorAudioCue(self):
 		"""Play error/warning beep for the current line if applicable.
@@ -1716,7 +1789,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				os.startfile(docPath)
 				return
 		ui.message(_("Help file not found. Please reinstall the add-on."))
-	
+
+	# No direct gesture on purpose: replay is reachable from the command
+	# layer (NVDA+apostrophe, then Shift+H) to keep the gesture surface small.
+	@script(
+		# Translators: Description for replaying the first-run tutorial
+		description=_("Replay the Terminal Access spoken tutorial"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_replayTutorial(self, gesture):
+		"""Speak the first-run tutorial on demand."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		from lib.tutorial import build_tutorial_message
+		ui.message(build_tutorial_message())
+
 	@script(
 		# Translators: Description for reading the previous line
 		description=_("Read previous line in terminal"),
@@ -2029,6 +2117,195 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 						pass
 
 	# ------------------------------------------------------------------
+	# Table Mode — modal column-aware reading of tabular output
+	# ------------------------------------------------------------------
+
+	@script(
+		# Translators: Description for toggling table mode
+		description=_("Toggle table mode for column-aware reading of tabular terminal output"),
+		gesture="kb:NVDA+alt+g",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_toggleTableMode(self, gesture):
+		"""Enter or leave table mode on the table under the review cursor."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		if self._tableNavigator is not None:
+			self._exitTableModeBindings(announce=True)
+			return
+
+		lines = self._getBufferLines()
+		region = None
+		if lines:
+			current = self._getCurrentLineNumber()
+			region = TableDetector().detect(lines, current if current is not None else 0)
+		if region is None:
+			# Translators: Message when table mode finds no table on the current line
+			ui.message(_("No table at this position"))
+			return
+
+		navigator = TableNavigator(region, lines)
+		if navigator.n_rows < 1 or navigator.n_cols < 1:
+			# Translators: Message when table mode finds no table on the current line
+			ui.message(_("No table at this position"))
+			return
+
+		self._tableNavigator = navigator
+		self._tableRow = 0
+		self._tableCol = 0
+		for gesture_id, script_name in _TABLE_MODE_BINDINGS.items():
+			try:
+				self.bindGesture(gesture_id, script_name)
+			except (KeyError, AttributeError):
+				pass
+		# Translators: Announced when table mode starts. {rows} and {cols}
+		# are the table dimensions.
+		ui.message(_(
+			"Table mode. {rows} rows, {cols} columns. "
+			"Use arrows to move, Escape to exit."
+		).format(rows=navigator.n_rows, cols=navigator.n_cols))
+
+	def _exitTableModeBindings(self, announce=False):
+		"""Leave table mode, unbind its keys and restore layer bindings."""
+		self._tableNavigator = None
+		self._tableRow = 0
+		self._tableCol = 0
+		for gesture_id in _TABLE_MODE_BINDINGS:
+			try:
+				self.removeGestureBinding(gesture_id)
+			except (KeyError, AttributeError):
+				pass
+		# If the command layer is active, re-bind the layer gestures that
+		# table mode temporarily overwrote (home, end, escape).
+		if getattr(self, "_inCommandLayer", False):
+			for gesture_id in _TABLE_MODE_BINDINGS:
+				if gesture_id in _COMMAND_LAYER_MAP:
+					try:
+						self.bindGesture(gesture_id, _COMMAND_LAYER_MAP[gesture_id])
+					except (KeyError, AttributeError):
+						pass
+		if announce:
+			# Translators: Announced when table mode ends
+			ui.message(_("Table mode off"))
+
+	def _tableMove(self, gesture, drow, dcol):
+		"""Move the table cursor by a row/column delta and speak the cell."""
+		navigator = self._tableNavigator
+		if navigator is None:
+			gesture.send()
+			return
+		result = navigator.move(self._tableRow, self._tableCol, drow, dcol)
+		if result is None:
+			# Translators: Message when table navigation hits the table boundary
+			ui.message(_("Edge of table"))
+			return
+		self._tableRow, self._tableCol = result
+		ui.message(navigator.announce_for(self._tableRow, self._tableCol))
+
+	@script(
+		# Translators: Description for moving to the previous table row
+		description=_("Move to the previous row in table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_tablePreviousRow(self, gesture):
+		"""Move up one table row."""
+		self._tableMove(gesture, -1, 0)
+
+	@script(
+		# Translators: Description for moving to the next table row
+		description=_("Move to the next row in table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_tableNextRow(self, gesture):
+		"""Move down one table row."""
+		self._tableMove(gesture, 1, 0)
+
+	@script(
+		# Translators: Description for moving to the previous table column
+		description=_("Move to the previous column in table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_tablePreviousColumn(self, gesture):
+		"""Move left one table column."""
+		self._tableMove(gesture, 0, -1)
+
+	@script(
+		# Translators: Description for moving to the next table column
+		description=_("Move to the next column in table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_tableNextColumn(self, gesture):
+		"""Move right one table column."""
+		self._tableMove(gesture, 0, 1)
+
+	@script(
+		# Translators: Description for jumping to the first table column
+		description=_("Move to the first column in table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_tableFirstColumn(self, gesture):
+		"""Jump to the first column of the current row."""
+		navigator = self._tableNavigator
+		if navigator is None:
+			gesture.send()
+			return
+		self._tableCol = 0
+		ui.message(navigator.announce_for(self._tableRow, self._tableCol))
+
+	@script(
+		# Translators: Description for jumping to the last table column
+		description=_("Move to the last column in table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_tableLastColumn(self, gesture):
+		"""Jump to the last column of the current row."""
+		navigator = self._tableNavigator
+		if navigator is None:
+			gesture.send()
+			return
+		self._tableCol = max(navigator.n_cols - 1, 0)
+		ui.message(navigator.announce_for(self._tableRow, self._tableCol))
+
+	@script(
+		# Translators: Description for announcing the current column header
+		description=_("Announce the header of the current column in table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_tableColumnHeader(self, gesture):
+		"""Speak the header of the current column without moving."""
+		navigator = self._tableNavigator
+		if navigator is None:
+			gesture.send()
+			return
+		ui.message(navigator.announce_for(0, self._tableCol))
+
+	@script(
+		# Translators: Description for reading the whole current table row
+		description=_("Read the current row with headers in table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_tableRowSummary(self, gesture):
+		"""Speak every cell of the current row with its header."""
+		navigator = self._tableNavigator
+		if navigator is None:
+			gesture.send()
+			return
+		ui.message(navigator.row_summary(self._tableRow))
+
+	@script(
+		# Translators: Description for exiting table mode
+		description=_("Exit table mode"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_exitTableMode(self, gesture):
+		"""Leave table mode and restore normal keys."""
+		if self._tableNavigator is None:
+			gesture.send()
+			return
+		self._exitTableModeBindings(announce=True)
+
+	# ------------------------------------------------------------------
 	# Command Layer — modal input mode for single-key commands
 	# ------------------------------------------------------------------
 
@@ -2055,6 +2332,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# If copy mode is active, exit it first
 		if self.copyMode:
 			self._exitCopyModeBindings()
+		# If table mode is active, exit it first so layer keys win
+		if self._tableNavigator is not None:
+			self._exitTableModeBindings()
 		for gesture_id, script_name in _COMMAND_LAYER_MAP.items():
 			try:
 				self.bindGesture(gesture_id, script_name)
@@ -3290,7 +3570,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Translators: Description for listing detected sections
 		description=_("List all detected sections in the terminal buffer"),
 		category=SCRCAT_TERMINALACCESS,
-		gesture="kb:NVDA+alt+s"
+		# No direct gesture: NVDA+alt+s belongs to summarizeLastCommand.
+		# Available as Shift+S in the command layer or via Input Gestures.
 	)
 	def script_listSections(self, gesture):
 		"""List all detected sections in an accessible dialog."""
@@ -3330,6 +3611,141 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._bookmarkJumpPending = True
 		finally:
 			gui.mainFrame.postPopup()
+
+	# Command finder (v2.1.0+)
+
+	@scriptHandler.script(
+		# Translators: Description for the command finder
+		description=_("Open a searchable list of all Terminal Access commands"),
+		category=SCRCAT_TERMINALACCESS,
+		gesture="kb:NVDA+alt+h"
+	)
+	def script_findCommand(self, gesture):
+		"""Open a searchable list of all Terminal Access commands."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+
+		from lib.list_dialogs import collect_commands
+		commands = collect_commands(self)
+		if not commands:
+			# Translators: Message when no commands could be collected
+			ui.message(_("No commands available"))
+			return
+
+		wx.CallAfter(self._showCommandFinderDialog, commands)
+
+	def _showCommandFinderDialog(self, commands):
+		"""Open the command finder dialog on the main thread."""
+		from lib.list_dialogs import BrowsableListDialog
+		import gui
+		rows = [
+			(cmd["name"], cmd["description"], cmd["gesture_display"])
+			for cmd in commands
+		]
+		try:
+			gui.mainFrame.prePopup()
+			dlg = BrowsableListDialog(
+				gui.mainFrame,
+				# Translators: Title of the command finder dialog
+				title=_("Terminal Access Commands"),
+				columns=[
+					# Translators: Column header for the command name
+					(_("Command"), 160),
+					# Translators: Column header for the command description
+					(_("Description"), 300),
+					# Translators: Column header for the command gesture
+					(_("Gesture"), 220),
+				],
+				rows=rows,
+				on_activate=lambda index: self._announceCommandInvocation(
+					commands[index]
+				),
+				enable_search=True,
+				search_columns=(0, 1),
+			)
+			dlg.ShowModal()
+			dlg.Destroy()
+		finally:
+			gui.mainFrame.postPopup()
+
+	def _announceCommandInvocation(self, command):
+		"""Announce how to invoke a command without executing it."""
+		bindings = []
+		if command["gesture_display"]:
+			bindings.append(command["gesture_display"])
+		if command["layer_key"]:
+			# Translators: How to invoke a command from the command layer
+			bindings.append(
+				_("command layer {key}").format(key=command["layer_key"])
+			)
+		if bindings:
+			# Translators: Announces the gesture bindings of a command
+			ui.message(_("{name}: {bindings}").format(
+				name=command["name"], bindings="; ".join(bindings)
+			))
+		else:
+			# Translators: Announced for a command with no gesture assigned
+			ui.message(_("{name} has no gesture assigned").format(
+				name=command["name"]
+			))
+
+	# Transcript export (v2.1.0+)
+
+	@scriptHandler.script(
+		# Translators: Description for exporting the terminal transcript
+		description=_("Export the terminal transcript to a text file"),
+		category=SCRCAT_TERMINALACCESS,
+		gesture="kb:NVDA+alt+x"
+	)
+	def script_exportTranscript(self, gesture):
+		"""Export the terminal buffer to a plain text file."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+
+		lines = self._getBufferLines()
+		if not lines:
+			# Translators: Message when terminal buffer cannot be read
+			ui.message(_("Cannot read terminal buffer"))
+			return
+
+		wx.CallAfter(self._showExportTranscriptDialog, lines)
+
+	def _showExportTranscriptDialog(self, lines):
+		"""Prompt for a save location and write the transcript file."""
+		from lib.list_dialogs import export_transcript_text
+		import gui
+		path = None
+		try:
+			gui.mainFrame.prePopup()
+			dlg = wx.FileDialog(
+				gui.mainFrame,
+				# Translators: Title of the transcript save dialog
+				message=_("Save transcript"),
+				defaultDir=os.path.expanduser("~"),
+				defaultFile="terminal-transcript.txt",
+				# Translators: File type filter in the transcript save dialog
+				wildcard=_("Text files (*.txt)|*.txt|All files (*.*)|*.*"),
+				style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+			)
+			try:
+				if dlg.ShowModal() == wx.ID_OK:
+					path = dlg.GetPath()
+			finally:
+				dlg.Destroy()
+		finally:
+			gui.mainFrame.postPopup()
+		if not path:
+			return
+		try:
+			with open(path, "w", encoding="utf-8") as transcript_file:
+				transcript_file.write(export_transcript_text(lines))
+			# Translators: Announced after the transcript file is written
+			ui.message(_("Transcript saved"))
+		except OSError:
+			# Translators: Announced when the transcript file cannot be written
+			ui.message(_("Unable to save transcript"))
 
 	# Section 8.5: AI turn list gesture (v1.5.0+)
 

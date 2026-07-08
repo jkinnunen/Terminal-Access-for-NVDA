@@ -315,7 +315,7 @@ class TestErrorLineDetectorIntegration:
 		gesture = MagicMock()
 		move_fn = MagicMock()
 		plugin._readLineWithIndentation(gesture, move_fn)
-		tones.beep.assert_called_once_with(220, 50)
+		tones.beep.assert_called_once_with(220, 50, left=100, right=100)
 
 	def test_warning_line_triggers_high_beep(self):
 		import tones
@@ -325,7 +325,7 @@ class TestErrorLineDetectorIntegration:
 		gesture = MagicMock()
 		move_fn = MagicMock()
 		plugin._readLineWithIndentation(gesture, move_fn)
-		tones.beep.assert_called_once_with(440, 30)
+		tones.beep.assert_called_once_with(440, 30, left=100, right=100)
 
 	def test_normal_line_no_beep(self):
 		import tones
@@ -480,7 +480,7 @@ class TestErrorCueContextBehavior:
 		mock_tones = MagicMock()
 		with patch("lib.audio_cues.tones", mock_tones):
 			obj._reportNewLines(["warning: deprecated function"])
-			mock_tones.beep.assert_called_once_with(440, 30)
+			mock_tones.beep.assert_called_once_with(440, 30, left=100, right=100)
 
 	def test_quiet_mode_normal_line_no_beep(self):
 		"""In quiet mode, normal lines should produce no beep."""

@@ -611,3 +611,61 @@ class TestANSIStripping:
         nxt = tokenizer.next_prompt(0)
         assert nxt is not None
         assert nxt.line_num == 3
+
+
+class TestTokenizeCaching:
+    """tokenize() must reuse cached results when the buffer is unchanged."""
+
+    def test_same_buffer_returns_cached_object(self):
+        """Tokenizing the same buffer twice returns the identical list object."""
+        tokenizer = SectionTokenizer()
+        lines = [
+            "user@dev:~/project$ cargo build",
+            "   Compiling myproject v0.1.0",
+            "error: aborting due to 1 previous error",
+        ]
+        first = tokenizer.tokenize(lines)
+        second = tokenizer.tokenize(list(lines))
+        assert second is first
+
+    def test_same_buffer_returns_cached_spans(self):
+        """A cache hit also preserves the computed spans."""
+        tokenizer = SectionTokenizer()
+        lines = [
+            "user@dev:~/project$ cargo build",
+            "   Compiling myproject v0.1.0",
+        ]
+        tokenizer.tokenize(lines)
+        spans_first = tokenizer.get_spans()
+        tokenizer.tokenize(list(lines))
+        assert tokenizer.get_spans() == spans_first
+
+    def test_appended_line_invalidates_cache(self):
+        """Appending a line re-tokenizes the buffer."""
+        tokenizer = SectionTokenizer()
+        lines = ["user@dev:~/project$ cargo build", "   Compiling myproject v0.1.0"]
+        first = tokenizer.tokenize(lines)
+        grown = lines + ["error: something failed"]
+        second = tokenizer.tokenize(grown)
+        assert second is not first
+        assert len(second) == 3
+        assert second[2].category == "error"
+
+    def test_changed_last_line_invalidates_cache(self):
+        """Rewriting the last line (same length) re-tokenizes the buffer."""
+        tokenizer = SectionTokenizer()
+        lines = ["user@dev:~/project$ cargo build", "[====>    ] 50%"]
+        first = tokenizer.tokenize(lines)
+        updated = ["user@dev:~/project$ cargo build", "[========>] 99%"]
+        second = tokenizer.tokenize(updated)
+        assert second is not first
+        assert second[1].text == "[========>] 99%"
+
+    def test_empty_buffer_safe(self):
+        """Empty buffers tokenize safely and cache like any other buffer."""
+        tokenizer = SectionTokenizer()
+        first = tokenizer.tokenize([])
+        assert first == []
+        second = tokenizer.tokenize([])
+        assert second is first
+        assert tokenizer.get_spans() == []

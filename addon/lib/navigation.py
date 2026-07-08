@@ -818,128 +818,52 @@ if _wx_available:
 				self.Close()
 			else:
 				event.Skip()
-	class SectionListDialog(wx.Dialog):
+	def SectionListDialog(parent, sections, jump_callback):
 		"""Accessible dialog for viewing and navigating detected sections.
 
-		Displays all sections with Section Type, Line Number, and Preview
-		columns. Supports jumping via Enter/Jump button, filtering by
-		section type, and closing via Escape/Close button.
+		Thin wrapper: builds Section Type / Line / Preview rows and a
+		per-type filter, then delegates to BrowsableListDialog. Enter or
+		the Activate button jumps to the selected section, Escape closes.
+
+		Args:
+			parent: Parent window.
+			sections: List of section dicts (type, line_num, preview).
+			jump_callback: Callable(line_num) to jump to a section.
+
+		Returns:
+			A BrowsableListDialog instance ready for ShowModal().
 		"""
+		from lib.list_dialogs import BrowsableListDialog
 
-		def __init__(self, parent, sections, jump_callback):
-			"""Initialize the SectionListDialog.
+		rows = [
+			(sec["type"], str(sec["line_num"] + 1), sec["preview"])
+			for sec in sections
+		]
+		types = sorted(set(sec["type"] for sec in sections))
+		filter_choices = [
+			(section_type, lambda row, t=section_type: row[0] == t)
+			for section_type in types
+		]
 
-			Args:
-				parent: Parent window.
-				sections: List of section dicts (type, line_num, preview).
-				jump_callback: Callable(line_num) to jump to a section.
-			"""
-			super().__init__(
-				parent,
-				title=_("Sections"),
-				style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-			)
-			self._all_sections = sections
-			self._jump_callback = jump_callback
-			self._build_ui()
-			self._populate(sections)
-			self.Raise()
+		def on_activate(original_index):
+			jump_callback(sections[original_index]["line_num"])
 
-		def _build_ui(self):
-			sizer = wx.BoxSizer(wx.VERTICAL)
-
-			# Filter controls
-			filter_sizer = wx.BoxSizer(wx.HORIZONTAL)
-			filter_sizer.Add(
-				wx.StaticText(self, label=_("&Filter by type:")),
-				flag=wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, border=4,
-			)
-			self._filter_choice = wx.Choice(self)
-			filter_sizer.Add(self._filter_choice, proportion=1)
-			sizer.Add(filter_sizer, flag=wx.EXPAND | wx.ALL, border=8)
-
-			# Section list
-			self._list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
-			self._list.InsertColumn(0, _("Section Type"), width=120)
-			self._list.InsertColumn(1, _("Line"), width=60)
-			self._list.InsertColumn(2, _("Preview"), width=350)
-			sizer.Add(self._list, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
-
-			# Buttons
-			btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-			self._jump_btn = wx.Button(self, label=_("&Jump"))
-			self._close_btn = wx.Button(self, wx.ID_CLOSE, label=_("&Close"))
-			btn_sizer.Add(self._jump_btn, flag=wx.RIGHT, border=4)
-			btn_sizer.Add(self._close_btn)
-			sizer.Add(btn_sizer, flag=wx.ALIGN_RIGHT | wx.ALL, border=8)
-
-			self.SetSizer(sizer)
-			self.SetSize(560, 400)
-
-			# Populate filter choices
-			types = sorted(set(s["type"] for s in self._all_sections))
-			self._filter_choice.Append(_("All"))
-			for t in types:
-				self._filter_choice.Append(t)
-			self._filter_choice.SetSelection(0)
-
-			# Bind events
-			self._jump_btn.Bind(wx.EVT_BUTTON, self._on_jump)
-			self._close_btn.Bind(wx.EVT_BUTTON, self._on_close)
-			self._list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_jump)
-			self._list.Bind(wx.EVT_KEY_DOWN, self._on_key)
-			self._filter_choice.Bind(wx.EVT_CHOICE, self._on_filter)
-
-		def _populate(self, sections):
-			self._list.DeleteAllItems()
-			for sec in sections:
-				idx = self._list.InsertItem(
-					self._list.GetItemCount(), sec["type"]
-				)
-				self._list.SetItem(idx, 1, str(sec["line_num"] + 1))
-				self._list.SetItem(idx, 2, sec["preview"])
-			if sections:
-				self._list.Select(0)
-				self._list.Focus(0)
-
-		def _get_selected_line_num(self):
-			sel = self._list.GetFirstSelected()
-			if sel == -1:
-				return None
-			try:
-				return int(self._list.GetItemText(sel, 1)) - 1  # back to 0-based
-			except (ValueError, TypeError):
-				return None
-
-		def _on_jump(self, event):
-			line_num = self._get_selected_line_num()
-			if line_num is not None:
-				self._jump_callback(line_num)
-				self.Close()
-
-		def _on_close(self, event):
-			self.Close()
-
-		def _on_filter(self, event):
-			sel = self._filter_choice.GetSelection()
-			if sel <= 0:
-				# "All"
-				self._populate(self._all_sections)
-			else:
-				chosen_type = self._filter_choice.GetString(sel)
-				filtered = [
-					s for s in self._all_sections if s["type"] == chosen_type
-				]
-				self._populate(filtered)
-
-		def _on_key(self, event):
-			key = event.GetKeyCode()
-			if key == wx.WXK_RETURN:
-				self._on_jump(event)
-			elif key == wx.WXK_ESCAPE:
-				self.Close()
-			else:
-				event.Skip()
+		return BrowsableListDialog(
+			parent,
+			# Translators: Title of the section list dialog
+			title=_("Sections"),
+			columns=[
+				# Translators: Column header for the section type
+				(_("Section Type"), 120),
+				# Translators: Column header for the line number
+				(_("Line"), 60),
+				# Translators: Column header for the section preview text
+				(_("Preview"), 350),
+			],
+			rows=rows,
+			on_activate=on_activate,
+			filter_choices=filter_choices,
+		)
 
 	class AiTurnListDialog(wx.Dialog):
 		"""Accessible dialog for viewing and navigating AI conversation turns.

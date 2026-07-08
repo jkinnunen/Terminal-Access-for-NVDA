@@ -88,6 +88,10 @@ confspec = {
 	"privacyAnnounce": "boolean(default=True)",  # Announce spoken message when a gated feature is blocked
 	"aiTurnParseEnabled": "boolean(default=False)",  # Enable AI turn detection and navigation (opt-in)
 	"streamingSuppression": "boolean(default=True)",  # Suppress character speech during rapid output (streaming)
+	"tutorialShown": "boolean(default=False)",  # First-run tutorial already played (never auto-replays once True)
+	"progressMilestones": "boolean(default=True)",  # Announce progress percentages at milestone thresholds
+	"earconVolume": "integer(default=100, min=10, max=100)",  # Earcon volume percent
+	"earconPitchShift": "integer(default=100, min=50, max=200)",  # Earcon pitch shift percent (100 = unchanged)
 }
 
 
@@ -312,6 +316,10 @@ class ConfigManager:
 			return _validateInteger(value, 0, MAX_WINDOW_DIMENSION, 0, key)
 		elif key == "outputActivityDebounce":
 			return _validateInteger(value, 100, 10000, 1000, key)
+		elif key == "earconVolume":
+			return _validateInteger(value, 10, 100, 100, key)
+		elif key == "earconPitchShift":
+			return _validateInteger(value, 50, 200, 100, key)
 
 		# String validations
 		elif key == "repeatedSymbolsValues":
@@ -324,7 +332,8 @@ class ConfigManager:
 					 "outputActivityTones",
 					 "summarizationEnabled", "codeBlockExplain",
 					 "privacyAnnounce", "aiTurnParseEnabled",
-					 "streamingSuppression"]:
+					 "streamingSuppression", "tutorialShown",
+					 "progressMilestones"]:
 			return bool(value)
 
 		# Unknown key - return as-is (for forward compatibility)
@@ -342,12 +351,20 @@ class ConfigManager:
 		self.set("windowRight", self.get("windowRight", 0))
 
 		self.set("outputActivityDebounce", self.get("outputActivityDebounce", 1000))
+		self.set("earconVolume", self.get("earconVolume", 100))
+		self.set("earconPitchShift", self.get("earconPitchShift", 100))
 
 		# Validate string settings
 		self.set("repeatedSymbolsValues", self.get("repeatedSymbolsValues", "-_=!"))
 
 	def reset_to_defaults(self) -> None:
-		"""Reset all configuration values to their defaults."""
+		"""Reset all configuration values to their defaults.
+
+		Note: tutorialShown is deliberately NOT reset here. Resetting
+		settings restores speech and navigation preferences; it should
+		not make the first-run tutorial auto-play again. Users can
+		replay the tutorial on demand from the command layer (Shift+H).
+		"""
 		config.conf["terminalAccess"]["cursorTracking"] = True
 		config.conf["terminalAccess"]["cursorTrackingMode"] = CT_STANDARD
 		config.conf["terminalAccess"]["keyEcho"] = True
@@ -368,8 +385,11 @@ class ConfigManager:
 		config.conf["terminalAccess"]["errorAudioCuesInQuietMode"] = False
 		config.conf["terminalAccess"]["outputActivityTones"] = False
 		config.conf["terminalAccess"]["outputActivityDebounce"] = 1000
+		config.conf["terminalAccess"]["earconVolume"] = 100
+		config.conf["terminalAccess"]["earconPitchShift"] = 100
 		config.conf["terminalAccess"]["summarizationEnabled"] = False
 		config.conf["terminalAccess"]["codeBlockExplain"] = False
 		config.conf["terminalAccess"]["privacyAnnounce"] = True
 		config.conf["terminalAccess"]["aiTurnParseEnabled"] = False
 		config.conf["terminalAccess"]["streamingSuppression"] = True
+		config.conf["terminalAccess"]["progressMilestones"] = True

@@ -144,7 +144,7 @@ class TestOverlayReportNewLines:
         mock_tones = MagicMock()
         with patch("lib.audio_cues.tones", mock_tones):
             obj._reportNewLines(["main.c:5:12: error: expected ';'"])
-            mock_tones.beep.assert_any_call(220, 50)
+            mock_tones.beep.assert_any_call(220, 50, left=100, right=100)
 
     def test_warning_line_plays_mid_tone(self):
         """Warning lines produce a 440 Hz beep."""
@@ -159,7 +159,7 @@ class TestOverlayReportNewLines:
         mock_tones = MagicMock()
         with patch("lib.audio_cues.tones", mock_tones):
             obj._reportNewLines(["main.c:5: warning: unused variable"])
-            mock_tones.beep.assert_any_call(440, 30)
+            mock_tones.beep.assert_any_call(440, 30, left=100, right=100)
 
     def test_normal_line_no_tone(self):
         """Normal output lines produce no beep."""

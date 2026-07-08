@@ -117,6 +117,15 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		sHelper.addItem(audioCueGroup)
 		self._makeAudioCueControls(audioCueGroup)
 
+		# === Sound ===
+		# Translators: Label for sound scheme settings group
+		soundGroup = guiHelper.BoxSizerHelper(self, sizer=wx.StaticBoxSizer(
+			wx.StaticBox(self, label=_("Sound")),
+			wx.VERTICAL
+		))
+		sHelper.addItem(soundGroup)
+		self._makeSoundControls(soundGroup)
+
 		# === Privacy ===
 		# Translators: Label for privacy settings group
 		privacyGroup = guiHelper.BoxSizerHelper(self, sizer=wx.StaticBoxSizer(
@@ -414,6 +423,56 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			"Prevents a flood of extraneous speech during streaming."
 		))
 
+		# Progress milestone announcements
+		# Translators: Label for progress milestones checkbox
+		self.progressMilestonesCheckBox = group.addItem(
+			wx.CheckBox(self, label=_("Announce progress &milestones"))
+		)
+		self.progressMilestonesCheckBox.SetValue(config.conf["terminalAccess"].get("progressMilestones", True))
+		# Translators: Tooltip for progress milestones
+		self.progressMilestonesCheckBox.SetToolTip(_(
+			"Announce progress percentages at 25, 50, 75, and 100 percent "
+			"during long operations such as downloads and builds. "
+			"Gives progress feedback while streaming output is suppressed."
+		))
+
+	# ------------------------------------------------------------------
+	# Sound controls
+	# ------------------------------------------------------------------
+
+	def _makeSoundControls(self, group):
+		"""Populate the Sound section with earcon volume and pitch controls."""
+
+		# Earcon volume spinner
+		# Translators: Label for earcon volume spinner
+		self.earconVolumeSpinner = group.addLabeledControl(
+			_("Earcon &volume (percent):"),
+			nvdaControls.SelectOnFocusSpinCtrl,
+			min=10,
+			max=100,
+			initial=config.conf["terminalAccess"].get("earconVolume", 100),
+		)
+		# Translators: Tooltip for earcon volume
+		self.earconVolumeSpinner.SetToolTip(_(
+			"Loudness of Terminal Access audio cues, from 10 to 100 percent."
+		))
+
+		# Earcon pitch shift spinner
+		# Translators: Label for earcon pitch shift spinner
+		self.earconPitchSpinner = group.addLabeledControl(
+			_("Earcon &pitch (percent):"),
+			nvdaControls.SelectOnFocusSpinCtrl,
+			min=50,
+			max=200,
+			initial=config.conf["terminalAccess"].get("earconPitchShift", 100),
+		)
+		# Translators: Tooltip for earcon pitch shift
+		self.earconPitchSpinner.SetToolTip(_(
+			"Shift all audio cue frequencies, from 50 to 200 percent. "
+			"Lower values help with high-frequency hearing loss, "
+			"higher values help with low-frequency hearing loss."
+		))
+
 	# ------------------------------------------------------------------
 	# Privacy controls
 	# ------------------------------------------------------------------
@@ -438,7 +497,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		# Translators: Tooltip for summarization
 		self.summarizationCheckBox.SetToolTip(_(
 			"Allow offline extractive summarization of terminal output. "
-			"Use NVDA+' then S to summarize recent output."
+			"Use NVDA+' then Z to summarize recent output."
 		))
 
 		# Code block explain
@@ -450,7 +509,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		# Translators: Tooltip for code explain
 		self.codeBlockExplainCheckBox.SetToolTip(_(
 			"Allow offline heuristic explanation of fenced code blocks. "
-			"Use NVDA+' then X to explain the code block at the cursor."
+			"Assign a gesture to the explain command in NVDA's Input Gestures dialog."
 		))
 
 		# AI turn parsing
@@ -655,6 +714,12 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			self.outputDebounceSpinner.SetValue(1000)
 			config.conf["terminalAccess"]["streamingSuppression"] = True
 			self.streamingSuppressionCheckBox.SetValue(True)
+			config.conf["terminalAccess"]["progressMilestones"] = True
+			self.progressMilestonesCheckBox.SetValue(True)
+			config.conf["terminalAccess"]["earconVolume"] = 100
+			config.conf["terminalAccess"]["earconPitchShift"] = 100
+			self.earconVolumeSpinner.SetValue(100)
+			self.earconPitchSpinner.SetValue(100)
 			config.conf["terminalAccess"]["summarizationEnabled"] = False
 			config.conf["terminalAccess"]["codeBlockExplain"] = False
 			config.conf["terminalAccess"]["privacyAnnounce"] = True
@@ -730,11 +795,20 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 
 		# Save audio cue and streaming settings
 		config.conf["terminalAccess"]["streamingSuppression"] = self.streamingSuppressionCheckBox.GetValue()
+		config.conf["terminalAccess"]["progressMilestones"] = self.progressMilestonesCheckBox.GetValue()
 		config.conf["terminalAccess"]["errorAudioCues"] = self.errorAudioCuesCheckBox.GetValue()
 		config.conf["terminalAccess"]["errorAudioCuesInQuietMode"] = self.errorCuesQuietModeCheckBox.GetValue()
 		config.conf["terminalAccess"]["outputActivityTones"] = self.outputActivityTonesCheckBox.GetValue()
 		config.conf["terminalAccess"]["outputActivityDebounce"] = _validateInteger(
 			self.outputDebounceSpinner.GetValue(), 100, 10000, 1000, "outputActivityDebounce"
+		)
+
+		# Save sound scheme settings
+		config.conf["terminalAccess"]["earconVolume"] = _validateInteger(
+			self.earconVolumeSpinner.GetValue(), 10, 100, 100, "earconVolume"
+		)
+		config.conf["terminalAccess"]["earconPitchShift"] = _validateInteger(
+			self.earconPitchSpinner.GetValue(), 50, 200, 100, "earconPitchShift"
 		)
 
 		# Save gesture exclusions
@@ -835,29 +909,80 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		self.deleteProfileButton.Enable(hasSelection and not isDefault)
 		self.exportProfileButton.Enable(hasSelection)
 
+	def _getEditorValues(self, profile=None):
+		"""Run the profile editor dialog and return its values, or None on cancel.
+
+		Args:
+			profile: Existing profile to edit, or None to create a new one.
+		"""
+		from lib.profiles import ProfileEditorDialog, validate_editor_values
+		dialog = ProfileEditorDialog(self, profile=profile)
+		try:
+			if dialog.ShowModal() != wx.ID_OK:
+				return None
+			values = dialog.get_values()
+		finally:
+			dialog.Destroy()
+
+		ok, message = validate_editor_values(values)
+		if not ok:
+			# Translators: Title of the error shown when profile editor values are invalid
+			gui.messageBox(message, _("Invalid Profile"), wx.OK | wx.ICON_ERROR)
+			return None
+		return values
+
+	def _refreshProfileList(self, selectName=None):
+		"""Reload the profile list and try to select *selectName*."""
+		self.profileList.SetItems(self._getProfileNames(withIndicators=True))
+		index = self.profileList.FindString(selectName) if selectName else wx.NOT_FOUND
+		if index != wx.NOT_FOUND:
+			self.profileList.SetSelection(index)
+		elif len(self._getProfileNames()) > 0:
+			self.profileList.SetSelection(0)
+		self.onProfileSelection(None)
+
 	def onNewProfile(self, event):
-		"""Create a new application profile."""
-		# Translators: Message for profile creation
-		gui.messageBox(
-			_("Profile creation dialog will be implemented soon. "
-			  "For now, profiles can be created programmatically via the ProfileManager API."),
-			_("Feature In Development"),
-			wx.OK | wx.ICON_INFORMATION
+		"""Create a new application profile through the ProfileEditorDialog."""
+		from lib.profiles import ApplicationProfile, editor_values_to_profile
+		profileManager = self._getProfileManager()
+		if not profileManager:
+			return
+
+		values = self._getEditorValues()
+		if values is None:
+			return
+
+		profile = editor_values_to_profile(
+			values, ApplicationProfile(values["appName"].strip())
 		)
+		# Persist through the same validated path the profile import uses
+		profileManager.importProfile(profile.to_dict())
+		self._refreshProfileList(selectName=profile.appName)
 
 	def onEditProfile(self, event):
-		"""Edit the selected profile."""
+		"""Edit the selected profile through the ProfileEditorDialog.
+
+		Builtin profiles are editable too; only their name is locked
+		(the editor shows it read-only and never writes it back).
+		"""
+		from lib.profiles import editor_values_to_profile
 		profileName = self._getSelectedProfileName()
 		if not profileName:
 			return
+		profileManager = self._getProfileManager()
+		if not profileManager:
+			return
+		profile = profileManager.getProfile(profileName)
+		if not profile:
+			return
 
-		# Translators: Message for profile editing
-		gui.messageBox(
-			_("Profile editing dialog will be implemented soon. "
-			  "Selected profile: {name}").format(name=profileName),
-			_("Feature In Development"),
-			wx.OK | wx.ICON_INFORMATION
-		)
+		values = self._getEditorValues(profile=profile)
+		if values is None:
+			return
+
+		# Apply in place so aliases (nvim, more, yarn) stay linked
+		editor_values_to_profile(values, profile)
+		self._refreshProfileList(selectName=profile.appName)
 
 	def onDeleteProfile(self, event):
 		"""Delete the selected custom profile."""

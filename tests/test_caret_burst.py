@@ -1,9 +1,11 @@
-"""Tests for CaretBurstDetector: streaming output suppression.
+"""Tests for output-induced caret suppression (output grace period).
 
 When terminal output streams rapidly (AI CLI, cargo build, npm install),
-caret events fire faster than human navigation. The burst detector
-identifies these bursts and suppresses per-character speech to avoid
-a flood of extraneous announcements.
+textChange and caret events fire in quick succession. The plugin records
+_lastTextChangeTime on every textChange and suppresses caret character
+announcements for _OUTPUT_CARET_GRACE seconds afterwards, so cursor
+movement caused by program output does not flood speech. User-initiated
+reading commands must never be suppressed by this mechanism.
 """
 import time
 from unittest.mock import patch
@@ -11,137 +13,42 @@ from unittest.mock import patch
 import pytest
 
 
-class TestBurstDetectorBasic:
-    """Core burst detection: distinguish streaming from navigation."""
+class TestUserCommandsDuringOutputGrace:
+    """User-initiated reading commands must NEVER be suppressed by the grace period."""
 
-    def test_single_event_not_burst(self):
-        """A single caret event is never a burst."""
-        from lib.streaming_delta import CaretBurstDetector
-
-        detector = CaretBurstDetector()
-        assert detector.should_speak() is True
-
-    def test_slow_events_not_burst(self):
-        """Events spaced > 200ms apart are human navigation, not streaming."""
-        from lib.streaming_delta import CaretBurstDetector
-
-        detector = CaretBurstDetector(burst_threshold_ms=200, burst_count=3)
-        for _ in range(5):
-            detector.record_event(time.monotonic())
-            time.sleep(0.25)  # 250ms apart
-        assert detector.should_speak() is True
-
-    def test_rapid_events_trigger_burst(self):
-        """Events arriving faster than threshold are a streaming burst."""
-        from lib.streaming_delta import CaretBurstDetector
-
-        detector = CaretBurstDetector(burst_threshold_ms=100, burst_count=3)
-        now = time.monotonic()
-        # Simulate 5 events within 50ms each
-        for i in range(5):
-            detector.record_event(now + i * 0.03)  # 30ms apart
-        assert detector.should_speak() is False
-
-    def test_burst_ends_after_gap(self):
-        """After a gap longer than threshold, burst ends and speech resumes."""
-        from lib.streaming_delta import CaretBurstDetector
-
-        detector = CaretBurstDetector(burst_threshold_ms=100, burst_count=3)
-        now = time.monotonic()
-        # Rapid burst
-        for i in range(5):
-            detector.record_event(now + i * 0.03)
-        assert detector.should_speak() is False
-
-        # Gap of 200ms
-        detector.record_event(now + 0.5)
-        assert detector.should_speak() is True
-
-
-class TestBurstDetectorEdgeCases:
-    """Edge cases for the burst detector."""
-
-    def test_exactly_threshold_events(self):
-        """Exactly burst_count events at threshold speed triggers burst."""
-        from lib.streaming_delta import CaretBurstDetector
-
-        detector = CaretBurstDetector(burst_threshold_ms=100, burst_count=3)
-        now = time.monotonic()
-        for i in range(3):
-            detector.record_event(now + i * 0.05)  # 50ms apart, 3 events
-        assert detector.should_speak() is False
-
-    def test_below_threshold_count_no_burst(self):
-        """Fewer than burst_count rapid events do not trigger burst."""
-        from lib.streaming_delta import CaretBurstDetector
-
-        detector = CaretBurstDetector(burst_threshold_ms=100, burst_count=5)
-        now = time.monotonic()
-        for i in range(3):  # Only 3, need 5
-            detector.record_event(now + i * 0.03)
-        assert detector.should_speak() is True
-
-    def test_reset_clears_burst_state(self):
-        """reset() clears burst state."""
-        from lib.streaming_delta import CaretBurstDetector
-
-        detector = CaretBurstDetector(burst_threshold_ms=100, burst_count=3)
-        now = time.monotonic()
-        for i in range(5):
-            detector.record_event(now + i * 0.03)
-        assert detector.should_speak() is False
-
-        detector.reset()
-        assert detector.should_speak() is True
-
-    def test_no_events_recorded_should_speak(self):
-        """Before any events are recorded, should_speak returns True."""
-        from lib.streaming_delta import CaretBurstDetector
-
-        detector = CaretBurstDetector()
-        assert detector.should_speak() is True
-
-
-class TestBurstDoesNotAffectUserCommands:
-    """User-initiated reading commands must NEVER be suppressed by burst detection."""
-
-    def _make_plugin_in_burst(self):
-        """Create a GlobalPlugin with burst detector in active burst state."""
-        import time
+    def _make_plugin_with_recent_output(self):
+        """Create a GlobalPlugin that just received a textChange event."""
         from unittest.mock import patch, MagicMock
         from globalPlugins.terminalAccess import GlobalPlugin
 
         with patch('gui.settingsDialogs.NVDASettingsDialog'):
             plugin = GlobalPlugin()
 
-        # Force into burst state
-        now = time.monotonic()
-        for i in range(10):
-            plugin._burstDetector.record_event(now + i * 0.02)
-        assert plugin._burstDetector.should_speak() is False
+        # Simulate program output arriving right now
+        plugin._lastTextChangeTime = time.monotonic()
         return plugin
 
-    def test_read_current_line_speaks_during_burst(self):
-        """NVDA+I (read current line) must speak even during a burst."""
+    def test_read_current_line_speaks_during_output_grace(self):
+        """NVDA+I (read current line) must speak even inside the grace window."""
         from unittest.mock import MagicMock, patch
-        plugin = self._make_plugin_in_burst()
+        plugin = self._make_plugin_with_recent_output()
         plugin._boundTerminal = MagicMock()
 
         gesture = MagicMock()
-        # script_readCurrentLine delegates to globalCommands, not event_caret
-        # It should NOT check the burst detector at all
+        # script_readCurrentLine delegates to _readLineWithIndentation.
+        # It must NOT consult the output grace timestamp at all.
         with patch.object(plugin, 'isTerminalApp', return_value=True):
             with patch.object(plugin, '_readLineWithIndentation') as mock_read:
                 plugin.script_readCurrentLine(gesture)
                 mock_read.assert_called_once()
 
-    def test_navigate_section_speaks_during_burst(self):
-        """Section navigation must speak even during a burst."""
+    def test_navigate_section_speaks_during_output_grace(self):
+        """Section navigation must speak even inside the grace window."""
         from unittest.mock import MagicMock
         from lib.section_tokenizer import Section
         import sys
 
-        plugin = self._make_plugin_in_burst()
+        plugin = self._make_plugin_with_recent_output()
         plugin._boundTerminal = MagicMock()
         plugin._boundTerminal.makeTextInfo = MagicMock(side_effect=RuntimeError("test"))
 
@@ -151,18 +58,16 @@ class TestBurstDoesNotAffectUserCommands:
         section = Section(line_num=0, category="error", text="error: fail")
         plugin._navigateToSection(section)
 
-        # Should have spoken despite burst state
+        # Should have spoken despite recent output
         ui_mock.message.assert_called_once()
 
 
-class TestTextChangeStreamingSuppression:
-    """event_textChange must also suppress NVDA native speech during streaming."""
+class TestTextChangeAlwaysWakesPipeline:
+    """event_textChange must always call nextHandler -- it wakes the
+    monitor thread which produces the coalesced line output. Only caret
+    character speech is suppressed during streaming, not line output."""
 
-    def test_textChange_still_calls_nextHandler_during_burst(self):
-        """event_textChange must ALWAYS call nextHandler -- it wakes the
-        monitor thread which triggers _reportNewLines (coalesced output).
-        Only per-character caret speech should be suppressed, not line output."""
-        import time
+    def _make_plugin(self):
         from unittest.mock import patch, MagicMock
         from globalPlugins.terminalAccess import GlobalPlugin
 
@@ -176,50 +81,40 @@ class TestTextChangeStreamingSuppression:
             "outputActivityTones": False,
             "streamingSuppression": True,
         }.get(key, default))
+        return plugin
 
-        # Force into burst state
-        now = time.monotonic()
-        for i in range(10):
-            plugin._burstDetector.record_event(now + i * 0.02)
+    def test_textChange_calls_nextHandler_during_rapid_output(self):
+        """Rapid successive textChange events must each call nextHandler."""
+        from unittest.mock import MagicMock
+
+        plugin = self._make_plugin()
+
+        nextHandler = MagicMock()
+        obj = MagicMock()
+        # Simulate a streaming burst: several textChange events back to back
+        for _ in range(5):
+            plugin.event_textChange(obj, nextHandler)
+
+        assert nextHandler.call_count == 5
+
+    def test_textChange_calls_nextHandler_after_idle(self):
+        """A lone textChange (no recent output) calls nextHandler normally."""
+        from unittest.mock import MagicMock
+
+        plugin = self._make_plugin()
 
         nextHandler = MagicMock()
         obj = MagicMock()
         plugin.event_textChange(obj, nextHandler)
 
-        # nextHandler MUST still be called -- it wakes the output pipeline
-        nextHandler.assert_called_once()
-
-    def test_textChange_calls_nextHandler_when_no_burst(self):
-        """When no burst, event_textChange should call nextHandler normally."""
-        from unittest.mock import patch, MagicMock
-        from globalPlugins.terminalAccess import GlobalPlugin
-
-        with patch('gui.settingsDialogs.NVDASettingsDialog'):
-            plugin = GlobalPlugin()
-
-        plugin._boundTerminal = MagicMock()
-        plugin._configManager = MagicMock()
-        plugin._configManager.get = MagicMock(side_effect=lambda key, default=None: {
-            "quietMode": False,
-            "outputActivityTones": False,
-            "streamingSuppression": True,
-        }.get(key, default))
-
-        # No burst recorded
-        nextHandler = MagicMock()
-        obj = MagicMock()
-        plugin.event_textChange(obj, nextHandler)
-
-        # nextHandler SHOULD be called
         nextHandler.assert_called_once()
 
 
-class TestBurstPreservesAudioCues:
-    """Audio cues (tones) must still fire during bursts -- only speech is suppressed."""
+class TestOutputGracePreservesAudioCues:
+    """Audio cues (tones) must still fire during streaming -- only caret speech is suppressed."""
 
-    def test_activity_tones_fire_during_burst(self):
-        """Output activity tones must still play during a streaming burst."""
-        import time
+    def test_activity_tones_fire_during_streaming(self):
+        """Output activity tones must still play while output streams."""
         from unittest.mock import patch, MagicMock
         from globalPlugins.terminalAccess import GlobalPlugin
 
@@ -234,18 +129,15 @@ class TestBurstPreservesAudioCues:
             "streamingSuppression": True,
         }.get(key, default))
 
-        # Force burst
-        now = time.monotonic()
-        for i in range(10):
-            plugin._burstDetector.record_event(now + i * 0.02)
+        # Simulate output that arrived moments ago (inside the grace window)
+        plugin._lastTextChangeTime = time.monotonic()
 
         with patch.object(plugin, '_checkOutputActivityTone') as mock_tone:
             plugin.event_textChange(MagicMock(), MagicMock())
             mock_tone.assert_called_once()
 
-    def test_streaming_delta_speaks_during_burst(self):
-        """NVDA+Shift+D (streaming delta) must speak during a burst."""
-        import time
+    def test_streaming_delta_speaks_during_output_grace(self):
+        """NVDA+Shift+D (streaming delta) must speak even inside the grace window."""
         import sys
         from unittest.mock import patch, MagicMock
         from globalPlugins.terminalAccess import GlobalPlugin
@@ -255,12 +147,10 @@ class TestBurstPreservesAudioCues:
 
         plugin._boundTerminal = MagicMock()
 
-        # Force burst
-        now = time.monotonic()
-        for i in range(10):
-            plugin._burstDetector.record_event(now + i * 0.02)
+        # Simulate output that arrived moments ago
+        plugin._lastTextChangeTime = time.monotonic()
 
-        # script_streamingDelta uses _getBufferLines + _deltaTracker,
+        # script_whatChanged uses _getBufferLines + _deltaTracker,
         # not event_caret. It should always speak.
         ui_mock = sys.modules['ui']
         ui_mock.message = MagicMock()
@@ -279,28 +169,22 @@ class TestBurstPreservesAudioCues:
                     ui_mock.message.assert_called_with("2 new lines")
 
 
-class TestOverlayReportNewLinesSuppression:
-    """_reportNewLines in the overlay must be suppressed during burst."""
+class TestOverlayReportNewLines:
+    """Overlay _reportNewLines is the coalesced line-level announcement
+    and must always speak, including during streaming output."""
 
-    def test_reportNewLines_STILL_speaks_during_burst(self):
-        """Overlay _reportNewLines must ALWAYS speak -- it's the coalesced
-        line-level announcement, not extraneous character noise."""
-        import time
+    def test_reportNewLines_speaks_during_streaming_output(self):
+        """Multiple rapid lines must still be spoken (small batch: all lines)."""
         from unittest.mock import MagicMock
         from lib.terminal_overlay import TerminalAccessTerminal
-        from lib.streaming_delta import CaretBurstDetector
 
         overlay = TerminalAccessTerminal()
-        detector = CaretBurstDetector(burst_threshold_ms=100, burst_count=3)
-        overlay._burstDetector = detector
         overlay._configManager = MagicMock()
         overlay._configManager.get = MagicMock(return_value=True)
 
-        # Force burst
-        now = time.monotonic()
-        for i in range(5):
-            detector.record_event(now + i * 0.02)
-        assert detector.should_speak() is False
+        # Simulate rapid textChange events preceding the report
+        for _ in range(5):
+            overlay.event_textChange()
 
         import sys
         speech_mock = sys.modules.get('speech')
@@ -309,19 +193,15 @@ class TestOverlayReportNewLinesSuppression:
 
         overlay._reportNewLines(["line1", "line2", "line3"])
 
-        # _reportNewLines MUST still speak even during burst
         if speech_mock:
             speech_mock.speakText.assert_called()
 
-    def test_reportNewLines_speaks_when_no_burst(self):
-        """Overlay _reportNewLines must speak normally when no burst."""
+    def test_reportNewLines_speaks_single_line(self):
+        """A single output line is spoken normally."""
         from unittest.mock import MagicMock
         from lib.terminal_overlay import TerminalAccessTerminal
-        from lib.streaming_delta import CaretBurstDetector
 
         overlay = TerminalAccessTerminal()
-        detector = CaretBurstDetector()
-        overlay._burstDetector = detector
         overlay._configManager = MagicMock()
         overlay._configManager.get = MagicMock(return_value=True)
 
@@ -389,7 +269,7 @@ class TestTextChangeRecordsTimestamp:
         assert before <= plugin._lastTextChangeTime <= after
 
 
-class TestBurstDetectorConfig:
+class TestOutputGraceConfig:
     """Config integration: streamingSuppression setting controls the feature."""
 
     def test_confspec_has_streaming_suppression(self):

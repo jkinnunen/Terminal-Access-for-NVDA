@@ -18,7 +18,7 @@ class TestPlayCue:
         tones.beep.reset_mock()
         from lib.audio_cues import play_cue
         play_cue("error")
-        tones.beep.assert_called_once_with(220, 50)
+        tones.beep.assert_called_once_with(220, 50, left=100, right=100)
 
     def test_play_cue_warning(self):
         """play_cue('warning') plays 440 Hz for 30 ms."""
@@ -26,7 +26,7 @@ class TestPlayCue:
         tones.beep.reset_mock()
         from lib.audio_cues import play_cue
         play_cue("warning")
-        tones.beep.assert_called_once_with(440, 30)
+        tones.beep.assert_called_once_with(440, 30, left=100, right=100)
 
     def test_play_cue_bookmark_set(self):
         """play_cue('bookmark_set') plays an ascending pair: 1000 Hz 20 ms then 1200 Hz 20 ms."""
@@ -35,12 +35,12 @@ class TestPlayCue:
         from lib.audio_cues import play_cue
         play_cue("bookmark_set")
         assert tones.beep.call_count == 2
-        tones.beep.assert_any_call(1000, 20)
-        tones.beep.assert_any_call(1200, 20)
+        tones.beep.assert_any_call(1000, 20, left=100, right=100)
+        tones.beep.assert_any_call(1200, 20, left=100, right=100)
         # Verify ascending order
         calls = tones.beep.call_args_list
-        assert calls[0] == call(1000, 20)
-        assert calls[1] == call(1200, 20)
+        assert calls[0] == call(1000, 20, left=100, right=100)
+        assert calls[1] == call(1200, 20, left=100, right=100)
 
     def test_play_cue_search_match(self):
         """play_cue('search_match') plays 550 Hz for 20 ms."""
@@ -48,7 +48,7 @@ class TestPlayCue:
         tones.beep.reset_mock()
         from lib.audio_cues import play_cue
         play_cue("search_match")
-        tones.beep.assert_called_once_with(550, 20)
+        tones.beep.assert_called_once_with(550, 20, left=100, right=100)
 
     def test_play_cue_unknown_event(self):
         """play_cue with an unknown event name does not crash."""
@@ -64,7 +64,7 @@ class TestPlayCue:
         tones.beep.reset_mock()
         from lib.audio_cues import play_cue
         play_cue("section_start")
-        tones.beep.assert_called_once_with(660, 30)
+        tones.beep.assert_called_once_with(660, 30, left=100, right=100)
 
     def test_play_cue_bookmark_jump(self):
         """play_cue('bookmark_jump') plays 800 Hz for 30 ms."""
@@ -72,7 +72,7 @@ class TestPlayCue:
         tones.beep.reset_mock()
         from lib.audio_cues import play_cue
         play_cue("bookmark_jump")
-        tones.beep.assert_called_once_with(800, 30)
+        tones.beep.assert_called_once_with(800, 30, left=100, right=100)
 
     def test_play_cue_no_match(self):
         """play_cue('no_match') plays 200 Hz for 100 ms (low long)."""
@@ -80,7 +80,7 @@ class TestPlayCue:
         tones.beep.reset_mock()
         from lib.audio_cues import play_cue
         play_cue("no_match")
-        tones.beep.assert_called_once_with(200, 100)
+        tones.beep.assert_called_once_with(200, 100, left=100, right=100)
 
     def test_play_cue_command_layer_enter(self):
         """play_cue('command_layer_enter') plays 880 Hz for 50 ms."""
@@ -88,7 +88,7 @@ class TestPlayCue:
         tones.beep.reset_mock()
         from lib.audio_cues import play_cue
         play_cue("command_layer_enter")
-        tones.beep.assert_called_once_with(880, 50)
+        tones.beep.assert_called_once_with(880, 50, left=100, right=100)
 
     def test_play_cue_command_layer_exit(self):
         """play_cue('command_layer_exit') plays 440 Hz for 50 ms."""
@@ -96,7 +96,7 @@ class TestPlayCue:
         tones.beep.reset_mock()
         from lib.audio_cues import play_cue
         play_cue("command_layer_exit")
-        tones.beep.assert_called_once_with(440, 50)
+        tones.beep.assert_called_once_with(440, 50, left=100, right=100)
 
 
 # ---------------------------------------------------------------------------

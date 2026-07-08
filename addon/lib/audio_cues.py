@@ -4,6 +4,8 @@
 
 import tones
 
+from lib.config import config
+
 # ---------------------------------------------------------------------------
 # Tone map: event_name -> list of (frequency_hz, duration_ms) tuples
 # ---------------------------------------------------------------------------
@@ -25,18 +27,52 @@ _TONE_MAP = {
 }
 
 
+# Audible frequency range for shifted earcons. Extreme pitch settings are
+# clamped so no cue ever falls below hearing range or above tones.beep limits.
+MIN_EARCON_HZ = 55
+MAX_EARCON_HZ = 8000
+
+
+def apply_sound_scheme(freq, pitch_shift_percent):
+    """Return *freq* scaled by a pitch shift percentage, clamped to audible range.
+
+    A shift of 100 leaves the frequency unchanged. The result is clamped
+    to 55-8000 Hz so extreme settings stay audible.
+    """
+    shifted = int(freq * pitch_shift_percent / 100)
+    return max(MIN_EARCON_HZ, min(MAX_EARCON_HZ, shifted))
+
+
+def _sound_scheme_settings():
+    """Read (volume_percent, pitch_shift_percent) from config at call time."""
+    try:
+        section = config.conf["terminalAccess"]
+        volume = int(section.get("earconVolume", 100))
+        pitch_shift = int(section.get("earconPitchShift", 100))
+    except Exception:
+        return 100, 100
+    return volume, pitch_shift
+
+
 def play_cue(event_name):
     """Play an audio cue for the given event.
 
-    Looks up *event_name* in the tone map and plays each tone in sequence.
+    Looks up *event_name* in the tone map and plays each tone in sequence,
+    applying the user's earcon volume and pitch shift settings.
     Unknown event names are silently ignored so callers never need to
     guard against new or removed events.
     """
     tones_list = _TONE_MAP.get(event_name)
     if tones_list is None:
         return
+    volume, pitch_shift = _sound_scheme_settings()
     for freq, dur in tones_list:
-        tones.beep(freq, dur)
+        shifted = apply_sound_scheme(freq, pitch_shift)
+        try:
+            tones.beep(shifted, dur, left=volume, right=volume)
+        except TypeError:
+            # Older or mocked tones.beep without stereo volume support
+            tones.beep(shifted, dur)
 
 
 # ---------------------------------------------------------------------------

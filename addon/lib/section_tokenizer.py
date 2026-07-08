@@ -78,9 +78,20 @@ class SectionTokenizer:
 	def __init__(self) -> None:
 		self._sections: list[Section] = []
 		self._spans: list[SectionSpan] = []
+		self._cache_key: tuple = ()
+
+	@staticmethod
+	def _buffer_key(lines: list[str]) -> tuple:
+		"""Cheap identity key: (line_count, first_line, last_line)."""
+		if not lines:
+			return (0, "", "")
+		return (len(lines), lines[0], lines[-1])
 
 	def tokenize(self, lines: list[str]) -> list[Section]:
 		"""Classify each line and return a list of Section namedtuples.
+
+		Results are cached and reused when the buffer hasn't changed
+		(same line count and last line content).
 
 		Args:
 			lines: Buffer lines to classify.
@@ -88,13 +99,16 @@ class SectionTokenizer:
 		Returns:
 			List of Section(line_num, category, text) for every input line.
 		"""
+		key = self._buffer_key(lines)
+		if key == self._cache_key:
+			return self._sections
+
+		self._cache_key = key
 		self._sections = []
 		self._spans = []
 
 		if not lines:
 			return self._sections
-
-		prev_category: Optional[str] = None
 
 		for idx, line in enumerate(lines):
 			category = self._classify(line, idx, lines)

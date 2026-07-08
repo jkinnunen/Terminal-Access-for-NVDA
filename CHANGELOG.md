@@ -2,6 +2,36 @@
 
 All notable changes to Terminal Access for NVDA will be documented in this file.
 
+## [2.0.0-beta.2] - Unreleased
+
+### Added
+
+- **Table mode**: Press NVDA+Alt+G (or G in the command layer) on columnar output such as docker ps, kubectl get, ls -l, or psql results. Arrow keys move by cell with header announcements ("STATUS: Running"), Home/End jump across columns, Control+Up reads the column header, Space reads the whole row, Escape exits. Supports space-aligned and pipe-delimited tables.
+- **Command finder**: Press NVDA+Alt+H (or H in the command layer) to open a searchable list of every Terminal Access command. Type to filter, press Enter to hear the key bindings.
+- **Transcript export**: Press NVDA+Alt+X (or Ctrl+S in the command layer) to save the terminal buffer to a text file with color codes stripped.
+- **First-run tutorial**: The first terminal focus after installation speaks a short tour of the essential commands. Replay any time with Shift+H in the command layer.
+- **Progress milestone announcements**: Announces 25, 50, 75, and 100 percent during long operations by watching the last output line. On by default; toggle under Audio Cues.
+- **Profile editor**: The New Profile and Edit Profile buttons in settings now open a working editor covering punctuation, cursor tracking, key echo, line pause, quiet mode, and repeated symbols, each with a Global default option. Built-in profiles are editable; names stay locked.
+- **Sound scheme settings**: New Sound group in settings with earcon volume (10 to 100 percent) and pitch shift (50 to 200 percent) applied to every tone, clamped to the audible range.
+- **Generic list dialog component**: Shared browsable list used by the section list and new dialogs, with filtering that preserves selection identity.
+- **Continuous integration**: GitHub Actions workflow runs the Python suite on 3.11 and 3.13 plus the Rust workspace tests on every push and pull request. Rust build matrix now also produces ARM64 (aarch64) DLL and helper artifacts.
+
+### Changed
+
+- Section tokenizer results are now cached per buffer, making repeated section navigation instant on large scrollbacks.
+- The repository root readme is now a short landing page; the full user guide lives at addon/doc/en/readme.md and is no longer overwritten at build time.
+- Translation catalogs regenerated: lib module strings are now extracted (template grew from 279 to 361 strings) and all 17 languages were merged against the new template.
+- User guide corrected against the actual code: removed documented gestures that never existed, fixed wrong keys for AI turn and code block navigation, corrected AI error tone frequencies, and documented previously missing commands.
+
+### Fixed
+
+- NVDA+Alt+S was bound to both the section list and summarize last command; it now belongs solely to summarize. The section list remains on Shift+S in the command layer.
+- Privacy setting tooltips referenced wrong command layer keys for summarize and explain.
+
+### Removed
+
+- Internal burst detector superseded by the output grace period mechanism (dead code, no user-visible change).
+
 ## [2.0.0] - 2026-03-27
 
 ### Added

@@ -110,10 +110,9 @@ if (cssFile := Path("style.css")).is_file():
 	cssTarget = env.Command(str(cssPath), str(cssFile), Copy("$TARGET", "$SOURCE"))
 	env.Depends(addon, cssTarget)
 
-if (readmeFile := Path("readme.md")).is_file():
-	readmePath = docsDir / buildVars.baseLanguage / readmeFile
-	readmeTarget = env.Command(str(readmePath), str(readmeFile), Copy("$TARGET", "$SOURCE"))
-	env.Depends(addon, readmeTarget)
+# The user guide is maintained directly at addon/doc/en/readme.md.
+# The repository root readme.md is a GitHub landing page and must not
+# be copied over the user guide at build time.
 
 for mdFile in env.Glob(docsDir/"*/*.md"):
 	# the title of the html file is translated based on the contents of something in the moFile for a language.

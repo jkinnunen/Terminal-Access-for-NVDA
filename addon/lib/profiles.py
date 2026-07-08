@@ -304,6 +304,99 @@ class ApplicationProfile:
 	fromDict = from_dict
 
 
+# ---------------------------------------------------------------------------
+# Profile editor logic
+#
+# The ProfileEditorDialog widgets cannot be exercised in tests (wx is
+# mocked), so every conversion between a profile and the dialog controls
+# goes through these pure functions.
+#
+# Choice index convention: index 0 always means "Global default" (None on
+# the profile). Punctuation and cursor tracking indexes are the profile
+# value plus one. Tri-state fields map True to 1 and False to 2.
+# ---------------------------------------------------------------------------
+
+# Profile fields edited through Global default/On/Off choices
+_EDITOR_TRISTATE_FIELDS = ('keyEcho', 'linePause', 'quietMode', 'repeatedSymbols')
+
+
+def _value_to_choice_index(value) -> int:
+	"""Map an optional integer setting to a choice index (None -> 0)."""
+	return 0 if value is None else value + 1
+
+
+def _bool_to_choice_index(value) -> int:
+	"""Map an optional boolean setting to a tri-state index (None/True/False -> 0/1/2)."""
+	if value is None:
+		return 0
+	return 1 if value else 2
+
+
+def profile_to_editor_values(profile: ApplicationProfile) -> dict[str, Any]:
+	"""Convert a profile to the editor's choice indexes and strings."""
+	return {
+		'appName': profile.appName,
+		'displayName': profile.displayName,
+		'punctuationLevel': _value_to_choice_index(profile.punctuationLevel),
+		'cursorTrackingMode': _value_to_choice_index(profile.cursorTrackingMode),
+		'keyEcho': _bool_to_choice_index(profile.keyEcho),
+		'linePause': _bool_to_choice_index(profile.linePause),
+		'quietMode': _bool_to_choice_index(profile.quietMode),
+		'repeatedSymbols': _bool_to_choice_index(profile.repeatedSymbols),
+		'repeatedSymbolsValues': profile.repeatedSymbolsValues or '',
+	}
+
+
+def editor_values_to_profile(values: dict[str, Any], profile: ApplicationProfile) -> ApplicationProfile:
+	"""Apply editor values back onto *profile* and return it.
+
+	Index 0 means inherit from global settings (None). All values are
+	validated; out-of-range indexes fall back to sane defaults and the
+	repeated symbols string is capped at MAX_REPEATED_SYMBOLS_LENGTH.
+	The profile's appName is never modified so builtin profile names
+	stay locked.
+	"""
+	displayName = _validateString(values.get('displayName', ''), 128, '', 'displayName')
+	profile.displayName = displayName or profile.appName
+
+	punctIndex = values.get('punctuationLevel', 0)
+	profile.punctuationLevel = (
+		None if punctIndex == 0
+		else _validateInteger(punctIndex - 1, 0, 3, 2, 'punctuationLevel')
+	)
+
+	trackingIndex = values.get('cursorTrackingMode', 0)
+	profile.cursorTrackingMode = (
+		None if trackingIndex == 0
+		else _validateInteger(trackingIndex - 1, 0, 2, 1, 'cursorTrackingMode')
+	)
+
+	for field in _EDITOR_TRISTATE_FIELDS:
+		index = values.get(field, 0)
+		setattr(profile, field, None if index == 0 else index == 1)
+
+	symbols = values.get('repeatedSymbolsValues', '')
+	profile.repeatedSymbolsValues = (
+		None if not symbols
+		else _validateString(symbols, MAX_REPEATED_SYMBOLS_LENGTH, '-_=!', 'repeatedSymbolsValues')
+	)
+
+	return profile
+
+
+def validate_editor_values(values: dict[str, Any]) -> tuple[bool, str]:
+	"""Check editor values before they are applied.
+
+	Returns (True, "") when the values are acceptable, otherwise
+	(False, message) with a user-facing explanation.
+	"""
+	appName = values.get('appName', '')
+	if not isinstance(appName, str) or not appName.strip():
+		# Translators: Error shown when the profile editor is missing an application name
+		return (False, _("The application name cannot be empty."))
+	return (True, "")
+
+
 class ProfileManager:
 	"""
 	Manager for application-specific profiles.
@@ -781,6 +874,131 @@ try:
 				self.Close()
 			else:
 				event.Skip()
+
+	class ProfileEditorDialog(wx.Dialog):
+		"""Dialog for creating or editing an application profile.
+
+		All conversion between the profile and the controls goes through
+		profile_to_editor_values and editor_values_to_profile so the logic
+		stays testable. When editing an existing profile the application
+		name field is read-only; builtin profiles keep their name locked
+		but every setting override remains editable.
+		"""
+
+		def __init__(self, parent, profile=None):
+			# Translators: Title of the profile editor dialog when editing an existing profile
+			edit_title = _("Edit Profile")
+			# Translators: Title of the profile editor dialog when creating a new profile
+			new_title = _("New Profile")
+			super().__init__(
+				parent,
+				title=edit_title if profile is not None else new_title,
+				style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+			)
+			self._editing_existing = profile is not None
+			self._build_ui()
+			if profile is not None:
+				self.set_values(profile_to_editor_values(profile))
+			self.Raise()
+
+		def _build_ui(self):
+			sizer = wx.BoxSizer(wx.VERTICAL)
+			grid = wx.FlexGridSizer(cols=2, vgap=6, hgap=8)
+
+			def add_row(label_text, control):
+				grid.Add(wx.StaticText(self, label=label_text),
+						 flag=wx.ALIGN_CENTER_VERTICAL)
+				grid.Add(control, flag=wx.EXPAND)
+				return control
+
+			# Translators: Choice option meaning a profile setting inherits the global value
+			inherit = _("Global default")
+			# Translators: Choice option that turns a profile setting on
+			on_label = _("On")
+			# Translators: Choice option that turns a profile setting off
+			off_label = _("Off")
+			tristate_choices = [inherit, on_label, off_label]
+
+			app_name_style = wx.TE_READONLY if self._editing_existing else 0
+			# Translators: Label for the application name field in the profile editor
+			self._app_name = add_row(_("&Application name:"),
+									 wx.TextCtrl(self, style=app_name_style))
+			# Translators: Label for the display name field in the profile editor
+			self._display_name = add_row(_("&Display name:"), wx.TextCtrl(self))
+
+			# Translators: Label for the punctuation level choice in the profile editor
+			self._punctuation = add_row(_("&Punctuation level:"), wx.Choice(self, choices=[
+				inherit,
+				# Translators: Punctuation level option
+				_("None"),
+				# Translators: Punctuation level option
+				_("Some"),
+				# Translators: Punctuation level option
+				_("Most"),
+				# Translators: Punctuation level option
+				_("All"),
+			]))
+
+			# Translators: Label for the cursor tracking mode choice in the profile editor
+			self._tracking = add_row(_("Cursor tracking &mode:"), wx.Choice(self, choices=[
+				inherit,
+				# Translators: Cursor tracking mode option
+				_("Off"),
+				# Translators: Cursor tracking mode option
+				_("Standard"),
+				# Translators: Cursor tracking mode option
+				_("Window"),
+			]))
+
+			# Translators: Label for the key echo choice in the profile editor
+			self._key_echo = add_row(_("&Key echo:"),
+									 wx.Choice(self, choices=list(tristate_choices)))
+			# Translators: Label for the line pause choice in the profile editor
+			self._line_pause = add_row(_("Line &pause:"),
+									   wx.Choice(self, choices=list(tristate_choices)))
+			# Translators: Label for the quiet mode choice in the profile editor
+			self._quiet_mode = add_row(_("&Quiet mode:"),
+									   wx.Choice(self, choices=list(tristate_choices)))
+			# Translators: Label for the repeated symbols choice in the profile editor
+			self._repeated = add_row(_("Condense &repeated symbols:"),
+									 wx.Choice(self, choices=list(tristate_choices)))
+			# Translators: Label for the repeated symbols characters field in the profile editor
+			self._repeated_values = add_row(_("Repeated symbols to condense:"),
+											wx.TextCtrl(self))
+
+			sizer.Add(grid, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
+			sizer.Add(
+				self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
+				flag=wx.EXPAND | wx.ALL, border=8,
+			)
+			self.SetSizer(sizer)
+			self.Fit()
+
+		def set_values(self, values):
+			"""Load editor values (from profile_to_editor_values) into the controls."""
+			self._app_name.SetValue(values['appName'])
+			self._display_name.SetValue(values['displayName'])
+			self._punctuation.SetSelection(values['punctuationLevel'])
+			self._tracking.SetSelection(values['cursorTrackingMode'])
+			self._key_echo.SetSelection(values['keyEcho'])
+			self._line_pause.SetSelection(values['linePause'])
+			self._quiet_mode.SetSelection(values['quietMode'])
+			self._repeated.SetSelection(values['repeatedSymbols'])
+			self._repeated_values.SetValue(values['repeatedSymbolsValues'])
+
+		def get_values(self):
+			"""Read the controls into a values dict for editor_values_to_profile."""
+			return {
+				'appName': self._app_name.GetValue().strip(),
+				'displayName': self._display_name.GetValue().strip(),
+				'punctuationLevel': self._punctuation.GetSelection(),
+				'cursorTrackingMode': self._tracking.GetSelection(),
+				'keyEcho': self._key_echo.GetSelection(),
+				'linePause': self._line_pause.GetSelection(),
+				'quietMode': self._quiet_mode.GetSelection(),
+				'repeatedSymbols': self._repeated.GetSelection(),
+				'repeatedSymbolsValues': self._repeated_values.GetValue(),
+			}
 
 except ImportError:
 	pass

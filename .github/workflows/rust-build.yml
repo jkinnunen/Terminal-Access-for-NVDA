@@ -65,6 +65,11 @@ jobs:
             target: x86_64-pc-windows-msvc
           - arch: x86
             target: i686-pc-windows-msvc
+          # arm64 is cross-compiled from the x64 runner. Artifacts only for
+          # now: not wired into addon packaging (addon/lib/arm64/ loading
+          # needs Python-side changes first).
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
 
     steps:
       - name: Checkout code
@@ -98,13 +103,13 @@ jobs:
       - name: Upload DLL artifact
         uses: actions/upload-artifact@v4
         with:
-          name: termaccess-dll-${{ matrix.arch }}
+          name: termaccess-dll-${{ matrix.target }}
           path: native/target/${{ matrix.target }}/release/termaccess_ffi.dll
           if-no-files-found: error
 
       - name: Upload helper EXE artifact
         uses: actions/upload-artifact@v4
         with:
-          name: termaccess-helper-${{ matrix.arch }}
+          name: termaccess-helper-${{ matrix.target }}
           path: native/target/${{ matrix.target }}/release/termaccess-helper.exe
           if-no-files-found: error
