@@ -6,7 +6,8 @@ This directory contains all documentation for the Terminal Access for NVDA add-o
 
 ### `user/` - User Documentation
 Documentation for end users of the Terminal Access add-on:
-- **ADVANCED_USER_GUIDE.md** - Advanced features guide
+- **[addon/doc/en/readme.md](../addon/doc/en/readme.md)** - The full user guide. This is the canonical guide that ships with the add-on and opens with NVDA+Shift+F1.
+- **ADVANCED_USER_GUIDE.md** - Pointer to the full user guide above (kept for existing links)
 - **FAQ.md** - Frequently asked questions
 - **WSL_TESTING_GUIDE.md** - Guide for using Terminal Access with Windows Subsystem for Linux
 - **TRANSLATION_GUIDE.md** - Guide for contributing translations
@@ -48,7 +49,7 @@ Detailed implementation summaries for specific features:
 Start with the [main README](../README.md), then:
 1. [QUICKSTART](../QUICKSTART.md) - Get started quickly
 2. [INSTALL](../INSTALL.md) - Installation guide
-3. [ADVANCED_USER_GUIDE](user/ADVANCED_USER_GUIDE.md) - Learn advanced features
+3. [Full user guide](../addon/doc/en/readme.md) - Every feature and the complete gesture reference (opens in the add-on with NVDA+Shift+F1)
 4. [FAQ](user/FAQ.md) - Common questions
 
 ### For Developers

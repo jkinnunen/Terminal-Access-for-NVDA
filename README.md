@@ -9,6 +9,7 @@ An NVDA add-on that makes Windows terminal applications more accessible. It adds
 - Search with a results dialog, plus next and previous match keys
 - Up to 10 bookmarks per tab with a bookmark list dialog
 - Section, error, and prompt navigation for jumping through long output
+- Table mode for column-aware reading of tabular output such as `docker ps`, `kubectl`, and `ls -l` (column detection is heuristic and will improve with testing and reports)
 - Error and warning audio cues with structured pattern detection
 - Quiet mode for fast-scrolling output, with optional error tones
 - Application profiles that auto-adjust settings for vim, tmux, git, less, WSL, and AI CLI tools

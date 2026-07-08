@@ -6,7 +6,7 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 ### Added
 
-- **Table mode**: Press NVDA+Alt+G (or G in the command layer) on columnar output such as docker ps, kubectl get, ls -l, or psql results. Arrow keys move by cell with header announcements ("STATUS: Running"), Home/End jump across columns, Control+Up reads the column header, Space reads the whole row, Escape exits. Supports space-aligned and pipe-delimited tables.
+- **Table mode**: Press NVDA+Alt+G (or G in the command layer) on columnar output such as docker ps, kubectl get, ls -l, or psql results. Arrow keys move by cell with header announcements ("STATUS: Running"), Home/End jump across columns, Control+Up reads the column header, Space reads the whole row, Escape exits. Supports space-aligned and pipe-delimited tables. Column detection is heuristic and will be refined in future updates based on testing and reports.
 - **Command finder**: Press NVDA+Alt+H (or H in the command layer) to open a searchable list of every Terminal Access command. Type to filter, press Enter to hear the key bindings.
 - **Transcript export**: Press NVDA+Alt+X (or Ctrl+S in the command layer) to save the terminal buffer to a text file with color codes stripped.
 - **First-run tutorial**: The first terminal focus after installation speaks a short tour of the essential commands. Replay any time with Shift+H in the command layer.
@@ -19,14 +19,19 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 ### Changed
 
 - Section tokenizer results are now cached per buffer, making repeated section navigation instant on large scrollbacks.
-- The repository root readme is now a short landing page; the full user guide lives at addon/doc/en/readme.md and is no longer overwritten at build time.
-- Translation catalogs regenerated: lib module strings are now extracted (template grew from 279 to 361 strings) and all 17 languages were merged against the new template.
+- The full user guide now ships inside the add-on at addon/doc/en/readme.md and opens with NVDA+Shift+F1 and the Add-on Store Help button. It is the single source for feature documentation, covering getting started, the command reference, every feature, settings, and troubleshooting. The repository advanced guide is now a pointer to it, and the root readme links to it.
+- The guide's Table of Contents links now work in the generated HTML: the build enables the Markdown toc extension so every heading gets an anchor.
+- The bookmark, AI turn, URL list, and search result dialogs now use the shared browsable list component, so they share the same filtering, Enter, Escape, and Delete handling, and all appear above the terminal window.
+- Translation catalogs regenerated: lib module strings are now extracted (template grew from 279 to 389 strings) and all 17 languages were merged against the new template.
 - User guide corrected against the actual code: removed documented gestures that never existed, fixed wrong keys for AI turn and code block navigation, corrected AI error tone frequencies, and documented previously missing commands.
 
 ### Fixed
 
 - NVDA+Alt+S was bound to both the section list and summarize last command; it now belongs solely to summarize. The section list remains on Shift+S in the command layer.
 - Privacy setting tooltips referenced wrong command layer keys for summarize and explain.
+- The verbosity level now controls optional speech as intended. At normal and verbose, jumping to a section announces its category (such as error or prompt) and a search announces the match count; at verbose, activating a profile also announces a short summary of its overrides. These announcements were previously silent regardless of the verbosity setting.
+- Opening a URL from the URL list could fail because of an undefined reference in the dialog. URLs now open in the default browser.
+- ANSI stripping now removes incomplete escape sequences left when a terminal read splits mid-sequence, so a stray escape byte no longer leaks into spoken output. The Python and native Rust paths were updated together to stay in sync.
 
 ### Removed
 

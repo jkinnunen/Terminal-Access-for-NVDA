@@ -71,8 +71,10 @@ excludedFiles: list[str] = [
 baseLanguage: str = "en"
 
 # Markdown extensions for add-on documentation
-# Most add-ons do not require additional Markdown extensions.
-markdownExtensions: list[str] = ["tables", "fenced_code"]
+# tables and fenced_code render the command tables and JSON examples.
+# toc adds id attributes to headings so the in-guide Table of Contents
+# links resolve in the generated HTML.
+markdownExtensions: list[str] = ["tables", "fenced_code", "toc"]
 
 # Custom braille translation tables
 brailleTables: BrailleTables = {}

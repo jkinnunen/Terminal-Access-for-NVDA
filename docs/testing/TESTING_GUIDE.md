@@ -482,7 +482,7 @@ If any test fails:
 
 ## Additional Resources
 
-- **User Guide**: See `docs/user/ADVANCED_USER_GUIDE.md`
+- **User Guide**: See `addon/doc/en/readme.md`
 - **FAQ**: See `docs/user/FAQ.md`
 - **API Reference**: See `docs/developer/API_REFERENCE.md`
 - **Architecture**: See `docs/developer/ARCHITECTURE.md`

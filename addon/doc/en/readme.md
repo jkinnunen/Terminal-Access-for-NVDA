@@ -1,0 +1,581 @@
+# Terminal Access for NVDA
+
+Terminal Access adds keyboard-driven review navigation, search, bookmarks, and audio cues to 30 Windows terminal applications, including Windows Terminal, PowerShell, Command Prompt, WSL, and popular third-party emulators. It gives you line, word, and character navigation through terminal output without moving the cursor, so you can read command results the way you read a document.
+
+Open this guide any time from inside a terminal by pressing **NVDA+Shift+F1**.
+
+## Table of Contents
+
+1. [Getting Started](#getting-started)
+2. [Command Layer](#command-layer)
+3. [Table Mode](#table-mode)
+4. [Bookmarks](#bookmarks)
+5. [Error and Warning Detection](#error-and-warning-detection)
+6. [Gesture Conflict Detection](#gesture-conflict-detection)
+7. [Application Profiles](#application-profiles)
+8. [Third-Party Terminal Support](#third-party-terminal-support)
+9. [Window Definitions](#window-definitions)
+10. [Unicode and CJK Text](#unicode-and-cjk-text)
+11. [Performance](#performance)
+12. [AI CLI Support](#ai-cli-support)
+13. [Settings](#settings)
+14. [Troubleshooting](#troubleshooting)
+15. [Getting Help](#getting-help)
+
+---
+
+## Getting Started
+
+### Installation
+
+1. Download the latest `.nvda-addon` file from the [Releases page](https://github.com/PratikP1/Terminal-Access-for-NVDA/releases/latest).
+2. Press Enter on the downloaded file.
+3. Confirm the prompt.
+4. Restart NVDA.
+
+Terminal Access requires Windows 10 or 11 and NVDA 2025.1 or later.
+
+### First Steps
+
+Open any supported terminal. When Terminal Access recognizes it, you hear: "Terminal Access support active. Press NVDA+shift+f1 for help."
+
+You read terminal output in two ways:
+
+- **Direct gestures**: NVDA modifier combinations such as **NVDA+I** to read the current line. These work at any time inside a terminal.
+- **Command layer**: Press **NVDA+apostrophe** to enter a mode where every command is a single key press. You hear "Terminal commands" and a high tone. Press **Escape** to leave.
+
+The command layer is faster for a sequence of commands and avoids clashes with other add-ons. Both routes run the same commands, and you can remap every gesture in NVDA's Input Gestures dialog under "Terminal Access".
+
+### Essential Reading Commands
+
+These few commands cover most reading. The first column is the key inside the command layer; the second is the equivalent direct gesture.
+
+| Command layer | Direct gesture | Action |
+|---------------|----------------|--------|
+| **I / O / U** | **NVDA+I / O / U** | Read current / next / previous line |
+| **K / L / J** | **NVDA+K / L / J** | Read current / next / previous word |
+| **, / . / M** | **NVDA+, / . / M** | Read current / next / previous character |
+| **A** | **NVDA+A** | Continuous reading (say all) |
+| **;** | **NVDA+;** | Announce position (row, column) |
+| **Escape** | | Exit the command layer |
+
+The full reference for every command is in the next section.
+
+---
+
+## Command Layer
+
+The command layer is a modal input mode that runs Terminal Access commands with single-key presses instead of multi-key NVDA modifier combinations. This avoids conflicts with other NVDA add-ons and makes commands faster to type.
+
+### Entering and Exiting
+
+| Gesture                        | Action                                                                   |
+|--------------------------------|--------------------------------------------------------------------------|
+| **NVDA+apostrophe**            | Enter the command layer. You hear "Terminal commands" and a high tone.    |
+| **Escape** or **NVDA+apostrophe** | Exit the command layer. You hear "Exit terminal commands" and a low tone. |
+
+The layer stays active until you exit. Each command keeps you in the layer so you can chain commands. The layer exits on its own when focus leaves the terminal.
+
+### Command Reference
+
+While in the command layer, these keys are active:
+
+#### Navigation
+| Key | Action |
+|-----|--------|
+| **U / I / O** | Read previous / current / next line |
+| **J / K / L** | Read previous / current / next word |
+| **M / , / .** | Read previous / current / next character |
+| **Home / End** | Jump to start / end of line |
+| **PageUp / PageDown** | Jump to top / bottom of buffer |
+| **Shift+Left / Right** | Read to start / end of line |
+| **Shift+Up / Down** | Read to top / bottom of buffer |
+
+#### Information and Reading
+| Key | Action |
+|-----|--------|
+| **A** | Continuous reading (say all) |
+| **;** | Announce position (row, column) |
+| **Shift+A** | Read text attributes and colors |
+| **I** (twice) | Announce line indentation |
+| **,** (twice) | Phonetic character reading |
+| **,** (three times) | Character code |
+| **K** (twice) | Spell current word |
+
+#### Selection and Copying
+| Key | Action |
+|-----|--------|
+| **R** | Toggle mark (start/end) |
+| **C** | Copy linear selection |
+| **X** | Clear marks |
+| **V** | Enter copy mode (L=line, S=screen, Esc=cancel) |
+
+#### Window Management
+| Key | Action |
+|-----|--------|
+| **W** | Read window content |
+| **Shift+W** | Set window boundaries |
+| **Ctrl+W** | Clear window |
+| **Y** | Cycle cursor tracking mode |
+
+#### Configuration
+| Key | Action |
+|-----|--------|
+| **Q** | Toggle quiet mode |
+| **- / =** | Decrease / increase punctuation level |
+| **D** | Toggle indentation announcement |
+| **P** | Announce active profile. Press twice to select. |
+
+#### Bookmarks
+| Key | Action |
+|-----|--------|
+| **0-9** | Jump to bookmark |
+| **Shift+0-9** | Set bookmark at current line (line text is captured as a label) |
+| **B** | Open bookmark list dialog (shows bookmark number and line content; press Enter to jump, Delete to remove) |
+
+#### Tabs
+| Key | Action |
+|-----|--------|
+| **T** | Create new tab |
+| **Shift+T** | List tabs |
+
+#### Search and URL List
+| Key | Action |
+|-----|--------|
+| **E** | List URLs found in terminal output |
+| **F** | Search terminal output |
+| **F3** | Next search match |
+| **Shift+F3** | Previous search match |
+
+#### Table Mode
+| Key | Action |
+|-----|--------|
+| **G** | Toggle table mode on the table under the review cursor |
+
+#### Help and Settings
+| Key | Action |
+|-----|--------|
+| **F1** | Open user guide |
+| **S** | Open Terminal Access settings |
+| **Escape** | Exit command layer |
+
+### Copy Mode Within the Layer
+
+When you press **V** in the command layer, you enter copy mode. The keys **L** (copy line), **S** (copy screen), and **Escape** (cancel) temporarily override their layer bindings. When copy mode exits, those bindings are restored.
+
+### Customizing Gestures
+
+All Terminal Access commands, both layer and direct, are registered under the "Terminal Access" category in NVDA's Input Gestures dialog. You can remap any gesture.
+
+### URL List
+
+Press **E** in the command layer (or **NVDA+Alt+U** directly) to scan the terminal buffer for URLs. An interactive dialog opens with:
+
+| Control | Description |
+|---------|-------------|
+| **Filter box** | Type to narrow results |
+| **URL list** | Shows each URL, its line number, and surrounding text |
+| **Open** (Alt+O) | Opens the selected URL in your default browser |
+| **Copy URL** (Alt+C) | Copies the URL to the clipboard |
+| **Move to line** (Alt+M) | Announces the line containing the URL |
+| **Close** (Escape) | Closes the dialog |
+
+Supported URL types: HTTP/HTTPS, FTP, www-prefixed, and OSC 8 terminal hyperlinks. Duplicate URLs are removed automatically.
+
+**Security note:** URLs with `file://`, `javascript:`, or other non-web schemes are detected and listed but cannot be opened from the dialog. Attempting to open one produces the spoken message "Cannot open this URL type for security reasons." This stops malicious terminal output from tricking you into launching dangerous local resources.
+
+---
+
+## Table Mode
+
+Terminal programs often print tabular output such as `docker ps`, `kubectl get pods`, `ls -l`, `psql` result grids, and Markdown pipe tables. Read as plain lines, these become long run-on strings where a value is hard to match to its column. Table mode reads the output column by column and announces the header for each cell, so you always know which column you are in.
+
+### Entering and Exiting
+
+Move the review cursor onto any line of the table, then press **G** in the command layer (or **NVDA+Alt+G** directly). If a table is detected at that position, table mode activates and the arrow keys navigate cells. If no table is found, you hear "No table at this position".
+
+Press **Escape** or toggle the command again to leave table mode. Table mode also exits on its own when focus leaves the terminal.
+
+### Navigating Cells
+
+While table mode is active, these keys navigate the detected table:
+
+| Key | Action |
+|-----|--------|
+| **Up / Down Arrow** | Previous / next row |
+| **Left / Right Arrow** | Previous / next column |
+| **Home / End** | First / last column in the row |
+| **Ctrl+Up Arrow** | Announce the header of the current column |
+| **Space** | Read a summary of the current row |
+| **Escape** | Exit table mode |
+
+Each cell is announced with its column header followed by the cell value, so you can move down a column and compare values without losing track of what they mean.
+
+### Supported Table Shapes
+
+Table mode recognizes two shapes:
+
+| Shape | Examples |
+|-------|----------|
+| **Aligned columns** | Space-padded output such as `docker ps`, `kubectl get pods`, and `ls -l` |
+| **Pipe tables** | Markdown-style tables and `psql` grids that use `|` separators |
+
+### Column Detection Is Heuristic
+
+Table mode's column detection is heuristic. It infers where columns begin and end from the alignment of spaces and pipe characters in the visible text, because terminal output carries no structural markup describing its columns. This works well for the common tools listed above, but unusual spacing, wrapped lines, cells that contain multiple spaces, or wide (CJK) characters can place a column boundary in the wrong spot.
+
+This behavior will be refined in future updates as we gather testing results and user reports of tables that are not detected or split correctly. If you hit a table that reads incorrectly, please report it with a sample of the output so the detection can be improved.
+
+---
+
+## Bookmarks
+
+Bookmarks let you save and revisit specific lines in the terminal buffer.
+
+### Setting Bookmarks
+
+Press **Shift+0** through **Shift+9** in the command layer (or **NVDA+Alt+0** through **NVDA+Alt+9** directly) to set a bookmark at the current line. The line's text is captured as a label so you can identify it later.
+
+### Jumping to Bookmarks
+
+Press **0-9** in the command layer (or **Alt+0** through **Alt+9** directly) to jump to that bookmark.
+
+### Bookmark List Dialog
+
+Press **B** in the command layer (or **NVDA+Shift+B** directly) to open an interactive list. The dialog shows two columns: bookmark number and line content. Press Enter to jump to the selected bookmark, or Delete to remove it.
+
+Bookmarks are isolated per tab when you use Windows Terminal tabs.
+
+---
+
+## Error and Warning Detection
+
+Terminal Access plays audio cues when you navigate to lines that contain errors or warnings. This helps you scan build output, test results, or log files by ear.
+
+- **Error lines** produce a low-pitched tone.
+- **Warning lines** produce a higher-pitched tone.
+
+The detector recognizes common patterns from compilers, linters, and shell output, such as `error:`, `ERROR`, `warning:`, and `WARN`.
+
+### Audio Cue Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| **Error Audio Cues** | boolean | True | Play tones on error/warning lines during navigation. |
+| **Error Audio Cues in Quiet Mode** | boolean | False | Play error/warning tones on caret events while quiet mode is active. |
+| **Output Activity Tones** | boolean | False | Play two ascending tones (600+800 Hz) when new program output appears. |
+| **Output Activity Debounce** | integer | 1000 ms | Minimum interval between activity tones. Range: 100 to 10000 ms. |
+
+Configure these in NVDA menu > Preferences > Settings > Terminal Settings.
+
+### Gesture Scoping
+
+Terminal Access gestures only activate inside supported terminals. Outside a terminal the gestures pass through to NVDA or other add-ons. Terminal detection uses an exact match on the process name.
+
+---
+
+## Gesture Conflict Detection
+
+Terminal Access detects when its keyboard shortcuts conflict with other installed NVDA add-ons. When it finds a conflict, it warns you so you can decide which binding to keep.
+
+To resolve conflicts:
+
+1. Open NVDA menu > Preferences > Settings > Terminal Settings.
+2. In the "NVDA Gesture Conflicts" section, uncheck any gesture you want to disable.
+3. Disabled direct gestures remain accessible through the command layer (NVDA+apostrophe).
+
+The command layer and help gestures (NVDA+Shift+F1) cannot be disabled.
+
+---
+
+## Application Profiles
+
+Application profiles adjust Terminal Access settings based on the terminal application you are using. Each profile can customize punctuation levels, cursor tracking modes, and window regions for specialized behavior.
+
+### Understanding Profiles
+
+Terminal Access ships with default profiles for popular applications:
+
+- **vim/nvim**: Punctuation MOST (for code symbols), cursor tracking WINDOW mode, silent zones for the status line and command line.
+- **tmux**: Cursor tracking STANDARD mode, silent zone for the status bar.
+- **htop**: Repeated symbols disabled (progress bars repeat characters), window regions for the header (lines 1-4) and process list (lines 5+).
+- **less/more**: Quiet mode enabled, key echo disabled.
+- **git**: Punctuation MOST (symbols in diffs), repeated symbols disabled.
+- **nano**: Cursor tracking STANDARD mode, silent zones for the status and shortcut bars.
+- **irssi**: Punctuation SOME, line pause disabled for fast chat reading, silent zone for the status bar.
+- **WSL**: Punctuation MOST (code-friendly for Linux commands and paths), cursor tracking STANDARD mode, repeated symbols off.
+
+### Managing Profiles
+
+View, export, import, and delete profiles from NVDA menu > Preferences > Settings > Terminal Settings > Application Profiles. The "Installed profiles" dropdown lists default profiles first, then custom profiles alphabetically.
+
+- **Export**: Select a profile and click "Export..." to save it as a JSON file with all settings and window definitions.
+- **Import**: Click "Import..." and choose a profile JSON file. A profile with the same name is replaced.
+- **Delete**: Select a custom profile and click "Delete Profile". Default profiles (vim, tmux, htop, less, git, nano, irssi) cannot be deleted.
+
+### Profile Setting Overrides
+
+When a profile is active, its settings override the global Terminal Access settings. For example, if the `less` profile sets key echo off, key echo is disabled while `less` runs, regardless of the global setting.
+
+If you toggle a setting such as quiet mode while a profile is active, the change is saved to that profile's overrides rather than the global settings. When you switch to a different application, the global settings return.
+
+### Creating Custom Profiles
+
+Create a custom profile by exporting an existing one as a template, editing the JSON, and importing it back:
+
+```json
+{
+  "appName": "myapp",
+  "displayName": "My Application",
+  "punctuationLevel": 2,
+  "cursorTrackingMode": 1,
+  "quietMode": false,
+  "keyEcho": true,
+  "linePause": true,
+  "repeatedSymbols": true,
+  "windows": [
+    {
+      "name": "status",
+      "top": 9999,
+      "bottom": 9999,
+      "left": 1,
+      "right": 9999,
+      "mode": "silent",
+      "enabled": true
+    }
+  ]
+}
+```
+
+---
+
+## Third-Party Terminal Support
+
+Terminal Access supports 30 terminals: the 5 built-in Windows terminals, WSL, and 24 third-party emulators. It detects them automatically when you switch to them, and each has a default profile tuned for common use.
+
+### Built-in Windows Terminals
+
+Windows Terminal, cmd (Command Prompt), powershell (Windows PowerShell), pwsh (PowerShell Core), and conhost (Console Host).
+
+### Third-Party Terminal Emulators
+
+Cmder, ConEmu, mintty (Git Bash and Cygwin), PuTTY and KiTTY, Terminus, Hyper, Alacritty, WezTerm, Tabby, FluentTerminal, Ghostty, Rio, Wave Terminal, Contour, Cool Retro Term, MobaXterm, SecureCRT, Tera Term, mRemoteNG, and Royal TS.
+
+### Default Profiles by Category
+
+| Category | Terminals | Punctuation | Cursor tracking |
+|----------|-----------|-------------|-----------------|
+| General | Cmder, ConEmu, Terminus, Hyper, Tabby, FluentTerminal | SOME | STANDARD |
+| Development | mintty (Git Bash) | MOST | STANDARD |
+| Remote access | PuTTY, KiTTY | SOME | STANDARD |
+| High performance | Alacritty, WezTerm | SOME | STANDARD |
+
+All Terminal Access features work with third-party terminals: navigation, selection, cursor tracking, punctuation levels, and window definitions. To customize a terminal, use it, open NVDA Settings > Terminal Access, adjust settings, and export the profile for backup or sharing.
+
+---
+
+## Window Definitions
+
+Window definitions mark regions of the terminal screen with different speech behaviors. This helps with applications that have status bars, command areas, or split panes.
+
+### Basics
+
+Each window definition has a name, coordinates (top, bottom, left, right), a mode, and an enabled flag.
+
+Coordinates are 1-based, so row 1, column 1 is the top-left. The value **9999** means "last row or column".
+
+### Window Modes
+
+| Mode | Behavior |
+|------|----------|
+| **announce** | Read content normally (default) |
+| **silent** | Suppress all speech for this region |
+| **monitor** | Track changes but announce differently |
+
+### Example: Vim Status Line
+
+```json
+[
+  {
+    "name": "editor",
+    "top": 1,
+    "bottom": 9998,
+    "left": 1,
+    "right": 9999,
+    "mode": "announce"
+  },
+  {
+    "name": "status",
+    "top": 9999,
+    "bottom": 9999,
+    "left": 1,
+    "right": 9999,
+    "mode": "silent"
+  }
+]
+```
+
+This reads all lines except the last (the editor region) normally and silences the last line (the status bar). Common uses include silencing status bars, defining tmux or screen panes, handling htop headers, and monitoring command input regions.
+
+---
+
+## Unicode and CJK Text
+
+Terminal Access handles double-width characters, right-to-left text, and complex emoji sequences.
+
+### CJK Characters
+
+Chinese, Japanese, and Korean characters count as 2 columns, so column-based operations line up correctly. Zero-width combining marks are handled properly.
+
+```
+Hello世界   # "Hello" = 5 columns, "世界" = 4 columns, total = 9 columns
+```
+
+### Right-to-Left Text
+
+Terminal Access detects Arabic and Hebrew by character range and applies the Unicode bidirectional algorithm (UAX #9), including Arabic contextual reshaping and mixed RTL/LTR text.
+
+For full RTL support, install the optional libraries:
+
+```bash
+pip install python-bidi arabic-reshaper
+```
+
+Without them, Terminal Access falls back to basic Unicode support.
+
+### Emoji
+
+Terminal Access handles zero-width joiner sequences (family and profession emoji), skin tone modifiers, variation selectors, and flag sequences. Emoji are typically 2 columns wide.
+
+For full emoji support, install the optional library:
+
+```bash
+pip install emoji
+```
+
+---
+
+## Performance
+
+Terminal Access includes optimizations for large terminal buffers.
+
+- **Position caching**: Position calculations are cached for up to 100 positions with a 1-second timeout, and invalidated on content changes, resize, or terminal switch. A calculation that is O(n) on first access becomes O(1) when cached.
+- **Incremental tracking**: Small cursor movements (within 10 positions) are 10 to 20 times faster than a full calculation, with automatic fallback for large jumps.
+- **Background processing**: Selections over 100 rows run in a background thread with a progress dialog and cancellation support.
+- **Native acceleration**: When the native component (`termaccess.dll`) is available, CPU-bound work such as ANSI stripping, text diffing, search, and Unicode width calculation runs in compiled Rust. A background helper process reads terminal buffers via UIA on a separate thread, and falls back to the Win32 Console API for terminals without UIA TextPattern support. All native features fall back to pure Python when unavailable, with no user action required.
+
+---
+
+## AI CLI Support
+
+Terminal Access detects AI command-line tools and adds navigation for conversational workflows. Supported tools: Claude, Aider, ChatGPT CLI, GitHub Copilot CLI, Gemini CLI, OpenAI Codex CLI, and Ollama.
+
+### Turn Navigation
+
+Terminal Access splits the buffer into turns based on the role markers each AI CLI uses (user prompts and assistant responses).
+
+| Command layer | Direct gesture | Action |
+|---------------|----------------|--------|
+| **Ctrl+T** | **NVDA+Alt+T** | Jump to next turn |
+| **Shift+T** | **NVDA+Alt+Shift+T** | Jump to previous turn |
+
+When you land on a turn, Terminal Access announces the role (user or assistant) and the first line. If no more turns exist in that direction, you hear "No more turns."
+
+### Code Block Navigation
+
+Terminal Access scans for fenced code blocks (triple backtick delimiters) and tracks the language, start line, end line, and content of each.
+
+| Command layer | Direct gesture | Action |
+|---------------|----------------|--------|
+| **Ctrl+B** | **NVDA+Alt+B** | Next code block |
+| **Shift+B** | **NVDA+Alt+Shift+B** | Previous code block |
+| **Ctrl+L** | **NVDA+Alt+L** | Announce language |
+| **Ctrl+C** | **NVDA+Alt+C** | Copy code block to clipboard |
+| **Ctrl+E** | **NVDA+Alt+E** | Explain code block |
+
+The explain command sends the code block to the running AI for a brief summary. It is gated by the "Allow Code Explain" privacy setting, which is off by default.
+
+### Streaming Delta
+
+Press **NVDA+Shift+D** to hear only what changed since the last check while an AI assistant is streaming its response. Terminal Access diffs the current buffer against a stored snapshot to find the new content.
+
+### Scoped Search
+
+Press **Ctrl+F** in the command layer to search within the current AI turn only. Standard search (**F** in the command layer) still searches the full buffer.
+
+### AI Error Detection
+
+Terminal Access recognizes AI-specific error patterns in addition to standard compiler and shell errors.
+
+| Pattern type | Examples |
+|--------------|----------|
+| Rate limit | "rate limit exceeded", "429 Too Many Requests" |
+| Token limit | "token limit reached", "message was truncated" |
+| API error | "invalid API key", "authentication failed" |
+| Connection | "unable to reach API endpoint" |
+
+Rate limit and token limit errors produce a pulsing low tone (two quick 220 Hz beeps). Other API errors produce a single low tone.
+
+### Verbosity Presets
+
+Press **Shift+V** in the command layer (or **NVDA+Shift+V**) to cycle through verbosity presets.
+
+| Preset | Behavior |
+|--------|----------|
+| **Quiet** | Only errors and turn boundaries are announced |
+| **Normal** | Standard announcements (default) |
+| **Verbose** | Extra context such as the section category on a jump, the search match count, and profile override detail |
+
+### Privacy Settings
+
+Two settings control AI features that send terminal content to an external service. Both are off by default.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Allow Code Explain** | Off | Permits sending code blocks to the AI for summarization. |
+| **Allow Summarization** | Off | Permits automatic summarization of long AI responses. |
+
+When you invoke a privacy-gated feature while it is disabled, Terminal Access explains that the feature is off and how to enable it. To enable, open NVDA Settings > Terminal Access > Privacy and check the setting.
+
+---
+
+## Settings
+
+Open settings from NVDA menu > Preferences > Settings > Terminal Settings.
+
+| Setting | Description |
+|---------|-------------|
+| **Key Echo** | Hear characters as you type. |
+| **Cursor Tracking** | Announce cursor movements. |
+| **Punctuation Level** | Control symbol verbosity (None, Some, Most, All). |
+| **Indentation** | Announce indentation for code automatically. |
+| **Error Audio Cues** | Play tones on error/warning lines during navigation. On by default. |
+| **Error Audio Cues in Quiet Mode** | Play error/warning tones on caret events while quiet mode is active. Off by default. |
+| **Output Activity Tones** | Play two ascending tones (600+800 Hz) when new program output appears. Off by default. |
+| **Output Activity Debounce** | Minimum interval between activity tones in milliseconds (100 to 10000, default 1000). |
+
+The settings panel also has a "NVDA Gesture Conflicts" section for disabling conflicting gestures and an "Application Profiles" section for managing profiles.
+
+---
+
+## Troubleshooting
+
+### The add-on does not activate
+
+- Confirm you are in a supported terminal.
+- Check that the add-on is enabled in NVDA menu > Tools > Manage Add-ons.
+- Restart NVDA.
+
+### Commands do not respond
+
+- Try a different terminal application to see if the problem is terminal-specific.
+- Check for keyboard shortcut conflicts in NVDA's Input Gestures dialog.
+- Review the NVDA log (NVDA menu > Tools > View log).
+
+---
+
+## Getting Help
+
+- Press **NVDA+Shift+F1** in any terminal to reopen this guide.
+- Report issues on the [GitHub issue tracker](https://github.com/PratikP1/Terminal-Access-for-NVDA/issues). Include your NVDA version, Terminal Access version, terminal application and version, steps to reproduce, and expected versus actual behavior.
+- The [frequently asked questions](https://github.com/PratikP1/Terminal-Access-for-NVDA/blob/main/docs/user/FAQ.md) and [version history](https://github.com/PratikP1/Terminal-Access-for-NVDA/blob/main/CHANGELOG.md) are on GitHub.
