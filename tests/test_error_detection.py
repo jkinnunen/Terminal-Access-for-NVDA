@@ -478,7 +478,7 @@ class TestErrorCueContextBehavior:
 		}.get(k, d))
 
 		mock_tones = MagicMock()
-		with patch("lib.terminal_overlay.tones", mock_tones):
+		with patch("lib.audio_cues.tones", mock_tones):
 			obj._reportNewLines(["warning: deprecated function"])
 			mock_tones.beep.assert_called_once_with(440, 30)
 

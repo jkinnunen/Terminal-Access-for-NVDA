@@ -257,6 +257,15 @@ class TestClassifyProgress:
         assert sections[0].category == "progress"
 
 
+    def test_pipe_delimited_table_not_classified_as_progress(self):
+        """Pipe-delimited table rows must not be misclassified as progress spinners."""
+        tokenizer = SectionTokenizer()
+        sections = tokenizer.tokenize(["| column1 | column2 | column3 |"])
+        assert sections[0].category != "progress", (
+            "Pipe-delimited table row was misclassified as progress"
+        )
+
+
 class TestClassifyTimestamp:
     """Tests for timestamp line classification."""
 
@@ -530,3 +539,75 @@ class TestFullSession:
         sections = tokenizer.tokenize(kubectl_logs_output)
         categories = {s.category for s in sections}
         assert "error" in categories or "warning" in categories
+
+
+# ---------------------------------------------------------------------------
+# ANSI stripping before classification
+# ---------------------------------------------------------------------------
+
+class TestANSIStripping:
+    """SectionTokenizer must strip ANSI codes before classifying lines."""
+
+    def test_colored_prompt_detected(self):
+        """A prompt wrapped in ANSI color codes is still classified as prompt."""
+        tokenizer = SectionTokenizer()
+        lines = ["\x1b[32muser@host:~$\x1b[0m ls -la"]
+        sections = tokenizer.tokenize(lines)
+        assert sections[0].category == "prompt"
+
+    def test_colored_ps_prompt_detected(self):
+        """A PowerShell prompt with ANSI colors is still classified as prompt."""
+        tokenizer = SectionTokenizer()
+        lines = ["\x1b[36mPS C:\\Users\\test>\x1b[0m Get-Process"]
+        sections = tokenizer.tokenize(lines)
+        assert sections[0].category == "prompt"
+
+    def test_colored_dollar_prompt_detected(self):
+        """A bare $ prompt with ANSI is still classified as prompt."""
+        tokenizer = SectionTokenizer()
+        lines = ["\x1b[1;34m$\x1b[0m echo hello"]
+        sections = tokenizer.tokenize(lines)
+        assert sections[0].category == "prompt"
+
+    def test_colored_error_detected(self):
+        """An error line with ANSI color codes is still classified as error."""
+        tokenizer = SectionTokenizer()
+        lines = ["\x1b[31merror\x1b[0m: expected ';' before 'int'"]
+        sections = tokenizer.tokenize(lines)
+        assert sections[0].category == "error"
+
+    def test_colored_warning_detected(self):
+        """A warning line with ANSI colors is still classified as warning."""
+        tokenizer = SectionTokenizer()
+        lines = ["\x1b[33mwarning\x1b[0m: unused variable 'x'"]
+        sections = tokenizer.tokenize(lines)
+        assert sections[0].category == "warning"
+
+    def test_colored_heading_detected(self):
+        """An ALL CAPS heading with ANSI bold is still classified as heading."""
+        tokenizer = SectionTokenizer()
+        lines = ["\x1b[1mBUILD RESULTS\x1b[0m"]
+        sections = tokenizer.tokenize(lines)
+        assert sections[0].category == "heading"
+
+    def test_colored_progress_detected(self):
+        """A progress bar with ANSI is still classified as progress."""
+        tokenizer = SectionTokenizer()
+        lines = ["\x1b[32m[====>    ]\x1b[0m 50%"]
+        sections = tokenizer.tokenize(lines)
+        assert sections[0].category == "progress"
+
+    def test_navigation_works_with_colored_prompts(self):
+        """next_prompt/prev_prompt work when prompts have ANSI colors."""
+        tokenizer = SectionTokenizer()
+        lines = [
+            "\x1b[32muser@host:~$\x1b[0m ls",
+            "file1.txt",
+            "file2.txt",
+            "\x1b[32muser@host:~$\x1b[0m pwd",
+            "/home/user",
+        ]
+        tokenizer.tokenize(lines)
+        nxt = tokenizer.next_prompt(0)
+        assert nxt is not None
+        assert nxt.line_num == 3

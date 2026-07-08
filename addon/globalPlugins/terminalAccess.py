@@ -50,8 +50,8 @@ Key Features:
 	  search commands become simple single-key presses (e.g. u/i/o for line
 	  navigation, j/k/l for word navigation, f for search, etc.).
 	- Navigation: Line, word, character, column, row movement
-	- Selection: Linear and rectangular (column-based) text selection
-	- Cursor Tracking: Standard, highlight, window, or off modes
+	- Selection: Linear text selection
+	- Cursor Tracking: Standard, window, or off modes
 	- Symbol Processing: Configurable punctuation levels (none/some/most/all)
 	- Window Tracking: Define and track screen regions independently
 	- Application Profiles: Auto-detect and apply app-specific settings
@@ -176,7 +176,6 @@ _COMMAND_LAYER_MAP = {
 	# Selection & copying
 	"kb:r": "toggleMark",
 	"kb:c": "copyLinearSelection",
-	"kb:shift+c": "copyRectangularSelection",  # DEPRECATED: Scheduled for removal in v2.0
 	"kb:x": "clearMarks",
 	"kb:v": "copyMode",
 	# Window management
@@ -213,14 +212,10 @@ _COMMAND_LAYER_MAP = {
 	"kb:shift+9": "setBookmark",
 	"kb:b": "listBookmarks",
 	"kb:shift+s": "listSections",
+	"kb:shift+r": "listAiTurns",
 	# Tab management
 	"kb:t": "createNewTab",
 	"kb:shift+t": "listTabs",
-	# DEPRECATED: Scheduled for removal in v2.0 — Command history
-	"kb:h": "previousCommand",  # DEPRECATED: Scheduled for removal in v2.0
-	"kb:g": "nextCommand",  # DEPRECATED: Scheduled for removal in v2.0
-	"kb:shift+h": "scanCommandHistory",  # DEPRECATED: Scheduled for removal in v2.0
-	"kb:shift+l": "listCommandHistory",  # DEPRECATED: Scheduled for removal in v2.0
 	# Search
 	"kb:f": "searchOutput",
 	"kb:f3": "findNext",
@@ -234,6 +229,18 @@ _COMMAND_LAYER_MAP = {
 	# Summarization
 	"kb:z": "summarizeLastCommand",
 	"kb:shift+z": "summarizeSelection",
+	# Privacy
+	"kb:shift+p": "announcePrivacyStatus",
+	# AI turn and code block navigation
+	"kb:control+t": "nextTurn",
+	"kb:control+shift+t": "prevTurn",
+	"kb:control+b": "nextCodeBlock",
+	"kb:control+shift+b": "prevCodeBlock",
+	# Section navigation
+	"kb:n": "nextSection",
+	"kb:shift+n": "prevSection",
+	# Streaming delta
+	"kb:shift+d": "whatChanged",
 	# Layer exit
 	"kb:escape": "exitCommandLayer",
 }
@@ -278,15 +285,10 @@ _DEFAULT_GESTURES = {
 	"kb:NVDA+shift+downArrow": "readToBottom",
 	"kb:NVDA+r": "toggleMark",
 	"kb:NVDA+c": "copyLinearSelection",
-	"kb:NVDA+shift+c": "copyRectangularSelection",  # DEPRECATED: Scheduled for removal in v2.0
 	"kb:NVDA+x": "clearMarks",
 	"kb:NVDA+shift+b": "listBookmarks",
 	"kb:NVDA+shift+t": "createNewTab",
 	"kb:NVDA+w": "listTabs",
-	"kb:NVDA+shift+h": "scanCommandHistory",  # DEPRECATED: Scheduled for removal in v2.0
-	"kb:NVDA+h": "previousCommand",  # DEPRECATED: Scheduled for removal in v2.0
-	"kb:NVDA+g": "nextCommand",  # DEPRECATED: Scheduled for removal in v2.0
-	"kb:NVDA+shift+l": "listCommandHistory",  # DEPRECATED: Scheduled for removal in v2.0
 	"kb:NVDA+f": "searchOutput",
 	"kb:NVDA+f3": "findNext",
 	"kb:NVDA+shift+f3": "findPrevious",
@@ -314,6 +316,13 @@ _DEFAULT_GESTURES = {
 	# Summarization
 	"kb:NVDA+alt+s": "summarizeLastCommand",
 	"kb:NVDA+alt+shift+s": "summarizeSelection",
+	# AI turn and code block navigation
+	"kb:NVDA+alt+t": "nextTurn",
+	"kb:NVDA+alt+shift+t": "prevTurn",
+	"kb:NVDA+alt+b": "nextCodeBlock",
+	"kb:NVDA+alt+shift+b": "prevCodeBlock",
+	# Streaming delta
+	"kb:NVDA+shift+d": "whatChanged",
 }
 
 # Gestures that are always active regardless of context.
@@ -357,7 +366,7 @@ def _message_thread_safe(message):
 # Config classes extracted to lib.config
 from lib.config import (
 	ConfigManager, confspec, _validateInteger, _validateString, _validateSelectionSize,
-	CT_OFF, CT_STANDARD, CT_HIGHLIGHT, CT_WINDOW,
+	CT_OFF, CT_STANDARD, CT_WINDOW,
 	PUNCT_NONE, PUNCT_SOME, PUNCT_MOST, PUNCT_ALL,
 	PUNCTUATION_SETS,
 	MAX_SELECTION_ROWS, MAX_SELECTION_COLS, MAX_WINDOW_DIMENSION, MAX_REPEATED_SYMBOLS_LENGTH,
@@ -385,7 +394,7 @@ _PUNCT_LEVEL_NAMES = {
 
 # Search-related constants and classes extracted to lib.search
 from lib.search import (
-	OutputSearchManager, CommandHistoryManager, UrlExtractorManager, UrlListDialog,
+	OutputSearchManager, UrlExtractorManager, UrlListDialog,
 	_OSC8_URL_PATTERN, _URL_PATTERN, _clean_url,
 )
 
@@ -394,7 +403,7 @@ def _read_terminal_text_on_main(terminal_obj, position=None, timeout: float = 2.
 	"""Read terminal text on the main thread via ``wx.CallAfter``.
 
 	UIA/COM objects are apartment-threaded and must be called from the thread
-	that created them.  Background threads (polling, rectangular copy) that
+	that created them.  Background threads (polling, etc.) that
 	need terminal text should use this helper instead of calling
 	``makeTextInfo()`` directly.
 
@@ -430,8 +439,7 @@ def _read_terminal_text_on_main(terminal_obj, position=None, timeout: float = 2.
 def _read_lines_on_main(terminal_obj, start_row: int, end_row: int, timeout: float = 5.0):
 	"""Read a range of terminal lines on the main thread.
 
-	Used by ``_performRectangularCopy`` to bulk-read all needed lines in one
-	marshaled call, then column-slice them in the background thread.
+	Bulk-reads a range of terminal lines in one marshaled call.
 
 	Args:
 		terminal_obj: NVDA terminal NVDAObject.
@@ -581,6 +589,11 @@ from lib.navigation import TabManager, BookmarkManager
 from lib.gesture_conflicts import GestureConflictDetector
 from lib.section_tokenizer import SectionTokenizer
 from lib.summarizer import OutputSummarizer
+from lib.privacy import PrivacyGuard
+from lib.code_block_reader import CodeBlockDetector
+from lib.ai_turn_tokenizer import AITurnTokenizer
+from lib.streaming_delta import StreamingDeltaTracker
+from lib.audio_cues import play_cue
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""
@@ -626,7 +639,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	Selection and Copying:
 		NVDA+R           - Toggle mark (start/end/clear)
 		NVDA+Alt+C       - Copy linear selection (between marks)
-		NVDA+Shift+C     - Copy rectangular selection (columns)
 		NVDA+X           - Clear selection marks
 		NVDA+V           - Enter copy mode (line/screen)
 
@@ -665,23 +677,24 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	==== CURSOR TRACKING MODES ====
 	0 - Off: No automatic tracking
 	1 - Standard: Follow system caret
-	2 - Highlight: Track highlighted/selected text
-	3 - Window: Track within defined screen region
+	2 - Window: Track within defined screen region
 	"""
 
 	# Grace period (seconds) after a keystroke during which "Blank"
 	# announcements from cursor tracking are suppressed.  Keeps terminal
 	# output responsive without masking navigation feedback.
 	_BLANK_AFTER_TYPING_GRACE: float = 0.3
+	# Grace period (seconds) after a textChange event during which caret
+	# character announcements are suppressed.  When program output arrives,
+	# both textChange and caret fire in quick succession. The caret movement
+	# is a side effect of the output, not user navigation.
+	_OUTPUT_CARET_GRACE: float = 0.1
 
 	# Class-level gesture map: ALL gestures are bound so they appear in
 	# NVDA's Input Gestures dialog under the Terminal Access category.
 	# getScript() returns None for terminal-specific gestures outside
 	# terminals, so NVDA's own handlers process those keystrokes.
 	__gestures = _DEFAULT_GESTURES
-
-	# Track which deprecation warnings have been shown this session
-	_deprecation_warned = set()
 
 	def __init__(self):
 		"""Initialize the Terminal Access global plugin."""
@@ -704,6 +717,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._lastTypedChar = None
 		self._repeatedCharCount = 0
 		self._lastTypedCharTime: float = 0.0
+		self._lastTextChangeTime: float = 0.0
 		self._lastOutputActivityTime: float = 0.0
 
 		# Content generation counter — incremented whenever terminal content changes.
@@ -731,10 +745,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Invalidated when the punctuation level changes.
 		self._cachedPunctLevel: int = -1
 		self._cachedPunctSet: set | None = None
-
-		# Highlight tracking state
-		self._lastHighlightedText = None
-		self._lastHighlightPosition = None
 
 		# Enhanced selection state
 		self._markStart = None
@@ -771,7 +781,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._tabManager = None
 		self._bookmarkManager = None
 		self._searchManager = None
-		self._commandHistoryManager = None
 		self._urlExtractorManager = None
 
 		# Error/warning line detector for audio cues during line navigation
@@ -780,8 +789,24 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Section tokenizer for semantic navigation
 		self._sectionTokenizer = SectionTokenizer()
 
+		# AI turn tokenizer for navigating AI CLI conversations
+		self._aiTurnTokenizer = AITurnTokenizer()
+
+		# Caret burst detector for streaming output suppression
+		from lib.streaming_delta import CaretBurstDetector
+		self._burstDetector = CaretBurstDetector()
+
 		# Extractive summarizer for terminal output
 		self._outputSummarizer = OutputSummarizer()
+
+		# Code block detector for fenced code blocks
+		self._codeBlockDetector = CodeBlockDetector()
+
+		# Privacy guard for gating opt-in features
+		self._privacyGuard = PrivacyGuard()
+
+		# Streaming delta tracker for buffer change announcements
+		self._deltaTracker = None  # Created lazily with current verbosity
 
 		# Gesture conflict detection
 		self._conflictDetector = GestureConflictDetector()
@@ -1106,7 +1131,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			('_tabManager', TabManager, lambda: (obj,), {}),
 			('_bookmarkManager', BookmarkManager, lambda: (obj, self._tabManager), {}),
 			('_searchManager', OutputSearchManager, lambda: (obj, self._tabManager), {}),
-			('_commandHistoryManager', CommandHistoryManager, lambda: (obj,), {'max_history': 100, 'tab_manager': self._tabManager}),
 			('_urlExtractorManager', UrlExtractorManager, lambda: (obj, self._tabManager), {}),
 		]
 		for attr, cls, args_fn, kwargs in managers:
@@ -1121,6 +1145,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		from lib.terminal_overlay import TerminalAccessTerminal
 		if isinstance(obj, TerminalAccessTerminal):
 			obj._configManager = self._configManager
+			obj._burstDetector = self._burstDetector
 
 	def _detectAndApplyProfile(self, obj):
 		"""Detect and activate the appropriate application profile."""
@@ -1203,7 +1228,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			val = getattr(self._currentProfile, key, None)
 			if val is not None:
 				return val
-		return config.conf["terminalAccess"][key]
+		return self._configManager.get(key)
 
 	def _isKeyEchoActive(self) -> bool:
 		"""Check if the addon should perform its own key echo.
@@ -1363,6 +1388,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self._configManager.get("cursorTracking"):
 			return
 
+		# Output-induced caret suppression: when textChange fires (program
+		# output), the cursor moves to the end of new content as a side
+		# effect. This caret movement should not speak characters.
+		# User navigation (arrow keys) has no preceding textChange.
+		if self._configManager.get("streamingSuppression", True):
+			elapsed = time.monotonic() - self._lastTextChangeTime
+			if elapsed < self._OUTPUT_CARET_GRACE:
+				return
+
 		# Cancel any pending cursor tracking announcement
 		if self._cursorTrackingTimer:
 			self._cursorTrackingTimer.Stop()
@@ -1388,6 +1422,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		isQuietMode = self._configManager.get("quietMode")
+
+		# Record timestamp so event_caret knows this cursor movement
+		# was caused by output, not user navigation.
+		self._lastTextChangeTime = time.monotonic()
 
 		# In quiet mode, skip nextHandler (no speech)
 		if not isQuietMode:
@@ -1417,10 +1455,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if not isinstance(text, str):
 				return
 			classification = self._errorDetector.classify(text)
-			if classification == 'error':
-				tones.beep(220, 50)
-			elif classification == 'warning':
-				tones.beep(440, 30)
+			if classification:
+				play_cue(classification)
 		except (RuntimeError, AttributeError, TypeError):
 			pass
 
@@ -1455,6 +1491,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		Args:
 			obj: The terminal object.
 		"""
+		# Re-check output grace: a textChange may have arrived after
+		# this callback was scheduled by wx.CallLater in event_caret.
+		if self._configManager.get("streamingSuppression", True):
+			elapsed = time.monotonic() - self._lastTextChangeTime
+			if elapsed < self._OUTPUT_CARET_GRACE:
+				return
+
 		try:
 			trackingMode = self._getEffective("cursorTrackingMode")
 			match trackingMode:
@@ -1462,9 +1505,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					return
 				case 1:  # CT_STANDARD
 					self._announceStandardCursor(obj)
-				case 2:  # CT_HIGHLIGHT
-					self._announceHighlightCursor(obj)
-				case 3:  # CT_WINDOW
+				case 2:  # CT_WINDOW
 					self._announceWindowCursor(obj)
 		except (AttributeError, TypeError, RuntimeError):
 			# Cursor tracking is a non-critical feature; common failures are
@@ -1568,7 +1609,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Enter), suppress the "Blank" announcement.  Navigation blanks (no
 		# recent typing) are always announced as meaningful position feedback.
 		if typing_induced and (not char or char in ('\r', '\n')):
-			if not _retry:
+			output_grace = (time.monotonic() - self._lastTextChangeTime) < self._OUTPUT_CARET_GRACE
+			if not _retry and not output_grace:
 				try:
 					wx.CallLater(50, self._announceStandardCursor, obj, True)
 					wx.CallLater(150, self._announceStandardCursor, obj, True)
@@ -1588,51 +1630,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				pass
 
 	# DEPRECATED: Scheduled for removal in v2.0
-	def _announceHighlightCursor(self, obj):
-		"""
-		Highlight tracking - announce highlighted/inverse text at cursor.
-
-		Args:
-			obj: The terminal object.
-		"""
-		try:
-			# Get the current caret position
-			info = obj.makeTextInfo(textInfos.POSITION_CARET)
-
-			# Check if position has actually changed
-			currentPos = (info.bookmark.startOffset if hasattr(info, 'bookmark') else None)
-			if currentPos == self._lastCaretPosition:
-				return
-
-			self._lastCaretPosition = currentPos
-
-			# Expand to current line to detect highlighting
-			info.expand(textInfos.UNIT_LINE)
-			lineText = info.text
-
-			# Try to detect ANSI escape codes for highlighting (inverse video: ESC[7m).
-			# Skip on terminals whose UIA provider strips ANSI codes (Windows Terminal,
-			# Alacritty, etc.) — the check can never succeed and wastes a UNIT_LINE read.
-			if not self._terminalStripsAnsi(obj) and ('\x1b[7m' in lineText or 'ESC[7m' in lineText):
-				# Strip ANSI codes to get clean text
-				highlightedText = _strip_ansi(lineText).strip() or None
-				if highlightedText and highlightedText != self._lastHighlightedText:
-					self._lastHighlightedText = highlightedText
-					ui.message(_("Highlighted: {text}").format(text=highlightedText))
-				# Update Braille display with full line context
-				if _braille_available:
-					try:
-						if braille.handler.displaySize > 0:
-							braille.handler.handleCaretMove(obj)
-					except (AttributeError, RuntimeError):
-						pass
-			else:
-				# Fall back to standard cursor announcement
-				self._announceStandardCursor(obj)
-		except (AttributeError, TypeError, RuntimeError):
-			# Fall back to standard tracking on error
-			self._announceStandardCursor(obj)
-
 	def _announceWindowCursor(self, obj):
 		"""
 		Window tracking - check both global window and profile-specific windows.
@@ -2149,7 +2146,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_cycleCursorTrackingMode(self, gesture):
-		"""Cycle through cursor tracking modes: Off -> Standard -> Highlight -> Window -> Off."""
+		"""Cycle through cursor tracking modes: Off -> Standard -> Window -> Off."""
 		if not self.isTerminalApp():
 			gesture.send()
 			return
@@ -2157,8 +2154,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Get current mode
 		currentMode = self._getEffective("cursorTrackingMode")
 
-		# Cycle to next mode
-		nextMode = (currentMode + 1) % 4
+		# Cycle to next mode: 0 (Off) -> 1 (Standard) -> 2 (Window) -> 0 (Off)
+		nextMode = (currentMode + 1) % 3
 
 		# Update configuration
 		config.conf["terminalAccess"]["cursorTrackingMode"] = nextMode
@@ -2169,16 +2166,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		modeNames = {
 			CT_OFF: _("Cursor tracking off"),
 			CT_STANDARD: _("Standard cursor tracking"),
-			# DEPRECATED: Scheduled for removal in v2.0
-			CT_HIGHLIGHT: _("Highlight tracking (deprecated)"),
 			CT_WINDOW: _("Window tracking")
 		}
 		ui.message(modeNames.get(nextMode, _("Unknown mode")))
-
-		# Show deprecation warning when cycling to Highlight mode
-		if nextMode == CT_HIGHLIGHT and "highlight_tracking" not in self._deprecation_warned:
-			self._deprecation_warned.add("highlight_tracking")
-			ui.message(_("Note: Highlight tracking is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."))
 
 	@script(
 		# Translators: Description for setting screen window
@@ -2748,10 +2738,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Play error/warning audio cue immediately after speech
 		if shouldPlayErrorCues and lineText:
 			classification = self._errorDetector.classify(lineText)
-			if classification == 'error':
-				tones.beep(220, 50)
-			elif classification == 'warning':
-				tones.beep(440, 30)
+			if classification:
+				play_cue(classification)
 
 		# Announce indentation after line is read
 		if shouldAnnounceIndentation and lineText:
@@ -3153,203 +3141,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message(_("Unable to copy"))
 
 	@script(
-		# Translators: Description for copying rectangular selection
-		description=_("Copy rectangular selection between marks (deprecated)"),
-		gesture="kb:NVDA+shift+c",
-		category=SCRCAT_TERMINALACCESS,
-	)
-	# DEPRECATED: Scheduled for removal in v2.0
-	def script_copyRectangularSelection(self, gesture):
-		"""Copy rectangular region (column-based) between marks."""
-		if not self.isTerminalApp():
-			gesture.send()
-			return
-
-		if "rectangular_selection" not in self._deprecation_warned:
-			self._deprecation_warned.add("rectangular_selection")
-			ui.message(_("Note: Rectangular selection is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."))
-			return
-
-		if not self._markStart or not self._markEnd:
-			ui.message(_("Set start and end marks first"))
-			return
-
-		try:
-			terminal = self._boundTerminal
-			if not terminal:
-				ui.message(_("Unable to copy"))
-				return
-
-			# Get start and end positions
-			startInfo = terminal.makeTextInfo(self._markStart)
-			endInfo = terminal.makeTextInfo(self._markEnd)
-
-			# Calculate row and column coordinates
-			startRow, startCol = self._positionCalculator.calculate(startInfo, terminal)
-			endRow, endCol = self._positionCalculator.calculate(endInfo, terminal)
-
-			# Validate coordinates
-			if startRow == 0 or startCol == 0 or endRow == 0 or endCol == 0:
-				ui.message(_("Unable to determine position"))
-				return
-
-			# Ensure correct order (top-left to bottom-right)
-			if startRow > endRow:
-				startRow, endRow = endRow, startRow
-			if startCol > endCol:
-				startCol, endCol = endCol, startCol
-
-			# Validate selection size against resource limits
-			isValid, errorMessage = _validateSelectionSize(startRow, endRow, startCol, endCol)
-			if not isValid:
-				ui.message(errorMessage)
-				return
-
-			# Calculate selection size
-			rowCount = endRow - startRow + 1
-
-			# Use background thread for large selections (>100 rows)
-			if rowCount > 100:
-				# Check if operation queue is busy (Section 1.3: Queue system)
-				if self._operationQueue.is_busy():
-					ui.message(_("Background operation in progress, please wait"))
-					return
-
-				ui.message(_("Processing large selection ({rows} rows), please wait...").format(rows=rowCount))
-
-				# Create progress dialog for large operations (Section 1.3: Improved progress dialog)
-				progressDialog = None
-				if rowCount > 500:  # Show visual progress for very large selections
-					progressDialog = SelectionProgressDialog(
-						gui.mainFrame,
-						_("Terminal Access - Copying Selection"),
-						100  # Percentage-based progress
-					)
-
-				# Start background thread
-				thread = threading.Thread(
-					target=self._copyRectangularSelectionBackground,
-					args=(terminal, startRow, endRow, startCol, endCol, progressDialog)
-				)
-				thread.daemon = True
-
-				# Start operation using queue (Section 1.3: Queue system)
-				if not self._operationQueue.start_operation(thread):
-					ui.message(_("Failed to start background operation"))
-					if progressDialog:
-						progressDialog.close()
-					return
-
-				return
-
-			# For smaller selections, process synchronously
-			self._performRectangularCopy(terminal, startRow, endRow, startCol, endCol)
-
-		except (RuntimeError, AttributeError) as e:
-			import logHandler
-			logHandler.log.error(f"Terminal Access: Rectangular selection failed - {type(e).__name__}: {e}")
-			ui.message(_("Unable to copy: terminal not accessible"))
-		except Exception as e:
-			import logHandler
-			logHandler.log.error(f"Terminal Access: Unexpected error in rectangular selection - {type(e).__name__}: {e}")
-			ui.message(_("Unable to copy"))
-
-	def _copyRectangularSelectionBackground(self, terminal, startRow, endRow, startCol, endCol, progressDialog=None):
-		"""
-		Background thread worker for large rectangular selections.
-
-		Args:
-			terminal: Terminal object
-			startRow: Starting row (1-based)
-			endRow: Ending row (1-based)
-			startCol: Starting column (1-based)
-			endCol: Ending column (1-based)
-			progressDialog: Optional SelectionProgressDialog for visual feedback
-		"""
-		try:
-			self._performRectangularCopy(terminal, startRow, endRow, startCol, endCol, progressDialog)
-		except (RuntimeError, AttributeError) as e:
-			import logHandler
-			logHandler.log.error(f"Terminal Access: Background rectangular copy failed - {type(e).__name__}: {e}")
-			if progressDialog:
-				progressDialog.close()
-			wx.CallAfter(ui.message, _("Background copy failed: terminal not accessible"))
-		except Exception as e:
-			import logHandler
-			logHandler.log.error(f"Terminal Access: Unexpected error in background copy - {type(e).__name__}: {e}")
-			if progressDialog:
-				progressDialog.close()
-			wx.CallAfter(ui.message, _("Background copy failed"))
-		finally:
-			# Clear operation from queue
-			self._operationQueue.clear()
-
-	def _performRectangularCopy(self, terminal, startRow, endRow, startCol, endCol, progressDialog=None):
-		"""
-		Perform the actual rectangular copy operation with Unicode/CJK support.
-
-		Args:
-			terminal: Terminal object
-			startRow: Starting row (1-based)
-			endRow: Ending row (1-based)
-			startCol: Starting column (1-based)
-			endCol: Ending column (1-based)
-			progressDialog: Optional SelectionProgressDialog for visual feedback
-		"""
-		# Bulk-read all needed lines — uses helper process if available,
-		# otherwise marshals to the main thread in a single call.
-		raw_lines = _read_lines(terminal, startRow, endRow)
-		if raw_lines is None:
-			_message_thread_safe(_("Background copy failed"))
-			return
-
-		# Calculate total rows for progress tracking
-		totalRows = len(raw_lines)
-
-		# Process each line (column slicing — no UIA needed)
-		lines = []
-		for idx, lineText in enumerate(raw_lines):
-			# Update progress dialog if provided (Section 1.3: Improved progress tracking)
-			if progressDialog and idx % 10 == 0:  # Update every 10 rows
-				progress = int((idx / totalRows) * 100)
-				message = _("Copying row {current} of {total}...").format(current=idx + 1, total=totalRows)
-				# Check for cancellation (Section 1.3: Cancellation support)
-				if not progressDialog.update(progress, message):
-					# User cancelled - stop processing
-					_message_thread_safe(_("Copy operation cancelled by user"))
-					progressDialog.close()
-					return
-
-			lineText = lineText.rstrip('\n\r')
-
-			# Strip ANSI codes for accurate column extraction
-			cleanText = _strip_ansi(lineText)
-
-			# Extract column range using Unicode-aware helper (1-based columns)
-			columnText = UnicodeWidthHelper.extractColumnRange(cleanText, startCol, endCol)
-
-			lines.append(columnText)
-
-		# Join lines and copy to clipboard
-		rectangularText = '\n'.join(lines)
-
-		# Close progress dialog if provided (Section 1.3: Proper cleanup)
-		if progressDialog:
-			progressDialog.update(100, _("Copy complete!"))
-			progressDialog.close()
-
-		if rectangularText and self._copyToClipboard(rectangularText):
-			# Translators: Message for successful rectangular selection copy
-			message = _("Rectangular selection copied: {rows} rows, columns {start} to {end}").format(
-				rows=len(lines),
-				start=startCol,
-				end=endCol
-			)
-			_message_thread_safe(message)
-		else:
-			_message_thread_safe(_("Unable to copy"))
-
-	@script(
 		# Translators: Description for clearing marks
 		description=_("Clear selection marks"),
 		gesture="kb:NVDA+x",
@@ -3540,6 +3331,55 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		finally:
 			gui.mainFrame.postPopup()
 
+	# Section 8.5: AI turn list gesture (v1.5.0+)
+
+	@scriptHandler.script(
+		# Translators: Description for listing AI conversation turns
+		description=_("List all AI conversation turns in the terminal buffer"),
+		category=SCRCAT_TERMINALACCESS,
+		gesture="kb:NVDA+alt+shift+l"
+	)
+	def script_listAiTurns(self, gesture):
+		"""List all AI conversation turns in an accessible dialog."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+
+		lines = self._getBufferLines()
+		if not lines:
+			# Translators: Message when terminal buffer cannot be read
+			ui.message(_("Cannot read terminal buffer"))
+			return
+
+		if not self._bookmarkManager:
+			ui.message(_("Bookmark manager not available"))
+			return
+
+		turns = self._bookmarkManager.list_ai_turns(lines)
+		if not turns:
+			# Translators: Message when no AI turns detected
+			ui.message(_("No AI turns detected"))
+			return
+
+		# Translators: Announced when AI turn list is loading with count
+		ui.message(_("{count} AI turns found").format(count=len(turns)))
+		wx.CallAfter(self._showAiTurnDialog, turns)
+
+	def _showAiTurnDialog(self, turns):
+		"""Open the AI turn list dialog on the main thread."""
+		from lib.navigation import AiTurnListDialog
+		import gui
+		try:
+			gui.mainFrame.prePopup()
+			dlg = AiTurnListDialog(
+				gui.mainFrame, turns, self._jumpToLine
+			)
+			dlg.ShowModal()
+			dlg.Destroy()
+			self._bookmarkJumpPending = True
+		finally:
+			gui.mainFrame.postPopup()
+
 	def _jumpToLine(self, line_num):
 		"""Move the review cursor to a 0-based line number."""
 		terminal = self._boundTerminal
@@ -3626,148 +3466,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				ui.message(_("Switching to next tab"))
 			except Exception:
 				pass
-
-	# DEPRECATED: Scheduled for removal in v2.0 — Command history navigation
-
-	@scriptHandler.script(
-		# Translators: Description for scanning command history
-		description=_("Scan terminal output to detect and store command history (deprecated)"),
-		category=SCRCAT_TERMINALACCESS,
-		gesture="kb:NVDA+shift+h"
-	)
-	# DEPRECATED: Scheduled for removal in v2.0
-	def script_scanCommandHistory(self, gesture):
-		"""Scan terminal output for commands."""
-		if not self.isTerminalApp():
-			gesture.send()
-			return
-
-		if "command_history" not in self._deprecation_warned:
-			self._deprecation_warned.add("command_history")
-			ui.message(_("Note: Command history is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."))
-			return
-
-		if not self._commandHistoryManager:
-			# Translators: Error message when command history manager not initialized
-			ui.message(_("Command history not available"))
-			return
-
-		# Scan terminal output for commands
-		count = self._commandHistoryManager.detect_and_store_commands()
-
-		if count > 0:
-			total = self._commandHistoryManager.get_history_count()
-			# Translators: Message when commands detected
-			ui.message(_("Found {count} new commands, {total} total").format(count=count, total=total))
-		else:
-			# Translators: Message when no new commands found
-			ui.message(_("No new commands found"))
-
-	@scriptHandler.script(
-		# Translators: Description for previous command navigation
-		description=_("Navigate to previous command in history (deprecated)"),
-		category=SCRCAT_TERMINALACCESS,
-		gesture="kb:NVDA+h"
-	)
-	# DEPRECATED: Scheduled for removal in v2.0
-	def script_previousCommand(self, gesture):
-		"""Navigate to previous command."""
-		if not self.isTerminalApp():
-			gesture.send()
-			return
-
-		if "command_history" not in self._deprecation_warned:
-			self._deprecation_warned.add("command_history")
-			ui.message(_("Note: Command history is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."))
-			return
-
-		if not self._commandHistoryManager:
-			# Translators: Error message when command history manager not initialized
-			ui.message(_("Command history not available"))
-			return
-
-		# Auto-scan if history is empty
-		if self._commandHistoryManager.get_history_count() == 0:
-			self._commandHistoryManager.detect_and_store_commands()
-
-		if not self._commandHistoryManager.navigate_history(-1):
-			# Translators: Message when at beginning of history
-			ui.message(_("No previous command"))
-
-	@scriptHandler.script(
-		# Translators: Description for next command navigation
-		description=_("Navigate to next command in history (deprecated)"),
-		category=SCRCAT_TERMINALACCESS,
-		gesture="kb:NVDA+g"
-	)
-	# DEPRECATED: Scheduled for removal in v2.0
-	def script_nextCommand(self, gesture):
-		"""Navigate to next command."""
-		if not self.isTerminalApp():
-			gesture.send()
-			return
-
-		if "command_history" not in self._deprecation_warned:
-			self._deprecation_warned.add("command_history")
-			ui.message(_("Note: Command history is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."))
-			return
-
-		if not self._commandHistoryManager:
-			# Translators: Error message when command history manager not initialized
-			ui.message(_("Command history not available"))
-			return
-
-		# Auto-scan if history is empty
-		if self._commandHistoryManager.get_history_count() == 0:
-			self._commandHistoryManager.detect_and_store_commands()
-
-		if not self._commandHistoryManager.navigate_history(1):
-			# Translators: Message when at end of history
-			ui.message(_("No next command"))
-
-	@scriptHandler.script(
-		# Translators: Description for listing command history
-		description=_("List all commands in history (deprecated)"),
-		category=SCRCAT_TERMINALACCESS,
-		gesture="kb:NVDA+shift+l"
-	)
-	# DEPRECATED: Scheduled for removal in v2.0
-	def script_listCommandHistory(self, gesture):
-		"""List all commands in history."""
-		if not self.isTerminalApp():
-			gesture.send()
-			return
-
-		if "command_history" not in self._deprecation_warned:
-			self._deprecation_warned.add("command_history")
-			ui.message(_("Note: Command history is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."))
-			return
-
-		if not self._commandHistoryManager:
-			# Translators: Error message when command history manager not initialized
-			ui.message(_("Command history not available"))
-			return
-
-		# Auto-scan if history is empty
-		if self._commandHistoryManager.get_history_count() == 0:
-			self._commandHistoryManager.detect_and_store_commands()
-
-		history = self._commandHistoryManager.list_history()
-
-		if history:
-			count = len(history)
-			# Create a summary of recent commands (last 5)
-			recent = history[-5:] if count > 5 else history
-			commands_list = ", ".join([f"{idx}: {cmd[:30]}" for idx, cmd in recent])
-
-			# Translators: Message listing command history
-			ui.message(_("{count} commands in history. Recent: {commands}").format(
-				count=count,
-				commands=commands_list
-			))
-		else:
-			# Translators: Message when no commands in history
-			ui.message(_("No commands in history"))
 
 	# Section 8.4: URL extraction and navigation (v1.2.0+)
 
@@ -4074,12 +3772,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			elif section.category == "warning":
 				tones.beep(440, 40)
 		except Exception:
-			ui.message(section.text)
+			ui.message(ANSIParser.stripANSI(section.text))
 
 	@script(
 		# Translators: Description for jumping to the next section boundary
 		description=_("Jump to next section in terminal output"),
-		gesture="kb:NVDA+n",
+		gesture="kb:alt+n",
 		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_nextSection(self, gesture):
@@ -4098,7 +3796,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		# Translators: Description for jumping to the previous section boundary
 		description=_("Jump to previous section in terminal output"),
-		gesture="kb:NVDA+shift+n",
+		gesture="kb:alt+shift+n",
 		category=SCRCAT_TERMINALACCESS,
 	)
 	def script_prevSection(self, gesture):
@@ -4191,6 +3889,144 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._navigateToSection(self._sectionTokenizer.prev_prompt(current))
 
 	# ------------------------------------------------------------------
+	# Section 10b: AI Turn Navigation
+	# ------------------------------------------------------------------
+
+	def _navigateToTurn(self, turn):
+		"""Move the review cursor to an AI turn and announce its role.
+
+		Args:
+			turn: An AITurn or CodeBlock namedtuple, or None (beeps if None).
+		"""
+		if turn is None:
+			tones.beep(200, 100)
+			return
+		terminal = self._boundTerminal
+		if terminal is None:
+			return
+		try:
+			info = terminal.makeTextInfo(textInfos.POSITION_FIRST)
+			info.move(textInfos.UNIT_LINE, turn.line_num)
+			info.expand(textInfos.UNIT_LINE)
+			api.setReviewPosition(info)
+
+			# Build announcement: role + first 40 chars of content
+			role_label = getattr(turn, "role", "code block")
+			line_text = info.text.strip() if info.text else ""
+			preview = line_text[:40]
+			if len(line_text) > 40:
+				preview += "..."
+			announcement = f"{role_label}: {preview}" if preview else role_label
+			speech.speakText(announcement)
+			self._brailleMessage(announcement[:30])
+
+			# Audio cue for turn boundaries
+			tones.beep(660, 30)
+		except Exception:
+			role_label = getattr(turn, "role", "code block")
+			ui.message(role_label)
+
+	def _navigateAiElement(self, gesture, nav_func):
+		"""Shared boilerplate for AI turn / code block navigation scripts."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		lines = self._getBufferLines()
+		if not lines:
+			tones.beep(200, 100)
+			return
+		self._aiTurnTokenizer.tokenize(lines)
+		current = self._getCurrentLineNumber() or 0
+		self._navigateToTurn(nav_func(current))
+
+	@script(
+		# Translators: Description for jumping to the next AI turn
+		description=_("Jump to next AI turn in terminal output"),
+		gesture="kb:NVDA+alt+t",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_nextTurn(self, gesture):
+		"""Jump to the next AI conversation turn."""
+		self._navigateAiElement(gesture, self._aiTurnTokenizer.next_turn)
+
+	@script(
+		# Translators: Description for jumping to the previous AI turn
+		description=_("Jump to previous AI turn in terminal output"),
+		gesture="kb:NVDA+alt+shift+t",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_prevTurn(self, gesture):
+		"""Jump to the previous AI conversation turn."""
+		self._navigateAiElement(gesture, self._aiTurnTokenizer.prev_turn)
+
+	@script(
+		# Translators: Description for jumping to the next code block
+		description=_("Jump to next code block in terminal output"),
+		gesture="kb:NVDA+alt+b",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_nextCodeBlock(self, gesture):
+		"""Jump to the next fenced code block."""
+		self._navigateAiElement(gesture, self._aiTurnTokenizer.next_code_block)
+
+	@script(
+		# Translators: Description for jumping to the previous code block
+		description=_("Jump to previous code block in terminal output"),
+		gesture="kb:NVDA+alt+shift+b",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_prevCodeBlock(self, gesture):
+		"""Jump to the previous fenced code block."""
+		self._navigateAiElement(gesture, self._aiTurnTokenizer.prev_code_block)
+
+	# ------------------------------------------------------------------
+	# Section 10b: Streaming Delta
+	# ------------------------------------------------------------------
+
+	def _ensureDeltaTracker(self):
+		"""Create or reconfigure the delta tracker with current verbosity."""
+		verbosity = self._configManager.get("verbosityLevel", 1)
+		if self._deltaTracker is None:
+			self._deltaTracker = StreamingDeltaTracker(
+				debounce_ms=500, verbosity=verbosity,
+			)
+		else:
+			self._deltaTracker.set_verbosity(verbosity)
+
+	@script(
+		# Translators: Description for announcing what changed in terminal buffer
+		description=_("Announce what changed in the terminal buffer"),
+		gesture="kb:NVDA+shift+d",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_whatChanged(self, gesture):
+		"""Snapshot the terminal buffer and announce the delta."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+
+		lines = self._getBufferLines()
+		if lines is None:
+			ui.message(_("Unable to read terminal"))
+			return
+
+		self._ensureDeltaTracker()
+		delta_speech = self._deltaTracker.take_snapshot(lines)
+
+		if delta_speech is None:
+			# No previous snapshot, no change, debounced, or quiet mode
+			if self._deltaTracker.has_previous:
+				ui.message(_("No changes"))
+			return
+
+		ui.message(delta_speech)
+
+		# Show braille delta if available
+		braille_text = self._deltaTracker.get_braille_delta()
+		if braille_text and _braille_available:
+			braille.handler.message(braille_text)
+
+	# ------------------------------------------------------------------
 	# Section 11: Summarization
 	# ------------------------------------------------------------------
 
@@ -4206,9 +4042,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gesture.send()
 			return
 
-		# Check privacy toggle
-		if not self._configManager.get("summarizationEnabled", False):
-			ui.message(self._outputSummarizer.get_disabled_message())
+		# Check privacy guard
+		allowed, blocked_msg = self._privacyGuard.check_feature("summarize", self._configManager)
+		if not allowed:
+			if blocked_msg:
+				ui.message(blocked_msg)
 			return
 
 		lines = self._getBufferLines()
@@ -4258,9 +4096,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gesture.send()
 			return
 
-		# Check privacy toggle
-		if not self._configManager.get("summarizationEnabled", False):
-			ui.message(self._outputSummarizer.get_disabled_message())
+		# Check privacy guard
+		allowed, blocked_msg = self._privacyGuard.check_feature("summarize", self._configManager)
+		if not allowed:
+			if blocked_msg:
+				ui.message(blocked_msg)
 			return
 
 		if not self._markStart or not self._markEnd:
@@ -4292,6 +4132,76 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message("\n".join(summary))
 		else:
 			ui.message(_("No significant output found"))
+
+
+	# ------------------------------------------------------------------
+	# Section 11b: Privacy Status
+	# ------------------------------------------------------------------
+
+	@script(
+		# Translators: Description for announcing privacy and feature status
+		description=_("Announce privacy status and feature states"),
+		gesture="kb:NVDA+shift+p",
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_announcePrivacyStatus(self, gesture):
+		"""Announce the current privacy status and opt-in feature states."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		status = self._privacyGuard.format_privacy_status(self._configManager)
+		ui.message(status)
+
+	@script(
+		# Translators: Description for announcing code block metadata
+		description=_("Announce code block at cursor: language and line count"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_announceCodeBlock(self, gesture):
+		"""Announce metadata of the fenced code block at the current line."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		lines = self._getBufferLines()
+		if not lines:
+			tones.beep(200, 100)
+			return
+		current = self._getCurrentLineNumber() or 0
+		blocks = self._codeBlockDetector.detect(lines)
+		block = self._codeBlockDetector.find_block_at(current, blocks)
+		if block is None:
+			# Translators: Message when cursor is not inside a code block
+			ui.message(_("Not inside a code block"))
+			return
+		ui.message(block.announce())
+
+	@script(
+		# Translators: Description for explaining a code block
+		description=_("Explain the code block at cursor"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_explainCodeBlock(self, gesture):
+		"""Provide a concise offline explanation of the code block at cursor."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		allowed, blocked_msg = self._privacyGuard.check_feature("explain_code", self._configManager)
+		if not allowed:
+			if blocked_msg:
+				ui.message(blocked_msg)
+			return
+		lines = self._getBufferLines()
+		if not lines:
+			tones.beep(200, 100)
+			return
+		current = self._getCurrentLineNumber() or 0
+		blocks = self._codeBlockDetector.detect(lines)
+		block = self._codeBlockDetector.find_block_at(current, blocks)
+		if block is None:
+			ui.message(_("Not inside a code block"))
+			return
+		explanation = block.explain(lines)
+		ui.message(explanation)
 
 	def _getReviewPosition(self):
 		"""

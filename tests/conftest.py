@@ -171,6 +171,7 @@ def _default_conf_dict():
             "windowRight": 0,
             "windowEnabled": False,
             "unboundGestures": "",
+            "codeBlockExplain": False,
         },
         "keyboard": {
             "speakTypedCharacters": False,

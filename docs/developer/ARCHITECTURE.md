@@ -48,10 +48,11 @@ The codebase is split across a main plugin file and extracted library modules.
 | `lib/navigation.py` | ~541 | `TabManager` (per-tab state isolation), `BookmarkManager` (named bookmarks with line content labels), `BookmarkListDialog` (list view with Number + Line Content columns) |
 | `lib/operations.py` | ~203 | `SelectionProgressDialog` (thread-safe progress with cancellation), `OperationQueue` |
 | `lib/profiles.py` | ~549 | `ApplicationProfile`, `WindowDefinition`, `ProfileManager` (detection + defaults for vim, tmux, htop, less, git, nano, irssi) |
-| `lib/search.py` | ~1149 | `OutputSearchManager` (incremental text search with native acceleration), `CommandHistoryManager` (DEPRECATED for v2), `UrlExtractorManager` (URL detection and opening) |
+| `lib/search.py` | ~1149 | `OutputSearchManager` (incremental text search with native acceleration), `UrlExtractorManager` (URL detection and opening) |
 | `lib/text_processing.py` | ~879 | `ANSIParser` (color/formatting detection), `UnicodeWidthHelper` (CJK display width), `PositionCalculator` (row/col from TextInfo), `ErrorLineDetector` (18 error + 5 warning regex patterns with word boundaries, `classify()` method) |
 | `lib/window_management.py` | ~805 | `WindowMonitor` (background text polling), `WindowManager` (rectangular screen region tracking), `PositionCalculator` |
 | `lib/settings_panel.py` | ~820 | `TerminalAccessSettingsPanel` with three flat sections: Speech and Tracking, NVDA Gesture Conflicts, Application Profiles |
+| `lib/ai_support.py` | ~450 | `AiTurnTokenizer` (conversation turn splitting for Claude, Aider, ChatGPT CLI, Copilot CLI, Gemini CLI, Codex CLI, Ollama), `CodeBlockDetector` (fenced code block detection), `StreamingDeltaTracker` (delta announcements during streaming), `PrivacyGuard` (gates privacy-sensitive features) |
 | `native/termaccess_bridge.py` | | ctypes FFI wrapper for `termaccess.dll` |
 | `native/helper_process.py` | | Named pipe IPC client for `termaccess-helper.exe` |
 
@@ -60,14 +61,9 @@ The codebase is split across a main plugin file and extracted library modules.
 | Item | Notes |
 |------|-------|
 | **NewOutputAnnouncer** | Removed entirely. NVDA+Shift+N toggle, coalesce/max-lines/strip-ansi settings are gone. |
-
-### Deprecated for v2
-
-| Item | Description |
-|------|-------------|
-| **CommandHistoryManager** | Command history navigation (NVDA+H/G, NVDA+Shift+H, NVDA+Shift+L) |
-| **CT_HIGHLIGHT** | Highlight cursor tracking mode |
-| **Rectangular Selection** | NVDA+Shift+C |
+| **CommandHistoryManager** | Removed in v2.0.0. Shells have built-in history navigation. |
+| **CT_HIGHLIGHT** | Removed in v2.0.0. Modern terminals strip ANSI from UIA text. CT_WINDOW is now mode 2. |
+| **Rectangular Selection** | Removed in v2.0.0. Use linear selection (NVDA+C). |
 
 ## Dependency Flow
 
@@ -100,6 +96,7 @@ Dependency direction:
         ├── lib/search.py        ──► lib/_runtime.py
         ├── lib/text_processing.py
         ├── lib/window_management.py ──► lib/_runtime.py
+        ├── lib/ai_support.py    ──► lib/config.py, lib/caching.py
         ├── lib/settings_panel.py   (lazy-imports terminalAccess)
         ├── native/termaccess_bridge.py
         └── native/helper_process.py
@@ -154,7 +151,6 @@ Timer expires → _announceCursorPosition(obj)
     ↓
 Check tracking mode:
     CT_STANDARD → _announceStandardCursor()
-    CT_HIGHLIGHT → _announceHighlightCursor()  (deprecated)
     CT_WINDOW → _announceWindowCursor()
 ```
 
@@ -171,7 +167,7 @@ Settings were extracted from the main plugin into two modules:
 ### lib/config.py
 
 - Defines `confspec` dict registered at `config.conf.spec["terminalAccess"]`
-- Constants: `CT_OFF`, `CT_STANDARD`, `CT_HIGHLIGHT`, `CT_WINDOW`, `PUNCT_*`, resource limits
+- Constants: `CT_OFF`, `CT_STANDARD`, `CT_WINDOW`, `PUNCT_*`, resource limits
 - Validation: `_validateInteger()`, `_validateString()`, `_validateSelectionSize()`
 - `ConfigManager` class wraps `config.conf["terminalAccess"]` with typed get/set, migration, and bulk validation
 
@@ -297,7 +293,7 @@ addon/
 │   ├── navigation.py          # TabManager, BookmarkManager, BookmarkListDialog
 │   ├── operations.py          # SelectionProgressDialog, OperationQueue
 │   ├── profiles.py            # ApplicationProfile, WindowDefinition, ProfileManager
-│   ├── search.py              # OutputSearchManager, CommandHistoryManager, UrlExtractorManager
+│   ├── search.py              # OutputSearchManager, UrlExtractorManager
 │   ├── text_processing.py     # ANSIParser, UnicodeWidthHelper, PositionCalculator, ErrorLineDetector
 │   ├── window_management.py   # WindowMonitor, WindowManager, PositionCalculator
 │   ├── settings_panel.py      # TerminalAccessSettingsPanel (Basic/Advanced)

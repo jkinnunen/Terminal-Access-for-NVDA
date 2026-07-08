@@ -351,7 +351,13 @@ class ANSIParser:
 		Returns:
 			str: Text with ANSI codes removed
 		"""
-		return ANSIParser._STRIP_PATTERN.sub('', text)
+		# Loop until stable: removing one sequence can expose another
+		# (e.g., ESC ESC[31m 0 -> first pass leaves ESC 0 -> second pass strips it)
+		prev = None
+		while text != prev:
+			prev = text
+			text = ANSIParser._STRIP_PATTERN.sub('', text)
+		return text
 
 
 class UnicodeWidthHelper:
@@ -471,6 +477,10 @@ class UnicodeWidthHelper:
 			else:
 				# Character overlaps with the range
 				result.append(char)
+				# Consume any following combining characters (width 0)
+				while i + 1 < len(text) and UnicodeWidthHelper.getCharWidth(text[i + 1]) == 0:
+					i += 1
+					result.append(text[i])
 
 			currentCol += charWidth
 			i += 1
@@ -847,7 +857,43 @@ class ErrorLineDetector:
 	false positives. "mirror" won't match "error", "forewarning" won't
 	match "warning". Patterns are based on real compiler, linter, shell,
 	and build tool output formats.
+
+	AI CLI patterns (rate limits, token limits, API errors, model errors)
+	are checked first and return 'ai_error' or 'ai_warning' to allow
+	distinct audio cues.
 	"""
+
+	# AI-specific error patterns: rate limits, token limits, API errors,
+	# model errors. Checked before general patterns so that "rate limit
+	# exceeded" returns 'ai_error' rather than falling through to 'error'.
+	_AI_ERROR_PATTERNS = [
+		# Rate limit
+		re.compile(r'\brate\s+limit\b', re.IGNORECASE),
+		re.compile(r'\btoo\s+many\s+requests\b', re.IGNORECASE),
+		re.compile(r'\b429\b.*\b(?:too\s+many|rate|limit|request)', re.IGNORECASE),
+		re.compile(r'\bquota\s+exceeded\b', re.IGNORECASE),
+		re.compile(r'\bthrottled\b', re.IGNORECASE),
+		# Token limit
+		re.compile(r'\btoken\s+limit\b', re.IGNORECASE),
+		re.compile(r'\bcontext\s+length\b.*\bexceeded\b', re.IGNORECASE),
+		re.compile(r'\bmaximum\b.*\btokens\b', re.IGNORECASE),
+		re.compile(r'\btruncated\s+due\s+to\b', re.IGNORECASE),
+		# API errors
+		re.compile(r'\bAPI\s+error\b', re.IGNORECASE),
+		re.compile(r'\bauthentication\s+failed\b', re.IGNORECASE),
+		re.compile(r'\binvalid\b.*\bkey\b', re.IGNORECASE),
+		# Model errors
+		re.compile(r'\bmodel\b.*\bnot\s+found\b', re.IGNORECASE),
+		re.compile(r'\bmodel\b.*\bunavailable\b', re.IGNORECASE),
+		re.compile(r'\boverloaded\b', re.IGNORECASE),
+	]
+
+	# AI warning patterns are checked before AI error patterns in classify()
+	# so that "approaching rate limit" returns 'ai_warning' not 'ai_error'.
+	_AI_WARNING_PATTERNS = [
+		re.compile(r'\bapproaching\b.*\blimit\b', re.IGNORECASE),
+		re.compile(r'\bnearing\b.*\bquota\b', re.IGNORECASE),
+	]
 
 	# Compiled regex patterns for error detection.
 	# Each pattern uses word boundaries or structural delimiters to
@@ -909,19 +955,31 @@ class ErrorLineDetector:
 
 	@staticmethod
 	def classify(line_text: str) -> str | None:
-		"""Classify a line as 'error', 'warning', or None.
+		"""Classify a line as 'ai_error', 'ai_warning', 'error', 'warning', or None.
 
+		AI-specific patterns are checked first (highest priority), then
+		general error patterns, then general warning patterns.
 		Uses regex patterns with word boundaries to avoid false positives.
-		Error patterns are checked first (higher priority).
+		ANSI escape codes are stripped before matching so that colored
+		terminal output does not break word boundary detection.
 
 		Args:
 			line_text: The line text to check.
 
 		Returns:
-			'error', 'warning', or None.
+			'ai_error', 'ai_warning', 'error', 'warning', or None.
 		"""
 		if not line_text:
 			return None
+		line_text = ANSIParser.stripANSI(line_text)
+		# AI warnings checked before AI errors so "approaching rate limit"
+		# returns 'ai_warning' instead of matching 'rate limit' as ai_error.
+		for pattern in ErrorLineDetector._AI_WARNING_PATTERNS:
+			if pattern.search(line_text):
+				return 'ai_warning'
+		for pattern in ErrorLineDetector._AI_ERROR_PATTERNS:
+			if pattern.search(line_text):
+				return 'ai_error'
 		for pattern in ErrorLineDetector._ERROR_PATTERNS:
 			if pattern.search(line_text):
 				return 'error'
@@ -929,4 +987,25 @@ class ErrorLineDetector:
 			if pattern.search(line_text):
 				return 'warning'
 		return None
+
+
+def estimate_prompt_length(text: str) -> int:
+	"""Return the character count of *text* as a rough prompt length estimate.
+
+	This is a simple len() wrapper that serves as a single point of change
+	if a more sophisticated estimator (e.g. token counting) is added later.
+	"""
+	if not text:
+		return 0
+	return len(text)
+
+
+def should_warn_length(text: str, threshold: int = 10000) -> bool:
+	"""Return True when *text* exceeds *threshold* characters.
+
+	Use this before pasting large text into an AI CLI to warn the user
+	that the input may be too long. The default threshold of 10 000
+	characters is a conservative estimate for most AI context windows.
+	"""
+	return estimate_prompt_length(text) > threshold
 

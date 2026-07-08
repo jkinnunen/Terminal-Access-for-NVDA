@@ -26,15 +26,12 @@ config = _ConfigProxy()
 # Cursor tracking mode constants
 CT_OFF = 0
 CT_STANDARD = 1
-# DEPRECATED: Scheduled for removal in v2.0
-CT_HIGHLIGHT = 2
-CT_WINDOW = 3
+CT_WINDOW = 2
 
 # Human-readable cursor tracking mode names
 CURSOR_MODE_NAMES = {
 	CT_OFF: "Cursor tracking: Off",
 	CT_STANDARD: "Cursor tracking: Standard",
-	CT_HIGHLIGHT: "Cursor tracking: Highlight (deprecated)",
 	CT_WINDOW: "Cursor tracking: Window",
 }
 
@@ -61,7 +58,7 @@ MAX_REPEATED_SYMBOLS_LENGTH = 50  # Maximum length for repeated symbols string
 # Configuration spec for Terminal Access settings
 confspec = {
 	"cursorTracking": "boolean(default=True)",
-	"cursorTrackingMode": "integer(default=1, min=0, max=3)",  # 0=Off, 1=Standard, 2=Highlight, 3=Window
+	"cursorTrackingMode": "integer(default=1, min=0, max=2)",  # 0=Off, 1=Standard, 2=Window
 	"keyEcho": "boolean(default=True)",
 	"linePause": "boolean(default=True)",
 	"processSymbols": "boolean(default=False)",  # Deprecated — kept for migration from pre-v1.0.10 configs
@@ -87,6 +84,10 @@ confspec = {
 	"verbosityLevel": "integer(default=1, min=0, max=2)",  # 0=Quiet, 1=Normal, 2=Verbose
 	"urlOpenWarning": "boolean(default=True)",  # Show confirmation dialog before opening URLs from terminal output
 	"summarizationEnabled": "boolean(default=False)",  # Enable offline extractive summarization of terminal output (opt-in)
+	"codeBlockExplain": "boolean(default=False)",  # Enable offline heuristic explanation of fenced code blocks (opt-in)
+	"privacyAnnounce": "boolean(default=True)",  # Announce spoken message when a gated feature is blocked
+	"aiTurnParseEnabled": "boolean(default=False)",  # Enable AI turn detection and navigation (opt-in)
+	"streamingSuppression": "boolean(default=True)",  # Suppress character speech during rapid output (streaming)
 }
 
 
@@ -115,7 +116,7 @@ def _validateInteger(value: Any, minValue: int, maxValue: int, default: int, fie
 				f"Terminal Access: {fieldName} value {intValue} out of range [{minValue}, {maxValue}], using default {default}"
 			)
 			return default
-	except (ValueError, TypeError):
+	except (ValueError, TypeError, OverflowError):
 		import logHandler
 		logHandler.log.warning(
 			f"Terminal Access: Invalid {fieldName} value {value}, using default {default}"
@@ -216,7 +217,7 @@ class ConfigManager:
 		>>> print(tracking_mode)  # 1 (CT_STANDARD)
 		>>>
 		>>> # Set a setting value (with validation)
-		>>> config_mgr.set("cursorTrackingMode", 2)  # CT_HIGHLIGHT
+		>>> config_mgr.set("cursorTrackingMode", 2)  # CT_WINDOW
 		>>>
 		>>> # Check a boolean setting
 		>>> if config_mgr.get("keyEcho"):
@@ -302,13 +303,15 @@ class ConfigManager:
 		"""
 		# Integer validations
 		if key == "cursorTrackingMode":
-			return _validateInteger(value, 0, 3, 1, key)
+			return _validateInteger(value, 0, 2, 1, key)
 		elif key == "punctuationLevel":
 			return _validateInteger(value, 0, 3, 2, key)
 		elif key == "cursorDelay":
 			return _validateInteger(value, 0, 1000, 20, key)
 		elif key in ["windowTop", "windowBottom", "windowLeft", "windowRight"]:
 			return _validateInteger(value, 0, MAX_WINDOW_DIMENSION, 0, key)
+		elif key == "outputActivityDebounce":
+			return _validateInteger(value, 100, 10000, 1000, key)
 
 		# String validations
 		elif key == "repeatedSymbolsValues":
@@ -316,7 +319,12 @@ class ConfigManager:
 
 		# Boolean values - no validation needed
 		elif key in ["cursorTracking", "keyEcho", "linePause", "repeatedSymbols",
-					 "quietMode", "verboseMode", "windowEnabled"]:
+					 "quietMode", "verboseMode", "windowEnabled",
+					 "errorAudioCues", "errorAudioCuesInQuietMode",
+					 "outputActivityTones",
+					 "summarizationEnabled", "codeBlockExplain",
+					 "privacyAnnounce", "aiTurnParseEnabled",
+					 "streamingSuppression"]:
 			return bool(value)
 
 		# Unknown key - return as-is (for forward compatibility)
@@ -332,6 +340,8 @@ class ConfigManager:
 		self.set("windowBottom", self.get("windowBottom", 0))
 		self.set("windowLeft", self.get("windowLeft", 0))
 		self.set("windowRight", self.get("windowRight", 0))
+
+		self.set("outputActivityDebounce", self.get("outputActivityDebounce", 1000))
 
 		# Validate string settings
 		self.set("repeatedSymbolsValues", self.get("repeatedSymbolsValues", "-_=!"))
@@ -354,3 +364,12 @@ class ConfigManager:
 		config.conf["terminalAccess"]["windowLeft"] = 0
 		config.conf["terminalAccess"]["windowRight"] = 0
 		config.conf["terminalAccess"]["windowEnabled"] = False
+		config.conf["terminalAccess"]["errorAudioCues"] = True
+		config.conf["terminalAccess"]["errorAudioCuesInQuietMode"] = False
+		config.conf["terminalAccess"]["outputActivityTones"] = False
+		config.conf["terminalAccess"]["outputActivityDebounce"] = 1000
+		config.conf["terminalAccess"]["summarizationEnabled"] = False
+		config.conf["terminalAccess"]["codeBlockExplain"] = False
+		config.conf["terminalAccess"]["privacyAnnounce"] = True
+		config.conf["terminalAccess"]["aiTurnParseEnabled"] = False
+		config.conf["terminalAccess"]["streamingSuppression"] = True

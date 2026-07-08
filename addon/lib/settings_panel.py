@@ -15,7 +15,7 @@ import wx
 
 from lib.config import (
 	_validateInteger, _validateString,
-	CT_OFF, CT_STANDARD, CT_HIGHLIGHT, CT_WINDOW,
+	CT_OFF, CT_STANDARD, CT_WINDOW,
 	PUNCT_NONE, PUNCT_SOME, PUNCT_MOST, PUNCT_ALL,
 	MAX_REPEATED_SYMBOLS_LENGTH,
 )
@@ -117,6 +117,15 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		sHelper.addItem(audioCueGroup)
 		self._makeAudioCueControls(audioCueGroup)
 
+		# === Privacy ===
+		# Translators: Label for privacy settings group
+		privacyGroup = guiHelper.BoxSizerHelper(self, sizer=wx.StaticBoxSizer(
+			wx.StaticBox(self, label=_("Privacy")),
+			wx.VERTICAL
+		))
+		sHelper.addItem(privacyGroup)
+		self._makePrivacyControls(privacyGroup)
+
 		# === Gesture Conflicts ===
 		# Translators: Label for gesture conflicts group
 		gestureGroup = guiHelper.BoxSizerHelper(self, sizer=wx.StaticBoxSizer(
@@ -217,8 +226,6 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 				# Translators: Cursor tracking mode option
 				_("Standard"),
 				# Translators: Cursor tracking mode option
-				_("Highlight (deprecated)"),
-				# Translators: Cursor tracking mode option
 				_("Window")
 			]
 		)
@@ -226,7 +233,6 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		# Translators: Tooltip for cursor tracking mode
 		self.cursorTrackingModeChoice.SetToolTip(_(
 			"Standard: announce line/column changes, "
-			"Highlight (deprecated): announce highlighted text, "
 			"Window: only announce within defined window"
 		))
 
@@ -393,6 +399,82 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		self.outputDebounceSpinner.SetToolTip(_(
 			"Milliseconds between activity tone repeats. "
 			"Higher values mean fewer tones during sustained output."
+		))
+
+		# Streaming output suppression
+		# Translators: Label for streaming suppression checkbox
+		self.streamingSuppressionCheckBox = group.addItem(
+			wx.CheckBox(self, label=_("Suppress speech during &streaming output"))
+		)
+		self.streamingSuppressionCheckBox.SetValue(config.conf["terminalAccess"].get("streamingSuppression", True))
+		# Translators: Tooltip for streaming suppression
+		self.streamingSuppressionCheckBox.SetToolTip(_(
+			"Automatically suppress per-character announcements when the terminal "
+			"is rapidly producing output (AI CLI responses, build output, etc.). "
+			"Prevents a flood of extraneous speech during streaming."
+		))
+
+	# ------------------------------------------------------------------
+	# Privacy controls
+	# ------------------------------------------------------------------
+
+	def _makePrivacyControls(self, group):
+		"""Populate the Privacy section with opt-in feature toggles."""
+
+		# Translators: Introductory text for the privacy section
+		group.addItem(
+			wx.StaticText(self, label=_(
+				"These features process terminal text locally on your machine.\n"
+				"No data is sent to any server. Enable only the ones you need."
+			))
+		)
+
+		# Summarization
+		# Translators: Label for summarization checkbox
+		self.summarizationCheckBox = group.addItem(
+			wx.CheckBox(self, label=_("Enable &summarization"))
+		)
+		self.summarizationCheckBox.SetValue(config.conf["terminalAccess"].get("summarizationEnabled", False))
+		# Translators: Tooltip for summarization
+		self.summarizationCheckBox.SetToolTip(_(
+			"Allow offline extractive summarization of terminal output. "
+			"Use NVDA+' then S to summarize recent output."
+		))
+
+		# Code block explain
+		# Translators: Label for code explain checkbox
+		self.codeBlockExplainCheckBox = group.addItem(
+			wx.CheckBox(self, label=_("Enable code block e&xplanation"))
+		)
+		self.codeBlockExplainCheckBox.SetValue(config.conf["terminalAccess"].get("codeBlockExplain", False))
+		# Translators: Tooltip for code explain
+		self.codeBlockExplainCheckBox.SetToolTip(_(
+			"Allow offline heuristic explanation of fenced code blocks. "
+			"Use NVDA+' then X to explain the code block at the cursor."
+		))
+
+		# AI turn parsing
+		# Translators: Label for AI turn parsing checkbox
+		self.aiTurnParseCheckBox = group.addItem(
+			wx.CheckBox(self, label=_("Enable &AI conversation parsing"))
+		)
+		self.aiTurnParseCheckBox.SetValue(config.conf["terminalAccess"].get("aiTurnParseEnabled", False))
+		# Translators: Tooltip for AI turn parsing
+		self.aiTurnParseCheckBox.SetToolTip(_(
+			"Allow detection of AI CLI turns (user, assistant, system) "
+			"for navigation and labeling in Claude CLI, Aider, ChatGPT, etc."
+		))
+
+		# Privacy announce
+		# Translators: Label for privacy announce checkbox
+		self.privacyAnnounceCheckBox = group.addItem(
+			wx.CheckBox(self, label=_("Announce when a feature is &blocked"))
+		)
+		self.privacyAnnounceCheckBox.SetValue(config.conf["terminalAccess"].get("privacyAnnounce", True))
+		# Translators: Tooltip for privacy announce
+		self.privacyAnnounceCheckBox.SetToolTip(_(
+			"Speak a message when a disabled feature is invoked, "
+			"explaining how to enable it. Uncheck for silent blocking."
 		))
 
 	# ------------------------------------------------------------------
@@ -571,6 +653,16 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			self.errorCuesQuietModeCheckBox.SetValue(False)
 			self.outputActivityTonesCheckBox.SetValue(False)
 			self.outputDebounceSpinner.SetValue(1000)
+			config.conf["terminalAccess"]["streamingSuppression"] = True
+			self.streamingSuppressionCheckBox.SetValue(True)
+			config.conf["terminalAccess"]["summarizationEnabled"] = False
+			config.conf["terminalAccess"]["codeBlockExplain"] = False
+			config.conf["terminalAccess"]["privacyAnnounce"] = True
+			config.conf["terminalAccess"]["aiTurnParseEnabled"] = False
+			self.summarizationCheckBox.SetValue(False)
+			self.codeBlockExplainCheckBox.SetValue(False)
+			self.aiTurnParseCheckBox.SetValue(False)
+			self.privacyAnnounceCheckBox.SetValue(True)
 
 			config.conf["terminalAccess"]["unboundGestures"] = ""
 			# Check all items in the gesture checklist (re-enable all gestures)
@@ -590,7 +682,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		trackingMode = self.cursorTrackingModeChoice.GetSelection()
 		config.conf["terminalAccess"]["cursorTracking"] = self.cursorTrackingCheckBox.GetValue()
 		config.conf["terminalAccess"]["cursorTrackingMode"] = _validateInteger(
-			trackingMode, 0, 3, 1, "cursorTrackingMode"
+			trackingMode, 0, 2, 1, "cursorTrackingMode"
 		)
 
 		# Boolean settings (no validation needed)
@@ -630,7 +722,14 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			else:
 				config.conf["terminalAccess"]["defaultProfile"] = ""
 
-		# Save audio cue settings
+		# Save privacy settings
+		config.conf["terminalAccess"]["summarizationEnabled"] = self.summarizationCheckBox.GetValue()
+		config.conf["terminalAccess"]["codeBlockExplain"] = self.codeBlockExplainCheckBox.GetValue()
+		config.conf["terminalAccess"]["aiTurnParseEnabled"] = self.aiTurnParseCheckBox.GetValue()
+		config.conf["terminalAccess"]["privacyAnnounce"] = self.privacyAnnounceCheckBox.GetValue()
+
+		# Save audio cue and streaming settings
+		config.conf["terminalAccess"]["streamingSuppression"] = self.streamingSuppressionCheckBox.GetValue()
 		config.conf["terminalAccess"]["errorAudioCues"] = self.errorAudioCuesCheckBox.GetValue()
 		config.conf["terminalAccess"]["errorAudioCuesInQuietMode"] = self.errorCuesQuietModeCheckBox.GetValue()
 		config.conf["terminalAccess"]["outputActivityTones"] = self.outputActivityTonesCheckBox.GetValue()

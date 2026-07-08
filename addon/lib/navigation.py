@@ -7,6 +7,8 @@ import api
 import textInfos
 
 from lib.section_tokenizer import SectionTokenizer
+from lib.ai_turn_tokenizer import classify_ai_line
+from lib.text_processing import ANSIParser
 
 
 class TabManager:
@@ -301,6 +303,7 @@ class BookmarkManager:
 		"""Generate a context-aware label using SectionTokenizer.
 
 		Classification priority:
+		0. AI turn roles (user/assistant/system/code block)
 		1. Prompt line: "prompt: <command text>"
 		2. Error line: "error: <first 40 chars>"
 		3. Heading line: "heading: <heading text>"
@@ -315,28 +318,40 @@ class BookmarkManager:
 		Returns:
 			str: The generated label, capped at 50 chars.
 		"""
-		tokenizer = SectionTokenizer()
-		tokenizer.tokenize(buffer_lines)
+		stripped = ANSIParser.stripANSI(line_text).strip()
 
-		# Determine the category for this line
+		# Priority 0: AI turn role detection
+		ai_result = self._classify_ai_turn(stripped)
+		if ai_result is not None:
+			role, preview = ai_result
+			ai_label = f"{role}: {preview}" if preview else role
+			if len(ai_label) > self._LABEL_MAX_LENGTH:
+				ai_label = ai_label[:self._LABEL_MAX_LENGTH]
+			return ai_label
+
+		# Classify this single line without tokenizing the entire buffer.
+		tokenizer = SectionTokenizer()
 		category = tokenizer._classify(line_text, line_num, buffer_lines)
+
+		# Use ANSI-stripped text for all label content.
+		clean_text = stripped
 
 		label = None
 
 		if category == "prompt":
 			# Extract the command portion after the prompt symbol
-			cmd_text = self._extract_command(line_text)
+			cmd_text = self._extract_command(clean_text)
 			if cmd_text:
 				label = f"prompt: {cmd_text}"
 			else:
-				label = f"prompt: {line_text.strip()}"
+				label = f"prompt: {clean_text}"
 
 		elif category in ("error", "warning"):
-			trimmed = line_text.strip()[:40]
+			trimmed = clean_text[:40]
 			label = f"error: {trimmed}"
 
 		elif category == "heading":
-			label = f"heading: {line_text.strip()}"
+			label = f"heading: {clean_text}"
 
 		else:
 			# Check if we're near a prompt (within 5 lines above)
@@ -344,19 +359,29 @@ class BookmarkManager:
 				line_num, buffer_lines, max_distance=5
 			)
 			if nearest_prompt is not None:
-				cmd_text = self._extract_command(buffer_lines[nearest_prompt])
+				prompt_clean = ANSIParser.stripANSI(buffer_lines[nearest_prompt])
+				cmd_text = self._extract_command(prompt_clean)
 				if cmd_text:
-					label = f"{cmd_text}: {line_text.strip()}"
+					label = f"{cmd_text}: {clean_text}"
 
-		# Fallback: use line text as-is
+		# Fallback: use cleaned text
 		if label is None:
-			label = line_text.strip()
+			label = clean_text
 
 		# Truncate
 		if len(label) > self._LABEL_MAX_LENGTH:
 			label = label[:self._LABEL_MAX_LENGTH]
 
 		return label if label else self._BLANK_LINE_LABEL
+
+	@staticmethod
+	def _classify_ai_turn(stripped_text):
+		"""Classify a line as an AI turn role.
+
+		Delegates to the shared classify_ai_line() in ai_turn_tokenizer.
+		Returns a (role, preview) tuple, or None.
+		"""
+		return classify_ai_line(stripped_text)
 
 	@staticmethod
 	def _extract_command(prompt_line):
@@ -630,10 +655,38 @@ class BookmarkManager:
 		for sec in sections:
 			if category is not None and sec.category != category:
 				continue
-			preview = sec.text.strip()[:self._LABEL_MAX_LENGTH] if sec.text else ""
+			raw = ANSIParser.stripANSI(sec.text).strip() if sec.text else ""
+			preview = raw[:self._LABEL_MAX_LENGTH]
 			result.append({
 				"type": sec.category,
 				"line_num": sec.line_num,
+				"preview": preview,
+			})
+		return result
+
+	def list_ai_turns(self, buffer_lines):
+		"""Return all detected AI conversation turns in the buffer.
+
+		Scans each line for AI turn markers (user prompts, assistant
+		responses, system messages, code blocks) using the same regex
+		patterns as _auto_label.
+
+		Args:
+			buffer_lines: List of terminal buffer lines.
+
+		Returns:
+			list[dict]: Each dict has keys: role, line_num, preview.
+		"""
+		result = []
+		for idx, line in enumerate(buffer_lines):
+			stripped = ANSIParser.stripANSI(line).strip()
+			ai_result = self._classify_ai_turn(stripped)
+			if ai_result is None:
+				continue
+			role, preview = ai_result
+			result.append({
+				"role": role,
+				"line_num": idx,
 				"preview": preview,
 			})
 		return result
@@ -888,7 +941,131 @@ if _wx_available:
 			else:
 				event.Skip()
 
+	class AiTurnListDialog(wx.Dialog):
+		"""Accessible dialog for viewing and navigating AI conversation turns.
+
+		Displays all detected AI turns (user, assistant, system, code) with
+		Role, Line, and Preview columns. Supports filtering by role, jumping
+		via Enter, and closing via Escape.
+		"""
+
+		def __init__(self, parent, turns, jump_callback):
+			"""Initialize the AiTurnListDialog.
+
+			Args:
+				parent: Parent window.
+				turns: List of turn dicts (role, line_num, preview).
+				jump_callback: Callable(line_num) to jump to a turn.
+			"""
+			super().__init__(
+				parent,
+				title=_("AI Turns"),
+				style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+			)
+			self._all_turns = turns
+			self._jump_callback = jump_callback
+			self._build_ui()
+			self._populate(turns)
+			self.Raise()
+
+		def _build_ui(self):
+			sizer = wx.BoxSizer(wx.VERTICAL)
+
+			# Filter controls
+			filter_sizer = wx.BoxSizer(wx.HORIZONTAL)
+			filter_sizer.Add(
+				wx.StaticText(self, label=_("&Filter by role:")),
+				flag=wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, border=4,
+			)
+			self._filter_choice = wx.Choice(self)
+			filter_sizer.Add(self._filter_choice, proportion=1)
+			sizer.Add(filter_sizer, flag=wx.EXPAND | wx.ALL, border=8)
+
+			# Turn list
+			self._list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+			self._list.InsertColumn(0, _("Role"), width=100)
+			self._list.InsertColumn(1, _("Line"), width=60)
+			self._list.InsertColumn(2, _("Preview"), width=380)
+			sizer.Add(self._list, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
+
+			# Buttons
+			btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+			self._jump_btn = wx.Button(self, label=_("&Jump"))
+			self._close_btn = wx.Button(self, wx.ID_CLOSE, label=_("&Close"))
+			btn_sizer.Add(self._jump_btn, flag=wx.RIGHT, border=4)
+			btn_sizer.Add(self._close_btn)
+			sizer.Add(btn_sizer, flag=wx.ALIGN_RIGHT | wx.ALL, border=8)
+
+			self.SetSizer(sizer)
+			self.SetSize(560, 400)
+
+			# Populate filter choices
+			roles = sorted(set(t["role"] for t in self._all_turns))
+			self._filter_choice.Append(_("All"))
+			for r in roles:
+				self._filter_choice.Append(r)
+			self._filter_choice.SetSelection(0)
+
+			# Bind events
+			self._jump_btn.Bind(wx.EVT_BUTTON, self._on_jump)
+			self._close_btn.Bind(wx.EVT_BUTTON, self._on_close)
+			self._list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_jump)
+			self._list.Bind(wx.EVT_KEY_DOWN, self._on_key)
+			self._filter_choice.Bind(wx.EVT_CHOICE, self._on_filter)
+
+		def _populate(self, turns):
+			self._list.DeleteAllItems()
+			for turn in turns:
+				idx = self._list.InsertItem(
+					self._list.GetItemCount(), turn["role"]
+				)
+				self._list.SetItem(idx, 1, str(turn["line_num"] + 1))
+				self._list.SetItem(idx, 2, turn["preview"])
+			if turns:
+				self._list.Select(0)
+				self._list.Focus(0)
+
+		def _get_selected_line_num(self):
+			sel = self._list.GetFirstSelected()
+			if sel == -1:
+				return None
+			try:
+				return int(self._list.GetItemText(sel, 1)) - 1  # back to 0-based
+			except (ValueError, TypeError):
+				return None
+
+		def _on_jump(self, event):
+			line_num = self._get_selected_line_num()
+			if line_num is not None:
+				self._jump_callback(line_num)
+				self.Close()
+
+		def _on_close(self, event):
+			self.Close()
+
+		def _on_filter(self, event):
+			sel = self._filter_choice.GetSelection()
+			if sel <= 0:
+				# "All"
+				self._populate(self._all_turns)
+			else:
+				chosen_role = self._filter_choice.GetString(sel)
+				filtered = [
+					t for t in self._all_turns if t["role"] == chosen_role
+				]
+				self._populate(filtered)
+
+		def _on_key(self, event):
+			key = event.GetKeyCode()
+			if key == wx.WXK_RETURN:
+				self._on_jump(event)
+			elif key == wx.WXK_ESCAPE:
+				self.Close()
+			else:
+				event.Skip()
+
 else:
 	# Placeholder so imports don't break in test environments without wx.
 	BookmarkListDialog = None
 	SectionListDialog = None
+	AiTurnListDialog = None

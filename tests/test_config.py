@@ -136,8 +136,7 @@ class TestConfigConstants(unittest.TestCase):
         """Test cursor tracking mode constants are defined."""
         self.assertEqual(self.terminalAccess.CT_OFF, 0)
         self.assertEqual(self.terminalAccess.CT_STANDARD, 1)
-        self.assertEqual(self.terminalAccess.CT_HIGHLIGHT, 2)
-        self.assertEqual(self.terminalAccess.CT_WINDOW, 3)
+        self.assertEqual(self.terminalAccess.CT_WINDOW, 2)
 
     def test_punctuation_constants(self):
         """Test punctuation level constants are defined."""
@@ -308,6 +307,185 @@ class TestConfigMigration(unittest.TestCase):
 
         # Verify existing value was preserved
         self.assertEqual(config_dict["punctuationLevel"], PUNCT_ALL)
+
+
+class TestResetToDefaultsCoversAllKeys(unittest.TestCase):
+    """reset_to_defaults must include all config keys including v1.4.0 keys."""
+
+    def test_reset_includes_error_audio_cues(self):
+        """reset_to_defaults must reset errorAudioCues to its default."""
+        from lib.config import ConfigManager
+
+        config_mock = sys.modules['config']
+        config_dict = {
+            "cursorTracking": True, "cursorTrackingMode": 1,
+            "keyEcho": True, "linePause": True,
+            "punctuationLevel": 2, "repeatedSymbols": False,
+            "repeatedSymbolsValues": "-_=!", "cursorDelay": 20,
+            "quietMode": False, "windowTop": 0, "windowBottom": 0,
+            "windowLeft": 0, "windowRight": 0, "windowEnabled": False,
+            "errorAudioCues": False,  # non-default value
+            "errorAudioCuesInQuietMode": True,  # non-default value
+            "outputActivityTones": True,  # non-default value
+            "outputActivityDebounce": 5000,  # non-default value
+        }
+        config_mock.conf.__getitem__ = MagicMock(return_value=config_dict)
+        manager = ConfigManager()
+
+        manager.reset_to_defaults()
+
+        assert config_dict["errorAudioCues"] is True, (
+            "errorAudioCues not reset to default True"
+        )
+        assert config_dict["errorAudioCuesInQuietMode"] is False, (
+            "errorAudioCuesInQuietMode not reset to default False"
+        )
+        assert config_dict["outputActivityTones"] is False, (
+            "outputActivityTones not reset to default False"
+        )
+        assert config_dict["outputActivityDebounce"] == 1000, (
+            "outputActivityDebounce not reset to default 1000"
+        )
+
+
+    def test_validate_all_clamps_out_of_range_debounce(self):
+        """validate_all must sanitize out-of-range outputActivityDebounce."""
+        from lib.config import ConfigManager
+
+        config_mock = sys.modules['config']
+        config_dict = {
+            "cursorTracking": True, "cursorTrackingMode": 1,
+            "keyEcho": True, "linePause": True,
+            "punctuationLevel": 2, "repeatedSymbols": False,
+            "repeatedSymbolsValues": "-_=!", "cursorDelay": 20,
+            "quietMode": False, "windowTop": 0, "windowBottom": 0,
+            "windowLeft": 0, "windowRight": 0, "windowEnabled": False,
+            "errorAudioCues": True, "errorAudioCuesInQuietMode": False,
+            "outputActivityTones": False,
+            "outputActivityDebounce": 50,  # below minimum of 100
+        }
+        config_mock.conf.__getitem__ = MagicMock(return_value=config_dict)
+        manager = ConfigManager()
+
+        # validate_all runs in __init__, should have clamped the value
+        assert config_dict["outputActivityDebounce"] != 50, (
+            "validate_all did not clamp outputActivityDebounce=50 (min=100)"
+        )
+
+
+class TestPrivacyConfigKeys(unittest.TestCase):
+    """Privacy-gated features must have confspec entries and settings panel UI."""
+
+    def test_aiTurnParseEnabled_in_confspec(self):
+        """aiTurnParseEnabled must exist in confspec since PrivacyGuard references it."""
+        from lib.config import confspec
+        assert "aiTurnParseEnabled" in confspec, (
+            "aiTurnParseEnabled referenced by PrivacyGuard but missing from confspec"
+        )
+
+    def test_all_privacy_keys_in_confspec(self):
+        """All PrivacyGuard feature keys must exist in confspec."""
+        from lib.config import confspec
+        from lib.privacy import _FEATURE_CONFIG_KEYS
+        for feature, config_key in _FEATURE_CONFIG_KEYS.items():
+            assert config_key in confspec, (
+                f"Privacy feature '{feature}' maps to config key '{config_key}' "
+                f"which is missing from confspec"
+            )
+
+    def test_privacy_keys_in_validate_key(self):
+        """Privacy boolean keys must be validated by ConfigManager._validate_key."""
+        from lib.config import ConfigManager
+        config_mock = sys.modules['config']
+        config_dict = {
+            "cursorTracking": True, "cursorTrackingMode": 1,
+            "keyEcho": True, "linePause": True,
+            "punctuationLevel": 2, "repeatedSymbols": False,
+            "repeatedSymbolsValues": "-_=!", "cursorDelay": 20,
+            "quietMode": False, "windowTop": 0, "windowBottom": 0,
+            "windowLeft": 0, "windowRight": 0, "windowEnabled": False,
+            "errorAudioCues": True, "errorAudioCuesInQuietMode": False,
+            "outputActivityTones": False, "outputActivityDebounce": 1000,
+            "summarizationEnabled": False, "codeBlockExplain": False,
+            "privacyAnnounce": True, "aiTurnParseEnabled": False,
+        }
+        config_mock.conf.__getitem__ = MagicMock(return_value=config_dict)
+        manager = ConfigManager()
+
+        # Setting a string value should be coerced to bool
+        manager.set("summarizationEnabled", "truthy")
+        assert config_dict["summarizationEnabled"] is True, (
+            "summarizationEnabled not coerced to bool"
+        )
+        assert isinstance(config_dict["summarizationEnabled"], bool)
+
+    def test_privacy_keys_in_reset_to_defaults(self):
+        """reset_to_defaults must reset privacy keys to their defaults."""
+        from lib.config import ConfigManager
+        config_mock = sys.modules['config']
+        config_dict = {
+            "cursorTracking": True, "cursorTrackingMode": 1,
+            "keyEcho": True, "linePause": True,
+            "punctuationLevel": 2, "repeatedSymbols": False,
+            "repeatedSymbolsValues": "-_=!", "cursorDelay": 20,
+            "quietMode": False, "windowTop": 0, "windowBottom": 0,
+            "windowLeft": 0, "windowRight": 0, "windowEnabled": False,
+            "errorAudioCues": True, "errorAudioCuesInQuietMode": False,
+            "outputActivityTones": False, "outputActivityDebounce": 1000,
+            "summarizationEnabled": True,  # non-default
+            "codeBlockExplain": True,  # non-default
+            "privacyAnnounce": False,  # non-default
+            "aiTurnParseEnabled": True,  # non-default
+        }
+        config_mock.conf.__getitem__ = MagicMock(return_value=config_dict)
+        manager = ConfigManager()
+        manager.reset_to_defaults()
+
+        assert config_dict["summarizationEnabled"] is False, "summarizationEnabled not reset"
+        assert config_dict["codeBlockExplain"] is False, "codeBlockExplain not reset"
+        assert config_dict["privacyAnnounce"] is True, "privacyAnnounce not reset"
+        assert config_dict["aiTurnParseEnabled"] is False, "aiTurnParseEnabled not reset"
+
+
+class TestValidateKeyCoversNewConfigKeys(unittest.TestCase):
+    """v1.4.0 config keys must be validated by _validate_key."""
+
+    def _make_manager(self):
+        config_mock = sys.modules['config']
+        config_dict = {
+            "cursorTracking": True, "cursorTrackingMode": 1,
+            "keyEcho": True, "linePause": True,
+            "punctuationLevel": 2, "repeatedSymbols": False,
+            "repeatedSymbolsValues": "-_=!", "cursorDelay": 20,
+            "quietMode": False, "windowTop": 0, "windowBottom": 0,
+            "windowLeft": 0, "windowRight": 0, "windowEnabled": False,
+            "errorAudioCues": True, "errorAudioCuesInQuietMode": False,
+            "outputActivityTones": False, "outputActivityDebounce": 1000,
+        }
+        config_mock.conf.__getitem__ = MagicMock(return_value=config_dict)
+        from lib.config import ConfigManager
+        return ConfigManager(), config_dict
+
+    def test_outputActivityDebounce_validated_as_integer(self):
+        """outputActivityDebounce must be validated as integer with range check."""
+        manager, config_dict = self._make_manager()
+        # Set an out-of-range value (below minimum of 100)
+        manager.set("outputActivityDebounce", 10)
+        # Should be clamped to default, not stored as 10
+        assert config_dict["outputActivityDebounce"] != 10, (
+            "outputActivityDebounce=10 was accepted without validation (min=100)"
+        )
+
+    def test_errorAudioCues_validated_as_bool(self):
+        """errorAudioCues must be coerced to bool by _validate_key."""
+        manager, config_dict = self._make_manager()
+        manager.set("errorAudioCues", "truthy_string")
+        assert config_dict["errorAudioCues"] is True, (
+            "errorAudioCues should be coerced to bool True"
+        )
+        assert isinstance(config_dict["errorAudioCues"], bool), (
+            f"errorAudioCues should be bool, got {type(config_dict['errorAudioCues']).__name__}"
+        )
 
 
 if __name__ == '__main__':

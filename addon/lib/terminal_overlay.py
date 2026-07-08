@@ -65,6 +65,7 @@ class TerminalAccessTerminal:
         self._lastActivityToneTime = 0
         self._lastTypedCharTime = 0
         self._configManager = None  # Set by GlobalPlugin on gainFocus
+        self._burstDetector = None  # Set by GlobalPlugin on gainFocus
 
     def initOverlayClass(self):
         """Called by NVDA after overlay class construction."""
@@ -73,6 +74,7 @@ class TerminalAccessTerminal:
             self._lastActivityToneTime = 0
             self._lastTypedCharTime = 0
             self._configManager = None
+            self._burstDetector = None
 
     def _reportNewLines(self, lines):
         """Override LiveText._reportNewLines with coalescing and audio cues.
@@ -127,10 +129,9 @@ class TerminalAccessTerminal:
     def _beepForClassification(self, text):
         """Play error/warning tone if the line matches a pattern."""
         classification = self._errorDetector.classify(text)
-        if classification == "error" and tones:
-            tones.beep(220, 50)
-        elif classification == "warning" and tones:
-            tones.beep(440, 30)
+        if classification:
+            from lib.audio_cues import play_cue
+            play_cue(classification)
 
     def event_textChange(self):
         """Override Terminal.event_textChange.
@@ -139,6 +140,12 @@ class TerminalAccessTerminal:
         Optionally play error cues and activity tones.
         In normal mode: wake the monitor thread, play activity tones.
         """
+        # Record event for burst detection so overlay textChange events
+        # contribute to streaming detection alongside GlobalPlugin events.
+        if self._burstDetector:
+            import time as _time
+            self._burstDetector.record_event(_time.monotonic())
+
         is_quiet = False
         if self._configManager:
             is_quiet = self._configManager.get("quietMode", False)

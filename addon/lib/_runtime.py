@@ -13,8 +13,8 @@ from lib.caching import TextDiffer
 def gesture_label(gesture: str, script_name: str) -> str:
 	"""Format a gesture and script name into a human-readable label.
 
-	Example: 'kb:NVDA+shift+c' + 'copyRectangularSelection'
-	returns 'NVDA+Shift+C \u2014 Copy Rectangular Selection'
+	Example: 'kb:NVDA+c' + 'copyLinearSelection'
+	returns 'NVDA+C \u2014 Copy Linear Selection'
 	"""
 	key = gesture.replace("kb:", "")
 	parts = key.split("+")

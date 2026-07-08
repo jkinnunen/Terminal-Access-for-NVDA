@@ -62,3 +62,7 @@ addon/lib/x64/
 .coverage
 coverage.xml
 htmlcov/
+.hypothesis/
+
+# Internal working notes (not part of the public repo)
+memory/

@@ -116,6 +116,47 @@ class TestGestureCheckListAccessibility:
                 )
 
 
+class TestPrivacySettingsPresent:
+    """Privacy settings must have UI controls in the settings panel."""
+
+    def test_panel_has_privacy_section(self):
+        """The settings panel must include a Privacy group."""
+        import inspect
+        from lib.settings_panel import TerminalAccessSettingsPanel
+        source = inspect.getsource(TerminalAccessSettingsPanel)
+        assert "Privacy" in source, (
+            "Settings panel missing 'Privacy' section. "
+            "Users cannot toggle summarization, code explain, or AI turn parsing."
+        )
+
+    def test_panel_has_summarization_control(self):
+        """summarizationEnabled must have a UI control."""
+        import inspect
+        from lib.settings_panel import TerminalAccessSettingsPanel
+        source = inspect.getsource(TerminalAccessSettingsPanel)
+        assert "summarizationEnabled" in source or "summarization" in source.lower(), (
+            "Settings panel missing summarization control"
+        )
+
+    def test_panel_has_code_explain_control(self):
+        """codeBlockExplain must have a UI control."""
+        import inspect
+        from lib.settings_panel import TerminalAccessSettingsPanel
+        source = inspect.getsource(TerminalAccessSettingsPanel)
+        assert "codeBlockExplain" in source or "code_explain" in source.lower() or "codeblock" in source.lower(), (
+            "Settings panel missing code block explain control"
+        )
+
+    def test_panel_saves_privacy_settings(self):
+        """onSave must persist privacy settings."""
+        import inspect
+        from lib.settings_panel import TerminalAccessSettingsPanel
+        source = inspect.getsource(TerminalAccessSettingsPanel.onSave)
+        assert "summarizationEnabled" in source, (
+            "onSave does not save summarizationEnabled"
+        )
+
+
 class TestGestureLabelHelper:
     """Verify the local _gestureLabel helper mirrors the canonical one."""
 

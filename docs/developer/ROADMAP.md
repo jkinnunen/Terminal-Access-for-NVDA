@@ -142,10 +142,9 @@
 - [x] Testing with NVDA 2025.1+
 - [x] Testing with all supported terminals
 
-### Phase 6: v2.0 Prep (IN PROGRESS)
-**Status:** Partially complete
+### Phase 6: v2.0 Prep (COMPLETED)
+**Status:** Done
 
-#### Done:
 - [x] Settings panel with three flat sections: Speech and Tracking, NVDA Gesture Conflicts, Application Profiles
 - [x] Error/warning line detection (`ErrorLineDetector`: 18 error + 5 warning regex patterns with word boundaries)
 - [x] Audio cues: `_checkErrorAudioCue` (error tones in quiet mode), `_checkOutputActivityTone` (activity tones on output)
@@ -156,12 +155,9 @@
 - [x] `_CONFLICTING_GESTURES` frozenset for settings checklist
 - [x] Terminal detection via exact match on `appModule.appName` (not substring)
 - [x] Removed `NewOutputAnnouncer` entirely
-
-#### Remaining for v2.0 release:
-- [ ] Remove Command History Navigation (NVDA+H/G, NVDA+Shift+H, NVDA+Shift+L)
-- [ ] Remove Highlight cursor tracking mode (`CT_HIGHLIGHT`)
-- [ ] Remove Rectangular selection (NVDA+Shift+C)
-- [ ] Write migration guide for users of deprecated features
+- [x] Removed Command History Navigation (NVDA+H/G, NVDA+Shift+H, NVDA+Shift+L)
+- [x] Removed Highlight cursor tracking mode (`CT_HIGHLIGHT`). `CT_WINDOW` is now mode 2.
+- [x] Removed Rectangular selection (NVDA+Shift+C)
 
 ### Phase 7: Future Enhancements
 **Status:** Planned

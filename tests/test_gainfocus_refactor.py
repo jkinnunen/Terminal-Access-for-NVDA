@@ -60,13 +60,11 @@ class TestOnTerminalFocus:
 		assert plugin._tabManager is None
 		assert plugin._bookmarkManager is None
 		assert plugin._searchManager is None
-		assert plugin._commandHistoryManager is None
 		assert plugin._urlExtractorManager is None
 		plugin._initializeManagers(terminal)
 		assert plugin._tabManager is not None
 		assert plugin._bookmarkManager is not None
 		assert plugin._searchManager is not None
-		assert plugin._commandHistoryManager is not None
 		assert plugin._urlExtractorManager is not None
 
 	def test_initializeManagers_updates_existing(self):

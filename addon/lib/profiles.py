@@ -1,6 +1,7 @@
 # Terminal Access application profiles.
 # Extracted from terminalAccess.py for modularization.
 
+import re
 from typing import Any
 
 from lib.config import (
@@ -61,7 +62,8 @@ _NON_TERMINAL_APPS: frozenset[str] = frozenset([
 # Frozenset of built-in profile names that cannot be removed
 _BUILTIN_PROFILE_NAMES: frozenset[str] = frozenset([
 	'vim', 'tmux', 'htop', 'less', 'git', 'nano', 'irssi',
-	'claude', 'lazygit', 'btop', 'btm', 'yazi', 'k9s',
+	'claude', 'aider', 'chatgpt', 'copilot', 'ollama', 'gemini', 'codex',
+	'lazygit', 'btop', 'btm', 'yazi', 'k9s',
 	'kubectl', 'npm', 'pytest', 'cargo', 'docker',
 ])
 
@@ -243,6 +245,7 @@ class ApplicationProfile:
 			'quietMode': self.quietMode,
 			'announceIndentation': self.announceIndentation,
 			'indentationOnLineRead': self.indentationOnLineRead,
+			'focusedPaneOnly': self.focusedPaneOnly,
 			'windows': [w.to_dict() for w in self.windows],
 			'customGestures': self.customGestures,
 		}
@@ -262,15 +265,13 @@ class ApplicationProfile:
 		raw = data.get('punctuationLevel')
 		profile.punctuationLevel = _validateInteger(raw, 0, 3, 2, 'punctuationLevel') if raw is not None else None
 		raw = data.get('cursorTrackingMode')
-		profile.cursorTrackingMode = _validateInteger(raw, 0, 3, 1, 'cursorTrackingMode') if raw is not None else None
-		raw = data.get('linePause')
-		profile.linePause = _validateInteger(raw, 0, 1000, 20, 'linePause') if raw is not None else None
+		profile.cursorTrackingMode = _validateInteger(raw, 0, 2, 1, 'cursorTrackingMode') if raw is not None else None
 		raw = data.get('cursorDelay')
 		profile.cursorDelay = _validateInteger(raw, 50, 2000, 200, 'cursorDelay') if raw is not None else None
 
 		# Validate boolean fields (None = use global)
-		for field in ('keyEcho', 'processSymbols', 'repeatedSymbols', 'quietMode',
-		              'announceIndentation', 'indentationOnLineRead'):
+		for field in ('keyEcho', 'linePause', 'processSymbols', 'repeatedSymbols', 'quietMode',
+		              'announceIndentation', 'indentationOnLineRead', 'focusedPaneOnly'):
 			val = data.get(field)
 			setattr(profile, field, bool(val) if val is not None else None)
 
@@ -324,6 +325,45 @@ class ProfileManager:
 		2. Check window title for common patterns
 		3. Return 'default' if no match found
 	"""
+
+	# Ordered list of (regex_pattern, profile_name) for title matching.
+	# AI CLIs first (so "tmux: claude" returns 'claude'), then more
+	# specific names before shorter ones (lazygit before git).
+	# Word boundary \b prevents "git" matching "digital", "btm" matching
+	# "submit", "less" matching "wireless", etc.
+	_TITLE_PATTERNS = [
+		(re.compile(r'\bclaude\b'), 'claude'),
+		(re.compile(r'\baider\b'), 'aider'),
+		(re.compile(r'\bchatgpt\b'), 'chatgpt'),
+		(re.compile(r'\bcopilot\b'), 'copilot'),
+		(re.compile(r'\bollama\b'), 'ollama'),
+		(re.compile(r'\bgemini\b'), 'gemini'),
+		(re.compile(r'\bcodex\b'), 'codex'),
+		(re.compile(r'\bnvim\b|\bvim\b'), 'vim'),
+		(re.compile(r'\btmux\b'), 'tmux'),
+		(re.compile(r'\bbtop\b|\bbtm\b'), 'btop'),
+		(re.compile(r'\bhtop\b'), 'htop'),
+		(re.compile(r'\bless\b|\bmore\b'), 'less'),
+		(re.compile(r'\blazygit\b'), 'lazygit'),
+		(re.compile(r'\bgit\b'), 'git'),
+		(re.compile(r'\bnano\b'), 'nano'),
+		(re.compile(r'\birssi\b'), 'irssi'),
+		(re.compile(r'\byazi\b'), 'yazi'),
+		(re.compile(r'\bk9s\b'), 'k9s'),
+		(re.compile(r'\bkubectl\b'), 'kubectl'),
+		(re.compile(r'\bpytest\b'), 'pytest'),
+		(re.compile(r'\bnpm\b|\byarn\b'), 'npm'),
+		(re.compile(r'\bcargo\b'), 'cargo'),
+		(re.compile(r'\bdocker\b'), 'docker'),
+	]
+
+	@classmethod
+	def _match_title(cls, title: str) -> str | None:
+		"""Match a lowercased window title against known profile patterns."""
+		for pattern, profile_name in cls._TITLE_PATTERNS:
+			if pattern.search(title):
+				return profile_name
+		return None
 
 	def __init__(self) -> None:
 		"""Initialize the profile manager with default profiles."""
@@ -444,10 +484,31 @@ class ProfileManager:
 		claude.repeatedSymbols = False  # Markdown-style separators in output
 		claude.linePause = False  # Fast reading for streaming responses
 		claude.keyEcho = False  # Don't echo typing during input
+		claude.focusedPaneOnly = True  # Focus on active pane when inside tmux
 		# Silence bottom status bar region
 		claude.add_window('conversation', 1, 9997, 1, 9999, mode='announce')
 		claude.add_window('statusbar', 9998, 9999, 1, 9999, mode='silent')
 		self.profiles['claude'] = claude
+
+		# AI CLI profiles share: PUNCT_MOST, no repeated symbols, fast streaming.
+		# (name, display_name, focused_pane_only, line_pause)
+		_ai_cli_profiles = [
+			('aider', 'Aider (AI Pair Programming)', True, False),
+			('chatgpt', 'ChatGPT CLI', False, False),
+			('copilot', 'GitHub Copilot CLI', False, None),
+			('ollama', 'Ollama', False, False),
+			('gemini', 'Gemini CLI', True, False),
+			('codex', 'OpenAI Codex CLI', True, False),
+		]
+		for name, display, focused, lpause in _ai_cli_profiles:
+			p = ApplicationProfile(name, display)
+			p.punctuationLevel = PUNCT_MOST
+			p.repeatedSymbols = False
+			if lpause is not None:
+				p.linePause = lpause
+			if focused:
+				p.focusedPaneOnly = True
+			self.profiles[name] = p
 
 		# lazygit profile
 		lazygit = ApplicationProfile('lazygit', 'lazygit')
@@ -530,6 +591,10 @@ class ProfileManager:
 		"""
 		Detect the current terminal application.
 
+		Checks the process name first, then the window title. The window
+		title comes from the foreground object (the top-level window), not
+		the focus object (which is the text area inside the terminal).
+
 		Args:
 			focusObject: NVDA focus object
 
@@ -545,51 +610,27 @@ class ProfileManager:
 				if appName in self.profiles:
 					return appName
 
-			# Try to detect from window title
-			if hasattr(focusObject, 'name'):
-				title = focusObject.name.lower()
+			# Get the window title from the foreground object (top-level
+			# window), not focusObject.name (which is the text area).
+			title = None
+			try:
+				import api as _api
+				fg = _api.getForegroundObject()
+				if fg and hasattr(fg, 'name') and isinstance(fg.name, str):
+					title = fg.name.lower()
+			except Exception:
+				pass
 
-				# Check for common patterns
-				# Note: more specific matches (lazygit) must come before
-				# less specific ones (git) to avoid false positives.
-				if 'vim' in title or 'nvim' in title:
-					return 'vim'
-				elif 'tmux' in title:
-					return 'tmux'
-				elif 'btop' in title or 'btm' in title:
-					return 'btop'
-				elif 'htop' in title:
-					return 'htop'
-				elif 'less' in title or 'more' in title:
-					return 'less'
-				elif 'lazygit' in title:
-					return 'lazygit'
-				elif 'git' in title:
-					return 'git'
-				elif 'nano' in title:
-					return 'nano'
-				elif 'irssi' in title:
-					return 'irssi'
-				# TUI applications (detected by window title)
-				elif 'claude' in title:
-					return 'claude'
-				elif 'yazi' in title:
-					return 'yazi'
-				elif 'k9s' in title:
-					return 'k9s'
-				# CLI tool profiles (detected by window title)
-				elif 'kubectl' in title:
-					return 'kubectl'
-				elif 'pytest' in title:
-					return 'pytest'
-				elif 'npm' in title:
-					return 'npm'
-				elif 'yarn' in title:
-					return 'npm'
-				elif 'cargo' in title:
-					return 'cargo'
-				elif 'docker' in title:
-					return 'docker'
+			# Fall back to focus object name if foreground unavailable
+			if not title and hasattr(focusObject, 'name'):
+				name = focusObject.name
+				if isinstance(name, str):
+					title = name.lower()
+
+			if title:
+				matched = self._match_title(title)
+				if matched:
+					return matched
 
 		except (AttributeError, TypeError):
 			pass

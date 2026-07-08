@@ -227,6 +227,17 @@ class TestWhatChanged:
         # Should not contain every individual line
         assert "line6" not in result
 
+    def test_what_changed_lines_removed(self):
+        """When lines are removed, should report removal not 'No changes'."""
+        from lib.audio_cues import describe_changes
+        old = "line1\nline2\nline3\nline4\n"
+        new = "line1\nline2\n"
+        result = describe_changes(old, new)
+        assert result != "No changes", (
+            f"Removing 2 lines reported as 'No changes'"
+        )
+        assert "removed" in result.lower() or "2" in result
+
     def test_what_changed_none_old(self):
         """When there is no previous buffer, reports no changes."""
         from lib.audio_cues import describe_changes

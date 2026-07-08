@@ -135,6 +135,13 @@ class TestCleanUrl(unittest.TestCase):
 		url = "https://example.com/path"
 		self.assertEqual(self._clean(url), url)
 
+	def test_punctuation_after_bracket_strip(self):
+		"""Trailing punctuation exposed by bracket stripping must also be removed."""
+		self.assertEqual(
+			self._clean("https://example.com/path.)"),
+			"https://example.com/path"
+		)
+
 	def test_empty_string(self):
 		self.assertEqual(self._clean(""), "")
 

@@ -157,18 +157,6 @@ Key navigation commands (customize in NVDA Input Gestures):
 
 Refer to the main README for the complete gesture list.
 
-### How do rectangular selections work?
-
-Rectangular (column-based) selections are useful for:
-- Selecting columns in tables
-- Extracting specific fields from formatted output
-- Working with data arranged in columns
-
-To create a rectangular selection:
-1. Move to the starting position
-2. Use NVDA+Shift+Column/Row navigation to select
-3. The selected text will be copied to the clipboard in column format
-
 ### What are application profiles?
 
 Application profiles allow Terminal Access to automatically adjust settings when you switch between applications. For example:
@@ -178,6 +166,30 @@ Application profiles allow Terminal Access to automatically adjust settings when
 - **htop**: Optimized for process viewer layout
 
 You can create custom profiles for any application.
+
+### How do I navigate between AI responses?
+
+Terminal Access detects AI CLI tools (Claude, Aider, ChatGPT CLI, Copilot CLI, Gemini CLI, Codex CLI, Ollama) and tokenizes the conversation buffer into turns. Press Ctrl+T in the command layer (or NVDA+Alt+T) to jump to the next turn. Press Shift+T in the command layer (or NVDA+Alt+Shift+T) to jump to the previous turn. When you land on a turn, you hear the role (user or assistant) and the first line.
+
+### What are the code block commands?
+
+When an AI assistant includes code in its response, Terminal Access detects fenced code blocks. Use these commands to work with them:
+
+| Command Layer Key | Direct Gesture         | Action                               |
+|-------------------|------------------------|--------------------------------------|
+| **Ctrl+B**        | **NVDA+Alt+B**         | Next code block                      |
+| **Shift+B**       | **NVDA+Alt+Shift+B**   | Previous code block                  |
+| **Ctrl+L**        | **NVDA+Alt+L**         | Announce language                    |
+| **Ctrl+C**        | **NVDA+Alt+C**         | Copy code block to clipboard         |
+| **Ctrl+E**        | **NVDA+Alt+E**         | Explain code block (privacy gated)   |
+
+### How does privacy mode work?
+
+AI CLI features that send terminal content to an external AI service are gated by privacy settings. Both "Allow Code Explain" and "Allow Summarization" are off by default. When you try to use a privacy-gated feature while it is disabled, you hear a spoken message explaining how to enable it. Open Terminal Access settings and look for the Privacy section to enable these features.
+
+### Why did I hear a different error tone?
+
+Terminal Access plays distinct tones for AI-specific errors. A pulsing low tone (two quick 220 Hz beeps) indicates a rate limit or token limit. A single low tone indicates an API error such as authentication failure or server error. These are separate from the standard build error and warning tones. You can disable all error tones by unchecking "Error and Warning Audio Cues" in Terminal Access settings.
 
 ### Can I export and share profiles?
 
@@ -195,14 +207,13 @@ To import:
 
 ### What is cursor tracking?
 
-Cursor tracking automatically announces the cursor's position as you navigate. Terminal Access offers four modes:
+Cursor tracking automatically announces the cursor's position as you navigate. Terminal Access offers three modes:
 
 | Mode | Description |
 |------|-------------|
-| **Off** | No automatic announcements |
-| **Standard** | Announces character at cursor |
-| **Highlight** | *(deprecated, removed in v2)* Tracks highlighted/inverse video text |
-| **Window** | Announces cursor within defined window regions |
+| **Off (0)** | No automatic announcements |
+| **Standard (1)** | Announces character at cursor |
+| **Window (2)** | Announces cursor within defined window regions |
 
 Cycle modes with NVDA+Alt+Y.
 
@@ -232,22 +243,11 @@ This prevents repetitive announcements of status bars and other UI elements.
 ### Cursor tracking announces too much/too little
 
 **Adjust cursor tracking mode**:
-- Press NVDA+Alt+Y to cycle through modes
+- Press NVDA+Alt+Y to cycle through modes (Off, Standard, Window)
 - Try different modes for different workflows:
   - **Standard**: For general use
   - **Window**: For applications with defined regions
   - **Off**: When you prefer manual navigation
-
-### Rectangular selection copies strange text
-
-**Possible causes**:
-1. **CJK characters**: Terminal Access handles double-width characters, but your terminal must display them correctly too
-2. **Tab characters**: Tabs may not align as expected
-3. **ANSI codes**: Some terminals include escape sequences
-
-**Solutions**:
-- Use linear selection (standard NVDA+Shift+arrows) for mixed content
-- Clean up copied text with a text editor if needed
 
 ### Profile doesn't apply automatically
 
@@ -510,18 +510,6 @@ When **Output Activity Tones** is enabled (off by default), Terminal Access play
 ### Do Terminal Access gestures work outside terminals?
 
 No. Terminal Access gestures only activate inside supported terminals. Outside a terminal window, the gestures pass through to NVDA or other add-ons. Terminal detection uses exact match on the process name, so only recognized terminal applications trigger the add-on.
-
-### Which features are deprecated?
-
-These features still work but will be removed in v2:
-
-| Feature | Gestures | Reason |
-|---------|----------|--------|
-| **Command History Navigation** | NVDA+H/G, NVDA+Shift+H, NVDA+Shift+L | Shells have their own history navigation. |
-| **Highlight cursor tracking** | Cycle with NVDA+Alt+Y | Most modern terminals strip ANSI from UIA text. |
-| **Rectangular selection** | NVDA+Shift+C | Linear copy handles most use cases. |
-
-If you depend on any of these, open an issue on [GitHub](https://github.com/PratikP1/Terminal-Access-for-NVDA/issues) before they are removed.
 
 ### Can I contribute to Terminal Access development?
 

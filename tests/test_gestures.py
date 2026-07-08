@@ -120,11 +120,16 @@ class TestGestureBindingsVisibility(unittest.TestCase):
 			'script_copyLine', 'script_copyScreen', 'script_exitCopyMode',
 			'script_exitCommandLayer',
 		}
+		# Scripts that delegate to _navigateAiElement (which has the guard)
+		delegated_to_helper = {
+			'script_nextTurn', 'script_prevTurn',
+			'script_nextCodeBlock', 'script_prevCodeBlock',
+		}
 
 		for attr_name in dir(GlobalPlugin):
 			if not attr_name.startswith('script_'):
 				continue
-			if attr_name in always_active:
+			if attr_name in always_active or attr_name in delegated_to_helper:
 				continue
 			method = getattr(GlobalPlugin, attr_name)
 			if not callable(method):

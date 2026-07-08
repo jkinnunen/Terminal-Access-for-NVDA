@@ -69,7 +69,7 @@ class TestConfigModule(unittest.TestCase):
 
 	def test_import_from_lib(self):
 		from lib.config import ConfigManager, confspec
-		from lib.config import CT_OFF, CT_STANDARD, CT_HIGHLIGHT, CT_WINDOW
+		from lib.config import CT_OFF, CT_STANDARD, CT_WINDOW
 		from lib.config import PUNCT_NONE, PUNCT_SOME, PUNCT_MOST, PUNCT_ALL
 		from lib.config import PUNCTUATION_SETS
 		from lib.config import _validateInteger, _validateString
@@ -144,12 +144,12 @@ class TestSearchModule(unittest.TestCase):
 	"""Phase 5h: lib.search module."""
 
 	def test_import_from_lib(self):
-		from lib.search import OutputSearchManager, CommandHistoryManager
+		from lib.search import OutputSearchManager
 		from lib.search import UrlExtractorManager
 		self.assertTrue(callable(OutputSearchManager))
 
 	def test_reexport_from_terminalAccess(self):
-		from globalPlugins.terminalAccess import OutputSearchManager, CommandHistoryManager
+		from globalPlugins.terminalAccess import OutputSearchManager
 		self.assertTrue(callable(OutputSearchManager))
 
 

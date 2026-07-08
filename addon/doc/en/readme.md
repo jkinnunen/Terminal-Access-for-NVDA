@@ -106,6 +106,21 @@ Enter with **NVDA+apostrophe**. Exit with **Escape**.
 | **P**     | Announce active profile. Press twice to select.  |
 | **Y**     | Cycle cursor tracking mode                      |
 
+#### AI CLI Navigation
+
+| Key              | Action                                |
+|------------------|---------------------------------------|
+| **Ctrl+T**       | Next AI turn (assistant or user)      |
+| **Shift+T**      | Previous AI turn                      |
+| **Ctrl+B**       | Next code block                       |
+| **Shift+B**      | Previous code block                   |
+| **Ctrl+L**       | Announce code block language          |
+| **Ctrl+C**       | Copy current code block to clipboard  |
+| **Ctrl+E**       | Explain current code block (if privacy allows) |
+| **Ctrl+D**       | Streaming delta (announce what changed)|
+| **Ctrl+F**       | Scoped search (within current turn)   |
+| **Shift+V**      | Cycle verbosity preset (quiet/normal/verbose) |
+
 #### Tabs and Windows
 
 | Key         | Action                |
@@ -195,6 +210,20 @@ These work without entering the command layer.
 | **NVDA+Shift+Q**        | Toggle quiet mode                                         |
 | **NVDA+F5**             | Toggle indentation announcement                           |
 | **NVDA+F10**            | Announce active profile. Press twice to select a profile. |
+
+#### AI CLI Navigation
+
+| Gesture              | Action                                |
+|----------------------|---------------------------------------|
+| **NVDA+Alt+T**       | Next AI turn                          |
+| **NVDA+Alt+Shift+T** | Previous AI turn                     |
+| **NVDA+Alt+B**       | Next code block                       |
+| **NVDA+Alt+Shift+B** | Previous code block                  |
+| **NVDA+Alt+L**       | Announce code block language          |
+| **NVDA+Alt+C**       | Copy current code block to clipboard  |
+| **NVDA+Alt+E**       | Explain current code block (if privacy allows) |
+| **NVDA+Shift+D**     | Streaming delta (announce what changed)|
+| **NVDA+Shift+V**     | Cycle verbosity preset (quiet/normal/verbose) |
 
 #### Tabs and Windows
 
@@ -292,6 +321,13 @@ Terminal Access adjusts settings automatically based on the running application.
 | **GNU nano**   | Silent shortcut bar                          |
 | **irssi**      | Chat-optimized punctuation                   |
 | **WSL**        | Punctuation MOST for Linux paths             |
+| **Claude**     | Turn detection, code blocks, streaming delta |
+| **Aider**      | Turn detection, diff-aware code blocks       |
+| **ChatGPT CLI**| Turn detection, code block navigation        |
+| **Copilot CLI**| Command suggestion detection                 |
+| **Gemini CLI** | Turn detection, code blocks, streaming delta |
+| **Codex CLI**  | Turn detection, code blocks, streaming delta |
+| **Ollama**     | Turn detection, model output tracking        |
 
 Press P in the command layer (or NVDA+F10) to check which profile is active. Press NVDA+F10 twice to open the profile selection dialog, which lists all profiles. Press Enter on a profile to activate it. You can create, export, and import custom profiles through the settings panel.
 
@@ -323,6 +359,100 @@ Press NVDA+Shift+Q (or Q in the command layer) to toggle quiet mode. Quiet mode 
 
 Example: you run a long `make` build. Press NVDA+Shift+Q to silence the output. If "Error Audio Cues in Quiet Mode" is enabled, you hear a beep if the build fails. Press NVDA+Shift+Q again to re-enable speech and review the output.
 
+### AI CLI Support
+
+Terminal Access detects AI command-line tools and adds navigation, code reading, and error detection features tailored to conversational AI workflows. Supported AI CLIs include Claude, Aider, ChatGPT CLI, GitHub Copilot CLI, Gemini CLI, OpenAI Codex CLI, and Ollama.
+
+#### Turn Navigation
+
+AI conversations alternate between user prompts and assistant responses. Terminal Access tokenizes the buffer into turns so you can jump between them.
+
+Press Ctrl+T in the command layer (or NVDA+Alt+T) to move to the next turn. Press Shift+T in the command layer (or NVDA+Alt+Shift+T) to move to the previous turn. When you land on a turn, you hear the role (user or assistant) and the first line of the turn.
+
+Example: you ask Claude a question, then it responds with a long answer. Press Ctrl+T to jump to the assistant response. Press Shift+T to jump back to your question.
+
+#### Code Block Reading
+
+AI assistants often include code blocks in their responses. Terminal Access detects fenced code blocks (lines starting with triple backticks) and lets you navigate between them.
+
+| Command Layer Key | Direct Gesture         | Action                               |
+|-------------------|------------------------|--------------------------------------|
+| **Ctrl+B**        | **NVDA+Alt+B**         | Next code block                      |
+| **Shift+B**       | **NVDA+Alt+Shift+B**   | Previous code block                  |
+| **Ctrl+L**        | **NVDA+Alt+L**         | Announce language (python, javascript, etc.) |
+| **Ctrl+C**        | **NVDA+Alt+C**         | Copy code block to clipboard         |
+| **Ctrl+E**        | **NVDA+Alt+E**         | Explain code block (privacy gated)   |
+
+Example: Claude responds with a Python function. Press Ctrl+B in the command layer to jump to the code block. Press Ctrl+L to hear "python". Press Ctrl+C to copy the code. Press Ctrl+E to hear a brief explanation of what the code does.
+
+The explain feature sends the code block to the AI for summarization. It is gated by the privacy setting "Allow Code Explain" (off by default). See the Privacy Settings section below.
+
+#### Streaming Delta Mode
+
+When an AI assistant is streaming a response, press NVDA+Shift+D to hear what changed since the last time you checked. This announces only the new text that appeared, not the entire response. Useful for following long streaming answers without re-reading everything.
+
+Example: Claude is writing a long explanation. Press NVDA+Shift+D to hear "Added 3 new lines: The function calculates the factorial..." Press it again a few seconds later to hear the next batch of new content.
+
+#### Scoped Search
+
+Press Ctrl+F in the command layer to search within the current AI turn only. This narrows results to the turn you are reading instead of searching the entire buffer. Use the standard search (F in the command layer) to search the full buffer.
+
+#### AI Error Detection
+
+Terminal Access recognizes AI-specific error messages and plays distinct tones.
+
+| Tone             | Frequency | Meaning                                   |
+|------------------|-----------|-------------------------------------------|
+| Low tone         | 220 Hz    | API error (authentication, server error)  |
+| Pulsing low tone | 220 Hz x2 | Rate limit or token limit reached         |
+
+Examples of lines that trigger AI error tones:
+
+- `Error: rate limit exceeded. Please wait before sending another message.`
+- `API Error: 429 Too Many Requests`
+- `Token limit reached. Your message was truncated.`
+- `Error: invalid API key`
+- `Connection error: unable to reach API endpoint`
+
+These tones play in addition to the standard error detection. You can disable them by unchecking "Error and Warning Audio Cues" in settings.
+
+#### AI CLI Profiles
+
+Terminal Access includes profiles optimized for popular AI CLI tools.
+
+| Profile          | Settings                                       |
+|------------------|-------------------------------------------------|
+| **Claude**       | Turn detection, code block navigation, streaming delta |
+| **Aider**        | Turn detection, diff-aware code blocks          |
+| **ChatGPT CLI**  | Turn detection, code block navigation           |
+| **Copilot CLI**  | Command suggestion detection                    |
+| **Gemini CLI**   | Turn detection, code block navigation, streaming delta |
+| **Codex CLI**    | Turn detection, code block navigation, streaming delta |
+| **Ollama**       | Turn detection, model output tracking           |
+
+Profiles activate automatically when Terminal Access detects the AI tool running in the terminal. Press P in the command layer (or NVDA+F10) to confirm which profile is active.
+
+#### Verbosity Presets
+
+Press Shift+V in the command layer (or NVDA+Shift+V) to cycle through three verbosity presets.
+
+| Preset      | Behavior                                          |
+|-------------|---------------------------------------------------|
+| **Quiet**   | Only errors and turn boundaries are announced     |
+| **Normal**  | Standard announcements (default)                  |
+| **Verbose** | Extra context including token counts and timing   |
+
+#### Privacy Settings
+
+AI CLI features that send terminal content to an AI service are gated by privacy settings. These are off by default.
+
+| Setting                  | Default | Description                                     |
+|--------------------------|---------|-------------------------------------------------|
+| **Allow Code Explain**   | Off     | Permits the explain command to send code blocks to the AI for summarization. |
+| **Allow Summarization**  | Off     | Permits automatic summarization of long AI responses. |
+
+Enable these in Terminal Access settings under the Privacy section. When a privacy-gated feature is invoked while disabled, you hear "This feature is disabled by privacy settings. Enable it in Terminal Access settings."
+
 ## Settings
 
 Open settings from the NVDA menu: Preferences, Settings, Terminal Settings. The panel has three sections: Speech and Tracking, NVDA Gesture Conflicts, and Application Profiles.
@@ -349,7 +479,7 @@ Open settings from the NVDA menu: Preferences, Settings, Terminal Settings. The 
 
 | Setting                       | Description                                                              |
 |-------------------------------|--------------------------------------------------------------------------|
-| **Cursor Tracking Mode**      | Off, Standard (default), or Window (only within defined screen regions). |
+| **Cursor Tracking Mode**      | Off (0), Standard (1, default), or Window (2, only within defined screen regions). |
 | **Cursor Delay**              | Milliseconds (0 to 1000) before announcing cursor moves. Default: 20ms. |
 | **Indentation on Line Read**  | Announces indentation depth after each line. Toggle with NVDA+F5.        |
 | **Condense Repeated Symbols** | Announces "3 equals" instead of "equals equals equals".                  |
@@ -364,6 +494,15 @@ Open settings from the NVDA menu: Preferences, Settings, Terminal Settings. The 
 | **Error Audio Cues in Quiet Mode** | Off     | Play error/warning tones on caret events while quiet mode is active. Lets you hear errors during fast output without speech. |
 | **Output Activity Tones**          | Off     | Play two ascending tones when new program output appears. Does not play during typing. Works in both normal and quiet mode. |
 | **Output Activity Debounce**       | 1000ms  | Milliseconds between activity tone repeats (100 to 10000). Higher values mean fewer tones during sustained output. |
+
+### Privacy
+
+| Setting                | Default | Description                                                        |
+|------------------------|---------|--------------------------------------------------------------------|
+| **Allow Code Explain** | Off     | Permits sending code blocks to the AI for summarization.           |
+| **Allow Summarization**| Off     | Permits automatic summarization of long AI responses.              |
+
+These settings control whether Terminal Access sends terminal content to an AI service. Both are off by default. When a privacy-gated feature is used while disabled, you hear a spoken message instead of the result.
 
 ### NVDA Gesture Conflicts
 
@@ -417,17 +556,18 @@ Press NVDA+F10 to see which profile is active. Open the NVDA Python Console (NVD
 
 Open an issue on [GitHub](https://github.com/PratikP1/Terminal-Access-for-NVDA/issues) with the exact line text that triggered a false positive. You can disable error tones entirely in Terminal Settings by unchecking "Error and Warning Audio Cues".
 
-## Deprecated Features
+### AI CLI: navigating a Claude conversation
 
-These features still work but will be removed in version 2.
-
-| Feature                   | Gestures                              | Reason                                   |
-|---------------------------|---------------------------------------|------------------------------------------|
-| **Command History**       | NVDA+H/G, NVDA+Shift+H, NVDA+Shift+L | Shells have built-in history navigation. |
-| **Highlight tracking**    | Cycle with NVDA+Alt+Y                 | Modern terminals strip ANSI from UIA.    |
-| **Rectangular selection** | NVDA+Shift+C                          | Linear copy covers most needs.           |
-
-If you rely on any of these, open an issue on [GitHub](https://github.com/PratikP1/Terminal-Access-for-NVDA/issues) before they are removed.
+1. Open a terminal and start a Claude session.
+2. Type your question and press Enter.
+3. Wait for the response to finish streaming.
+4. Press NVDA+Alt+T to jump to the assistant turn.
+5. Press NVDA+A for continuous reading of the response.
+6. Press NVDA+Alt+B to jump to the first code block.
+7. Press NVDA+Alt+L to hear the language.
+8. Press NVDA+Alt+C to copy the code block.
+9. Press NVDA+Alt+T again to jump to the next turn.
+10. Press NVDA+Shift+D during streaming to hear only what is new.
 
 ## System Requirements
 

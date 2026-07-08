@@ -207,6 +207,32 @@ def _setup_signatures(lib: ctypes.CDLL) -> None:
 	]
 	lib.ta_position_cache_invalidate.restype = None
 
+	# Fuzzy search
+	lib.ta_fuzzy_search.argtypes = [
+		POINTER(c_ubyte),  # pattern_ptr
+		c_size_t,          # pattern_len
+		POINTER(c_ubyte),  # lines_ptr
+		c_size_t,          # lines_len
+		c_uint32,          # max_distance
+		POINTER(c_ubyte),  # out_buf
+		c_size_t,          # out_buf_len
+	]
+	lib.ta_fuzzy_search.restype = c_int32
+
+	# Scoped search
+	lib.ta_scoped_search.argtypes = [
+		POINTER(c_ubyte),  # pattern_ptr
+		c_size_t,          # pattern_len
+		POINTER(c_ubyte),  # lines_ptr
+		c_size_t,          # lines_len
+		c_uint32,          # start
+		c_uint32,          # end
+		c_uint32,          # case_sensitive
+		POINTER(c_ubyte),  # out_buf
+		c_size_t,          # out_buf_len
+	]
+	lib.ta_scoped_search.restype = c_int32
+
 	# Unicode width
 	lib.ta_text_width.argtypes = [POINTER(c_ubyte), c_size_t]
 	lib.ta_text_width.restype = c_uint32
@@ -634,6 +660,120 @@ def native_text_width(text: str) -> int:
 	return result
 
 
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Fuzzy Search
+# ═══════════════════════════════════════════════════════════════
+
+# Default output buffer size for JSON results (256 KB).
+_SEARCH_BUF_SIZE = 256 * 1024
+
+
+def native_fuzzy_search(
+	pattern: str,
+	lines: list[str],
+	max_distance: int = 1,
+) -> list[dict]:
+	"""Fuzzy search across lines using native Rust acceleration.
+
+	Each line is stripped of ANSI codes, then each word is compared
+	to *pattern* using Damerau-Levenshtein distance. A line matches
+	if any word is within *max_distance* edits of the pattern
+	(case-insensitive).
+
+	Returns a list of dicts: ``[{"line": int, "text": str}, ...]``
+
+	Raises RuntimeError if the native DLL is not available.
+	"""
+	import json
+
+	lib = _get_dll()
+	if lib is None:
+		raise RuntimeError("Native DLL not available")
+
+	pattern_buf, pattern_len = _str_to_utf8(pattern)
+	lines_text = "\n".join(lines)
+	lines_buf, lines_len = _str_to_utf8(lines_text)
+
+	out_buf = (c_ubyte * _SEARCH_BUF_SIZE)()
+
+	rc = lib.ta_fuzzy_search(
+		pattern_buf,
+		c_size_t(pattern_len),
+		lines_buf,
+		c_size_t(lines_len),
+		c_uint32(max_distance),
+		out_buf,
+		c_size_t(_SEARCH_BUF_SIZE),
+	)
+
+	if rc < 0:
+		if rc == -1:
+			raise RuntimeError("ta_fuzzy_search: output buffer too small")
+		if rc == -2:
+			raise RuntimeError("ta_fuzzy_search: invalid UTF-8 input")
+		raise RuntimeError(f"ta_fuzzy_search failed: error {rc}")
+
+	if rc == 0:
+		return []
+
+	json_bytes = bytes(out_buf[:rc])
+	return json.loads(json_bytes.decode("utf-8"))
+
+
+def native_scoped_search(
+	pattern: str,
+	lines: list[str],
+	start_line: int,
+	end_line: int,
+	case_sensitive: bool = False,
+) -> list[dict]:
+	"""Scoped substring search within a line range using native Rust.
+
+	Searches lines from *start_line* to *end_line* (inclusive) for
+	*pattern*. ANSI codes are stripped before matching.
+
+	Returns a list of dicts: ``[{"line": int, "text": str}, ...]``
+
+	Raises RuntimeError if the native DLL is not available.
+	"""
+	import json
+
+	lib = _get_dll()
+	if lib is None:
+		raise RuntimeError("Native DLL not available")
+
+	pattern_buf, pattern_len = _str_to_utf8(pattern)
+	lines_text = "\n".join(lines)
+	lines_buf, lines_len = _str_to_utf8(lines_text)
+
+	out_buf = (c_ubyte * _SEARCH_BUF_SIZE)()
+
+	rc = lib.ta_scoped_search(
+		pattern_buf,
+		c_size_t(pattern_len),
+		lines_buf,
+		c_size_t(lines_len),
+		c_uint32(start_line),
+		c_uint32(end_line),
+		c_uint32(1 if case_sensitive else 0),
+		out_buf,
+		c_size_t(_SEARCH_BUF_SIZE),
+	)
+
+	if rc < 0:
+		if rc == -1:
+			raise RuntimeError("ta_scoped_search: output buffer too small")
+		if rc == -2:
+			raise RuntimeError("ta_scoped_search: invalid UTF-8 input")
+		raise RuntimeError(f"ta_scoped_search failed: error {rc}")
+
+	if rc == 0:
+		return []
+
+	json_bytes = bytes(out_buf[:rc])
+	return json.loads(json_bytes.decode("utf-8"))
 
 
 # ═══════════════════════════════════════════════════════════════

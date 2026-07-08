@@ -2,6 +2,77 @@
 
 All notable changes to Terminal Access for NVDA will be documented in this file.
 
+## [2.0.0] - 2026-03-27
+
+### Added
+
+#### AI CLI Support
+- **AI turn detection and navigation**: Tokenizes AI CLI conversations (Claude, Aider, ChatGPT CLI, Copilot CLI, Gemini CLI, Codex CLI, Ollama) into turns with role identification (user, assistant, system, tool). Press NVDA+Alt+T / NVDA+Alt+Shift+T to jump between turns. Command layer: Ctrl+T / Shift+T. Announces role and first line on landing. Plays 660 Hz tone on turn boundary.
+- **Code block detection and reading**: Detects fenced code blocks with language inference from fence markers. Press NVDA+Alt+B / NVDA+Alt+Shift+B to navigate between code blocks. Press NVDA+Alt+L to announce language and line count. Press NVDA+Alt+C to copy code block (capped at 5000 characters with truncation notice). Press NVDA+Alt+E to hear a brief offline explanation of the code (gated by privacy setting).
+- **Streaming delta mode**: Press NVDA+Shift+D to hear only what changed since the last check. Useful for following long streaming AI responses without re-reading. Supports three verbosity levels: quiet (count only), normal (count and last line), verbose (count and content). Braille shows concise delta format (+3, ~L5).
+- **AI error and rate limit detection**: Recognizes 15 AI-specific error patterns (rate limits, token limits, API errors, authentication failures, connection errors) and 2 warning patterns (approaching limit, nearing quota). Double 330 Hz beep for AI errors (distinct from 220 Hz standard error). 500 Hz tone for AI warnings (distinct from 440 Hz standard warning).
+- **AI CLI profiles**: Built-in profiles for Claude, Aider, ChatGPT CLI, GitHub Copilot CLI, Gemini CLI, OpenAI Codex CLI, and Ollama. Each configured with optimized punctuation, key echo, and turn detection settings. Profiles activate automatically from process name or window title. AI CLIs detected before multiplexer names so "tmux: claude" returns the Claude profile.
+- **Gemini CLI and OpenAI Codex CLI profiles**: Added Gemini CLI and OpenAI Codex CLI profiles with turn detection, code block navigation, and window title detection.
+
+#### Search
+- **Scoped search**: Search within the current section or turn instead of the entire buffer. Uses SectionTokenizer to determine boundaries.
+- **Fuzzy matching**: When exact search returns zero results, automatically falls back to Damerau-Levenshtein distance 1 matching. Catches single-character typos without manual regex. Announces "fuzzy match" when fallback activates.
+- **Rust fuzzy search**: Native Rust implementation of Levenshtein distance and fuzzy search in termaccess-core. Exposed via FFI with JSON output. Includes ANSI stripping, 500-character pattern cap, and 1000-match limit. Falls back to Python when native DLL unavailable.
+- **Search history**: Last 10 search patterns stored, deduplicated, most recent first.
+
+#### Semantic Navigation
+- **Section tokenizer**: Classifies terminal buffer lines into 9 categories (prompt, command, error, warning, stack trace, progress, timestamp, heading, output). Strips ANSI escape codes before classification so colored terminal output is detected correctly.
+- **Section navigation scripts**: Jump to next/previous section boundary, next/previous error, next/previous prompt. Command layer: N/Z for section, Shift+N/Shift+Z for error, Ctrl+N/Ctrl+P for prompt. Direct gestures: NVDA+N, NVDA+Shift+N, NVDA+Alt+N, NVDA+Alt+Shift+N, NVDA+Alt+P, NVDA+Alt+Shift+P.
+- **Section list dialog**: Press NVDA+Alt+S (or Shift+S in command layer) to open a dialog listing all detected sections with type, line number, and preview. Filter by section type. Press Enter to jump.
+
+#### Bookmarks
+- **AI-aware auto-labeling**: Bookmarks set on AI turn lines are labeled with role and content ("user: explain recursion", "assistant: Here is a summary"). Bookmarks near a prompt are labeled with the command ("cargo build: error on line 5"). Falls back to plain line text.
+- **AI turn list dialog**: Press NVDA+Alt+Shift+L (or Shift+R in command layer) to list all detected AI turns with role, line number, and preview. Filter by role. Press Enter to jump.
+- **Bookmark rename**: Override auto-generated labels with custom names.
+
+#### Audio and Braille
+- **Centralized audio cue system**: `play_cue()` function with 11 mapped events (error, warning, ai_error, ai_warning, bookmark_set, bookmark_jump, search_match, no_match, section_start, ai_turn, ai_code_block). Each event has a distinct tone signature.
+- **Braille formatters**: Concise braille messages for section jumps, search results, bookmarks, profiles, errors, and AI turns.
+- **Verbosity presets**: Press NVDA+Shift+V (or Shift+V in command layer) to cycle between quiet, normal, and verbose. Controls how much context is announced during navigation and delta mode.
+- **"What changed" script**: Press NVDA+Shift+D to compare the current buffer to the last snapshot and hear a summary of changes.
+
+#### Privacy
+- **Privacy guard**: Single offline privacy toggle gating summarization and code explain features. Both off by default. When a gated feature is invoked while disabled, announces "Feature disabled. Enable in Terminal Settings under Privacy." No network imports exist anywhere in the addon (verified by AST scan).
+- **Privacy status**: Press NVDA+Shift+P (or Shift+P in command layer) to hear current privacy settings.
+- **Summarization**: Offline extractive summarizer scores lines by error keywords, URLs, headings, and statistical content. Summarize last command (NVDA+Alt+S) or selection (NVDA+Alt+Shift+S). Gated by privacy toggle.
+
+#### Profiles
+- **New terminal profiles**: kubectl, npm/yarn, pytest, cargo, docker. Each with optimized punctuation and tracking settings.
+- **Focused pane prioritization**: tmux and Claude profiles set focusedPaneOnly to reduce chatter from inactive panes.
+
+#### Safety and Reliability
+- **Search input validation**: Pattern length capped at 500 characters, match count capped at 1000, line length capped at 10000 characters. Invalid regex caught with user-friendly message.
+- **URL scheme blocking**: file://, javascript:, and data: URLs blocked from opening. Configurable warning before opening URLs (urlOpenWarning setting).
+- **Named pipe hardening**: Payload size capped at 1MB (was 16MB). Exponential backoff on helper restarts (1s to 30s). Sliding window restart limit (5 restarts in 60 seconds).
+- **Native FFI fallback**: Single error log on first FFI failure, then silent fallback to Python. Fallback counter tracks frequency.
+
+#### NVDAObject Overlay
+- **TerminalAccessTerminal overlay class**: Inserted via chooseNVDAObjectOverlayClasses at position 0 in clsList. Overrides _reportNewLines with output coalescing (3 or fewer lines: speak all; 4 to 20: speak last 3; 21+: announce count). Blank/whitespace lines suppressed. Error/warning tones integrated into output pipeline. event_textChange override handles quiet mode by not waking monitor thread.
+
+### Enhanced
+- **WindowMonitor debouncing**: 100ms debounce on window content updates to reduce chatter from noisy terminal output.
+- **Cursor mode names**: Human-readable names for cursor tracking modes (Off, Standard, Window) used in announcements.
+
+### Changed
+- **Settings panel structure**: Replaced CollapsiblePane (which was not properly exposed to NVDA) with three flat groups: Speech and Tracking, NVDA Gesture Conflicts, Application Profiles. Audio Cues settings added as a fourth group.
+- **HTML documentation rendering**: Added `tables` and `fenced_code` to `buildVars.py` `markdownExtensions` so that markdown tables render correctly in the HTML user guide launched by NVDA+Shift+F1.
+- **Version**: 2.0.0.
+
+### Removed
+- **Command History Navigation**: NVDA+H/G, NVDA+Shift+H, NVDA+Shift+L and CommandHistoryManager. Shells have built-in history navigation.
+- **Highlight cursor tracking mode**: CT_HIGHLIGHT (formerly mode 2). Modern terminals strip ANSI from UIA text. CT_WINDOW is now mode 2 (was 3). The mode cycle is Off (0), Standard (1), Window (2).
+- **Rectangular selection**: NVDA+Shift+C. Linear copy (NVDA+C) covers most needs.
+
+### Fixed
+- **ANSI-colored prompts not detected**: SectionTokenizer now strips ANSI escape codes before classification. Colored prompts (common in bash, zsh, PowerShell) are correctly detected as prompt lines. Previously classified as "output", breaking section navigation.
+- **.gitignore excluding addon modules**: The `lib/` pattern (intended for Python packaging) was matching `addon/lib/`, hiding all extracted modules from git. Removed the pattern. Added specific ignores for `addon/lib/x86/` and `addon/lib/x64/` (native DLL build artifacts).
+- **User guide HTML path**: NVDA+Shift+F1 now constructs the path directly from `addon.path` instead of relying on `getDocFilePath()` which produced doubled paths.
+
 ## [1.4.0] - 2026-03-22
 
 ### Added

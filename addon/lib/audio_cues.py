@@ -14,6 +14,10 @@ _TONE_MAP = {
     "section_start": [(660, 30)],
     "error": [(220, 50)],
     "warning": [(440, 30)],
+    "ai_error": [(330, 80), (330, 80)],
+    "ai_warning": [(500, 60)],
+    "ai_turn": [(660, 30)],
+    "ai_code_block": [(880, 20), (660, 20)],
     "bookmark_set": [(1000, 20), (1200, 20)],
     "bookmark_jump": [(800, 30)],
     "search_match": [(550, 20)],
@@ -80,6 +84,18 @@ def format_braille_error():
     return "ERR"
 
 
+def format_braille_ai_turn(role, preview=""):
+    """Format an AI turn braille message.
+
+    Returns a string like ``"turn: assistant"`` or
+    ``"turn: user: how do I..."`` when *preview* is given.
+    """
+    if preview:
+        truncated = preview[:20].rstrip()
+        return f"turn: {role}: {truncated}"
+    return f"turn: {role}"
+
+
 # ---------------------------------------------------------------------------
 # Verbosity helpers
 # ---------------------------------------------------------------------------
@@ -135,19 +151,32 @@ def describe_changes(old_text, new_text):
 
     # Find lines that are new or different
     changed = []
+    removed_count = 0
     max_len = max(len(old_lines), len(new_lines))
     for i in range(max_len):
         old_line = old_lines[i] if i < len(old_lines) else None
         new_line = new_lines[i] if i < len(new_lines) else None
-        if old_line != new_line and new_line is not None:
-            changed.append(new_line)
+        if old_line != new_line:
+            if new_line is not None:
+                changed.append(new_line)
+            else:
+                removed_count += 1
 
-    if not changed:
+    parts = []
+    if changed:
+        count = len(changed)
+        if count <= 3:
+            lines_text = "; ".join(changed)
+            label = "1 line changed" if count == 1 else f"{count} lines changed"
+            parts.append(f"{label}: {lines_text}")
+        else:
+            parts.append(f"{count} lines changed")
+
+    if removed_count > 0:
+        label = "1 line removed" if removed_count == 1 else f"{removed_count} lines removed"
+        parts.append(label)
+
+    if not parts:
         return "No changes"
 
-    count = len(changed)
-    if count <= 3:
-        lines_text = "; ".join(changed)
-        return f"{count} line changed: {lines_text}" if count == 1 else f"{count} lines changed: {lines_text}"
-
-    return f"{count} lines changed"
+    return ", ".join(parts)

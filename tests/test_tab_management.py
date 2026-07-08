@@ -257,25 +257,6 @@ def test_output_search_manager_with_tab_manager():
 	assert search_manager._tab_manager == tab_manager
 
 
-def test_command_history_manager_with_tab_manager():
-	"""Test that CommandHistoryManager can work with TabManager."""
-	from globalPlugins.terminalAccess import CommandHistoryManager, TabManager
-
-	# Create mock terminal
-	terminal = Mock()
-	terminal.windowHandle = 12345
-	terminal.windowText = "Terminal"
-
-	# Create TabManager
-	tab_manager = TabManager(terminal)
-
-	# Create CommandHistoryManager with TabManager
-	history_manager = CommandHistoryManager(terminal, max_history=100, tab_manager=tab_manager)
-
-	# Verify initialization
-	assert history_manager._tab_manager == tab_manager
-
-
 def test_tab_manager_handles_missing_properties():
 	"""Test that TabManager handles terminals with missing properties."""
 	from globalPlugins.terminalAccess import TabManager

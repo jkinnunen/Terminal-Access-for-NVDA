@@ -518,3 +518,145 @@ pub unsafe extern "C" fn ta_find_column_position(
     };
     termaccess_core::unicode_width::find_column_position(text, target_col)
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  Fuzzy Search
+// ═══════════════════════════════════════════════════════════════
+
+/// Fuzzy search across newline-separated lines.
+///
+/// The `lines_ptr`/`lines_len` contain newline-separated text.
+/// Results are written as JSON to `out_buf` (up to `out_buf_len` bytes).
+/// JSON format: `[{"line": N, "text": "..."}]`
+///
+/// Returns the number of bytes written on success, or a negative
+/// error code on failure:
+///   -1 = output buffer too small
+///   -2 = invalid UTF-8 input
+///
+/// # Safety
+/// - `pattern_ptr` must point to `pattern_len` valid UTF-8 bytes
+/// - `lines_ptr` must point to `lines_len` valid UTF-8 bytes
+/// - `out_buf` must point to `out_buf_len` writable bytes
+#[no_mangle]
+pub unsafe extern "C" fn ta_fuzzy_search(
+    pattern_ptr: *const u8,
+    pattern_len: usize,
+    lines_ptr: *const u8,
+    lines_len: usize,
+    max_distance: u32,
+    out_buf: *mut u8,
+    out_buf_len: usize,
+) -> i32 {
+    if out_buf.is_null() {
+        return -1;
+    }
+
+    let pattern = match read_utf8(pattern_ptr, pattern_len) {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+
+    let lines_text = match read_utf8(lines_ptr, lines_len) {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+
+    let lines: Vec<String> = lines_text.split('\n').map(|s| s.to_string()).collect();
+    let results = termaccess_core::fuzzy_search::fuzzy_search(
+        pattern,
+        &lines,
+        max_distance as usize,
+    );
+
+    let json_results: Vec<serde_json::Value> = results
+        .iter()
+        .map(|(line_num, text)| {
+            serde_json::json!({
+                "line": line_num,
+                "text": text,
+            })
+        })
+        .collect();
+
+    let json_str = serde_json::to_string(&json_results).unwrap_or_else(|_| "[]".to_string());
+    let json_bytes = json_str.as_bytes();
+
+    if json_bytes.len() > out_buf_len {
+        return -1;
+    }
+
+    ptr::copy_nonoverlapping(json_bytes.as_ptr(), out_buf, json_bytes.len());
+    json_bytes.len() as i32
+}
+
+/// Scoped (bounded) search across newline-separated lines.
+///
+/// Searches lines from `start` to `end` (inclusive) for the pattern.
+/// Results are written as JSON to `out_buf`.
+/// JSON format: `[{"line": N, "text": "..."}]`
+///
+/// Returns the number of bytes written on success, or a negative
+/// error code on failure:
+///   -1 = output buffer too small
+///   -2 = invalid UTF-8 input
+///
+/// # Safety
+/// - `pattern_ptr` must point to `pattern_len` valid UTF-8 bytes
+/// - `lines_ptr` must point to `lines_len` valid UTF-8 bytes
+/// - `out_buf` must point to `out_buf_len` writable bytes
+#[no_mangle]
+pub unsafe extern "C" fn ta_scoped_search(
+    pattern_ptr: *const u8,
+    pattern_len: usize,
+    lines_ptr: *const u8,
+    lines_len: usize,
+    start: u32,
+    end: u32,
+    case_sensitive: u32,
+    out_buf: *mut u8,
+    out_buf_len: usize,
+) -> i32 {
+    if out_buf.is_null() {
+        return -1;
+    }
+
+    let pattern = match read_utf8(pattern_ptr, pattern_len) {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+
+    let lines_text = match read_utf8(lines_ptr, lines_len) {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+
+    let lines: Vec<String> = lines_text.split('\n').map(|s| s.to_string()).collect();
+    let results = termaccess_core::fuzzy_search::scoped_search(
+        pattern,
+        &lines,
+        start as usize,
+        end as usize,
+        case_sensitive != 0,
+    );
+
+    let json_results: Vec<serde_json::Value> = results
+        .iter()
+        .map(|(line_num, text)| {
+            serde_json::json!({
+                "line": line_num,
+                "text": text,
+            })
+        })
+        .collect();
+
+    let json_str = serde_json::to_string(&json_results).unwrap_or_else(|_| "[]".to_string());
+    let json_bytes = json_str.as_bytes();
+
+    if json_bytes.len() > out_buf_len {
+        return -1;
+    }
+
+    ptr::copy_nonoverlapping(json_bytes.as_ptr(), out_buf, json_bytes.len());
+    json_bytes.len() as i32
+}

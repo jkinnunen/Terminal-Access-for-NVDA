@@ -11,6 +11,7 @@
 7. [Window Definitions](#window-definitions)
 8. [Unicode and CJK Text](#unicode-and-cjk-text)
 9. [Performance Optimization](#performance-optimization)
+10. [AI CLI Support](#ai-cli-support)
 
 ---
 
@@ -57,7 +58,6 @@ While in the command layer, the following keys are active:
 |-----|--------|
 | **R** | Toggle mark (start/end) |
 | **C** | Copy linear selection |
-| **Shift+C** | Copy rectangular selection *(deprecated, removed in v2)* |
 | **X** | Clear marks |
 | **V** | Enter copy mode (L=line, S=screen, Esc=cancel) |
 
@@ -89,13 +89,6 @@ While in the command layer, the following keys are active:
 |-----|--------|
 | **T** | Create new tab |
 | **Shift+T** | List tabs |
-
-#### Command History *(deprecated, removed in v2)*
-| Key | Action |
-|-----|--------|
-| **H / G** | Previous / next command in history |
-| **Shift+H** | Scan command history |
-| **Shift+L** | List command history |
 
 #### Search & URL List
 | Key | Action |
@@ -470,7 +463,7 @@ You can customize settings for any terminal:
 
 All Terminal Access features work with third-party terminals:
 - Navigation commands (line, word, character)
-- Selection (linear and rectangular)
+- Selection (linear copy)
 - Cursor tracking modes
 - Symbol/punctuation levels
 - Window definitions
@@ -545,7 +538,7 @@ This defines:
 Terminal Access correctly handles double-width characters used in Chinese, Japanese, and Korean:
 
 - **Accurate Width Calculation**: CJK characters count as 2 columns
-- **Column Extraction**: Rectangular selection works correctly with CJK
+- **Column Extraction**: Column-based operations work correctly with CJK
 - **Combining Characters**: Zero-width combining marks handled properly
 
 Example:
@@ -627,7 +620,7 @@ For small cursor movements (within 10 positions):
 
 ### Background Processing (v1.0.22)
 
-Large rectangular selections (>100 rows) run in background threads:
+Large selections (>100 rows) run in background threads:
 
 - **Progress Dialog**: Shows completion percentage
 - **Cancellation Support**: Cancel long-running operations
@@ -645,6 +638,95 @@ When the native component is available (`termaccess.dll`), CPU-bound text proces
 A background **helper process** (`termaccess-helper.exe`) reads terminal buffers via UIA on a separate thread, keeping NVDA's main thread responsive. For terminals without UIA TextPattern support (some conhost configurations, mintty, older PuTTY builds), the helper falls back to reading via the Win32 Console API (`ReadConsoleOutputCharacterW`).
 
 All native features fall back gracefully to pure Python when the native components are unavailable. No user action is required.
+
+---
+
+## AI CLI Support
+
+Terminal Access detects AI command-line tools and provides specialized navigation for conversational AI workflows. Supported tools: Claude, Aider, ChatGPT CLI, GitHub Copilot CLI, Gemini CLI, OpenAI Codex CLI, and Ollama.
+
+### Turn Navigation
+
+The `AiTurnTokenizer` splits the terminal buffer into turns based on role markers (user prompts and assistant responses). Each AI CLI profile defines its own marker patterns. For example, the Claude profile recognizes `>` as a user prompt and treats everything else as assistant output.
+
+#### Command Layer Keys
+
+| Key         | Action                           |
+|-------------|----------------------------------|
+| **Ctrl+T**  | Jump to next turn                |
+| **Shift+T** | Jump to previous turn            |
+
+#### Direct Gestures
+
+| Gesture              | Action                |
+|----------------------|-----------------------|
+| **NVDA+Alt+T**       | Jump to next turn     |
+| **NVDA+Alt+Shift+T** | Jump to previous turn |
+
+When you land on a turn, Terminal Access announces the role (user or assistant) and the first line of the turn. If no more turns exist in the given direction, you hear "No more turns."
+
+### Code Block Navigation
+
+The `CodeBlockDetector` scans the buffer for fenced code blocks (triple backtick delimiters). It tracks the language tag, start line, end line, and content of each block.
+
+| Command Layer Key | Direct Gesture         | Action                       |
+|-------------------|------------------------|------------------------------|
+| **Ctrl+B**        | **NVDA+Alt+B**         | Next code block              |
+| **Shift+B**       | **NVDA+Alt+Shift+B**   | Previous code block          |
+| **Ctrl+L**        | **NVDA+Alt+L**         | Announce language            |
+| **Ctrl+C**        | **NVDA+Alt+C**         | Copy code block to clipboard |
+| **Ctrl+E**        | **NVDA+Alt+E**         | Explain code block           |
+
+The explain command sends the code block to the running AI for a brief summary. This feature is gated by the "Allow Code Explain" privacy setting (off by default).
+
+### Streaming Delta
+
+The `StreamingDeltaTracker` monitors the buffer for new content while an AI assistant is streaming its response. Press NVDA+Shift+D to hear only what changed since the last delta check. The tracker stores a snapshot of the buffer and diffs it against the current content to determine what is new.
+
+### Scoped Search
+
+Press Ctrl+F in the command layer to search within the current AI turn only. The search is restricted to the text between the current turn boundary and the next turn boundary. Standard search (F in the command layer) still searches the full buffer.
+
+### AI Error Detection
+
+Terminal Access recognizes AI-specific error patterns in addition to standard compiler and shell errors.
+
+| Pattern Type   | Examples                                          |
+|----------------|---------------------------------------------------|
+| Rate limit     | "rate limit exceeded", "429 Too Many Requests"    |
+| Token limit    | "token limit reached", "message was truncated"    |
+| API error      | "invalid API key", "authentication failed"        |
+| Connection     | "unable to reach API endpoint"                    |
+
+Rate limit and token limit errors produce a pulsing low tone (two quick 220 Hz beeps). Other API errors produce a single low tone.
+
+### Verbosity Presets
+
+Press Shift+V in the command layer (or NVDA+Shift+V) to cycle through verbosity presets.
+
+| Preset      | Behavior                                          |
+|-------------|---------------------------------------------------|
+| **Quiet**   | Only errors and turn boundaries are announced     |
+| **Normal**  | Standard announcements (default)                  |
+| **Verbose** | Extra context including token counts and timing   |
+
+### Privacy and Code Explain Settings
+
+AI CLI features that send terminal content to an external service are controlled by two settings in Terminal Access, both off by default.
+
+| Setting                | Default | Description                                              |
+|------------------------|---------|----------------------------------------------------------|
+| **Allow Code Explain** | Off     | Permits sending code blocks to the AI for summarization. |
+| **Allow Summarization**| Off     | Permits automatic summarization of long AI responses.    |
+
+When a privacy-gated feature is invoked while disabled, Terminal Access speaks a message explaining that the feature is disabled and how to enable it.
+
+To enable these settings:
+1. Open NVDA Settings (NVDA+N, Preferences, Settings).
+2. Navigate to the Terminal Access category.
+3. Find the Privacy section.
+4. Check "Allow Code Explain" or "Allow Summarization".
+5. Click OK to save.
 
 ---
 

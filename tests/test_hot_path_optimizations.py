@@ -102,7 +102,17 @@ class TestContentGenerationTracking(unittest.TestCase):
         from globalPlugins.terminalAccess import GlobalPlugin
         plugin = GlobalPlugin.__new__(GlobalPlugin)
         # Manually set all required state vars to avoid full __init__
+        _defaults = {
+            "quietMode": False, "keyEcho": True, "repeatedSymbols": False,
+            "repeatedSymbolsValues": "-_=!", "processSymbols": False,
+            "punctuationLevel": 2, "cursorTracking": True,
+            "cursorTrackingMode": 1, "cursorDelay": 20,
+            "verboseMode": False, "indentationOnLineRead": False,
+            "errorAudioCues": True, "errorAudioCuesInQuietMode": False,
+            "outputActivityTones": False, "outputActivityDebounce": 1000,
+        }
         plugin._configManager = Mock()
+        plugin._configManager.get = Mock(side_effect=lambda k, d=None: _defaults.get(k, d))
         plugin._windowManager = Mock()
         plugin._positionCalculator = Mock()
         plugin.lastTerminalAppName = None

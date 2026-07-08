@@ -251,6 +251,48 @@ class TestProfilePersistence(unittest.TestCase):
 		self.assertFalse(restored.contains(24, 40))
 
 
+class TestProfileBooleanRoundtrip(unittest.TestCase):
+	"""Boolean fields must survive to_dict/from_dict as booleans, not integers."""
+
+	def test_linePause_roundtrip_preserves_bool_type(self):
+		"""linePause=False must remain bool after roundtrip, not become int 0."""
+		from lib.profiles import ApplicationProfile
+
+		profile = ApplicationProfile('test', 'Test')
+		profile.linePause = False
+		data = profile.to_dict()
+		restored = ApplicationProfile.from_dict(data)
+		assert restored.linePause is False, (
+			f"Expected linePause to be False (bool), got {restored.linePause!r} ({type(restored.linePause).__name__})"
+		)
+
+	def test_linePause_true_roundtrip_preserves_bool_type(self):
+		"""linePause=True must remain bool after roundtrip, not become int 1."""
+		from lib.profiles import ApplicationProfile
+
+		profile = ApplicationProfile('test', 'Test')
+		profile.linePause = True
+		data = profile.to_dict()
+		restored = ApplicationProfile.from_dict(data)
+		assert restored.linePause is True, (
+			f"Expected linePause to be True (bool), got {restored.linePause!r} ({type(restored.linePause).__name__})"
+		)
+
+
+	def test_focusedPaneOnly_roundtrip(self):
+		"""focusedPaneOnly=True must survive to_dict/from_dict roundtrip."""
+		from lib.profiles import ApplicationProfile
+
+		profile = ApplicationProfile('test', 'Test')
+		profile.focusedPaneOnly = True
+		data = profile.to_dict()
+		assert 'focusedPaneOnly' in data, "focusedPaneOnly missing from to_dict output"
+		restored = ApplicationProfile.from_dict(data)
+		assert restored.focusedPaneOnly is True, (
+			f"Expected focusedPaneOnly=True, got {restored.focusedPaneOnly!r}"
+		)
+
+
 class TestProfileSelectionFeatures(unittest.TestCase):
 	"""Tests for profile selection dialog support."""
 

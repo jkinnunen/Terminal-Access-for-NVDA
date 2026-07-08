@@ -263,6 +263,22 @@ Open NVDA menu, Preferences, Settings, Terminal Settings. The "NVDA Gesture Conf
 
 Terminal Access gestures only activate inside supported terminals. Outside a terminal, the gestures pass through to NVDA or other add-ons. Terminal detection uses exact match on the process name.
 
+## AI CLI Quick Start
+
+Terminal Access detects AI command-line tools (Claude, Aider, ChatGPT CLI, Copilot CLI, Gemini CLI, Codex CLI, Ollama) and adds conversation navigation. Here are the five most important gestures.
+
+| Gesture              | Action                                |
+|----------------------|---------------------------------------|
+| **NVDA+Alt+T**       | Jump to next AI turn                  |
+| **NVDA+Alt+B**       | Jump to next code block               |
+| **NVDA+Alt+C**       | Copy current code block to clipboard  |
+| **NVDA+Shift+D**     | Hear what changed (streaming delta)   |
+| **NVDA+Shift+V**     | Cycle verbosity (quiet/normal/verbose)|
+
+These also work in the command layer (NVDA+apostrophe) as Ctrl+T, Ctrl+B, Ctrl+C, Ctrl+D, and Shift+V.
+
+Example: start a Claude session in your terminal. Ask a question. When the response finishes, press NVDA+Alt+T to jump to the assistant turn. Press NVDA+Alt+B to jump to a code block. Press NVDA+Alt+C to copy it.
+
 ## Common Tasks
 
 ### Reading Command Output

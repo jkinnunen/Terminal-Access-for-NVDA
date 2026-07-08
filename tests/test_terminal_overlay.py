@@ -142,7 +142,7 @@ class TestOverlayReportNewLines:
         }.get(k, d))
 
         mock_tones = MagicMock()
-        with patch("lib.terminal_overlay.tones", mock_tones):
+        with patch("lib.audio_cues.tones", mock_tones):
             obj._reportNewLines(["main.c:5:12: error: expected ';'"])
             mock_tones.beep.assert_any_call(220, 50)
 
@@ -157,7 +157,7 @@ class TestOverlayReportNewLines:
         }.get(k, d))
 
         mock_tones = MagicMock()
-        with patch("lib.terminal_overlay.tones", mock_tones):
+        with patch("lib.audio_cues.tones", mock_tones):
             obj._reportNewLines(["main.c:5: warning: unused variable"])
             mock_tones.beep.assert_any_call(440, 30)
 
@@ -172,7 +172,7 @@ class TestOverlayReportNewLines:
         }.get(k, d))
 
         mock_tones = MagicMock()
-        with patch("lib.terminal_overlay.tones", mock_tones):
+        with patch("lib.audio_cues.tones", mock_tones):
             obj._reportNewLines(["total 48"])
             mock_tones.beep.assert_not_called()
 
@@ -187,7 +187,7 @@ class TestOverlayReportNewLines:
         }.get(k, d))
 
         mock_tones = MagicMock()
-        with patch("lib.terminal_overlay.tones", mock_tones):
+        with patch("lib.audio_cues.tones", mock_tones):
             obj._reportNewLines(["main.c:5:12: error: expected ';'"])
             mock_tones.beep.assert_not_called()
 

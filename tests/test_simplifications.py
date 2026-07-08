@@ -455,15 +455,14 @@ class TestInitializeManagersLoop:
 		terminal.appModule.appName = app_name
 		return terminal
 
-	def test_creates_all_five_managers(self):
-		"""_initializeManagers should create all 5 managers."""
+	def test_creates_all_four_managers(self):
+		"""_initializeManagers should create all 4 managers."""
 		plugin = self._make_plugin()
 		terminal = self._make_terminal()
 		plugin._initializeManagers(terminal)
 		assert plugin._tabManager is not None
 		assert plugin._bookmarkManager is not None
 		assert plugin._searchManager is not None
-		assert plugin._commandHistoryManager is not None
 		assert plugin._urlExtractorManager is not None
 
 	def test_updates_existing_managers(self):
@@ -474,7 +473,6 @@ class TestInitializeManagersLoop:
 		tab_mgr = plugin._tabManager
 		bookmark_mgr = plugin._bookmarkManager
 		search_mgr = plugin._searchManager
-		history_mgr = plugin._commandHistoryManager
 		url_mgr = plugin._urlExtractorManager
 
 		terminal2 = self._make_terminal()
@@ -484,7 +482,6 @@ class TestInitializeManagersLoop:
 		assert plugin._tabManager is tab_mgr
 		assert plugin._bookmarkManager is bookmark_mgr
 		assert plugin._searchManager is search_mgr
-		assert plugin._commandHistoryManager is history_mgr
 		assert plugin._urlExtractorManager is url_mgr
 
 	def test_update_terminal_called_on_existing(self):
@@ -497,7 +494,6 @@ class TestInitializeManagersLoop:
 		plugin._tabManager.update_terminal = MagicMock()
 		plugin._bookmarkManager.update_terminal = MagicMock()
 		plugin._searchManager.update_terminal = MagicMock()
-		plugin._commandHistoryManager.update_terminal = MagicMock()
 		plugin._urlExtractorManager.update_terminal = MagicMock()
 
 		plugin._initializeManagers(terminal2)
@@ -505,7 +501,6 @@ class TestInitializeManagersLoop:
 		plugin._tabManager.update_terminal.assert_called_once_with(terminal2)
 		plugin._bookmarkManager.update_terminal.assert_called_once_with(terminal2)
 		plugin._searchManager.update_terminal.assert_called_once_with(terminal2)
-		plugin._commandHistoryManager.update_terminal.assert_called_once_with(terminal2)
 		plugin._urlExtractorManager.update_terminal.assert_called_once_with(terminal2)
 
 

@@ -308,6 +308,23 @@ def test_section_list_filter_by_type():
         assert section["type"] == "error", f"Expected only errors, got: {section['type']}"
 
 
+def test_list_sections_preview_strips_ansi():
+    """list_sections preview text must not contain raw ANSI escape codes."""
+    from lib.navigation import BookmarkManager
+
+    buffer = [
+        "\x1b[31merror: connection refused\x1b[0m",
+        "\x1b[32muser@host:~$\x1b[0m ls",
+    ]
+    manager, _ = _make_manager_with_buffer(buffer)
+    sections = manager.list_sections(buffer)
+
+    for sec in sections:
+        assert "\x1b" not in sec["preview"], (
+            f"Section preview contains raw ANSI: {repr(sec['preview'])}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # 12. Existing bookmarks still work (regression)
 # ---------------------------------------------------------------------------

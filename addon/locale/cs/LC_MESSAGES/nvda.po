@@ -273,11 +273,6 @@ msgstr "Sledování kurzoru vypnuto"
 msgid "Standard cursor tracking"
 msgstr "Standardní sledování kurzoru"
 
-#: addon/globalPlugins/terminalAccess.py:1985
-#, fuzzy
-msgid "Highlight tracking (deprecated)"
-msgstr "Sledování zvýraznění"
-
 #: addon/globalPlugins/terminalAccess.py:1986
 msgid "Window tracking"
 msgstr "Sledování oken"
@@ -285,10 +280,6 @@ msgstr "Sledování oken"
 #: addon/globalPlugins/terminalAccess.py:1988
 msgid "Unknown mode"
 msgstr "Neznámý režim"
-
-#: addon/globalPlugins/terminalAccess.py:1993
-msgid "Note: Highlight tracking is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
 
 # Description for setting screen window
 #: addon/globalPlugins/terminalAccess.py:1997
@@ -631,16 +622,6 @@ msgstr "Výběr zkopírován"
 msgid "Unable to copy: terminal not accessible"
 msgstr "Nelze kopírovat: terminál není přístupný"
 
-# Description for copying rectangular selection
-#: addon/globalPlugins/terminalAccess.py:2967
-#, fuzzy
-msgid "Copy rectangular selection between marks (deprecated)"
-msgstr "Kopírování obdélníkového výběru mezi značkami"
-
-#: addon/globalPlugins/terminalAccess.py:2980
-msgid "Note: Rectangular selection is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
-
 #: addon/globalPlugins/terminalAccess.py:3003
 msgid "Unable to determine position"
 msgstr "Nelze určit polohu"
@@ -801,19 +782,6 @@ msgstr "{count} zjištěné karty"
 msgid "Switching to next tab"
 msgstr "Přepnutí na další kartu"
 
-# Description for scanning command history
-#: addon/globalPlugins/terminalAccess.py:3385
-#, fuzzy
-msgid "Scan terminal output to detect and store command history (deprecated)"
-msgstr "Skenování výstupu terminálu za účelem detekce a uložení historie příkazů"
-
-#: addon/globalPlugins/terminalAccess.py:3398
-#: addon/globalPlugins/terminalAccess.py:3432
-#: addon/globalPlugins/terminalAccess.py:3463
-#: addon/globalPlugins/terminalAccess.py:3494
-msgid "Note: Command history is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
-
 # Error message when command history manager not initialized
 #: addon/globalPlugins/terminalAccess.py:3403
 #: addon/globalPlugins/terminalAccess.py:3437
@@ -833,33 +801,15 @@ msgstr "Nalezeno {count} nových příkazů, {total} celkem"
 msgid "No new commands found"
 msgstr "Nebyly nalezeny žádné nové příkazy"
 
-# Description for previous command navigation
-#: addon/globalPlugins/terminalAccess.py:3419
-#, fuzzy
-msgid "Navigate to previous command in history (deprecated)"
-msgstr "Přejít na předchozí příkaz v historii"
-
 # Message when at beginning of history
 #: addon/globalPlugins/terminalAccess.py:3446
 msgid "No previous command"
 msgstr "Žádný předchozí příkaz"
 
-# Description for next command navigation
-#: addon/globalPlugins/terminalAccess.py:3450
-#, fuzzy
-msgid "Navigate to next command in history (deprecated)"
-msgstr "Přejít na další příkaz v historii"
-
 # Message when at end of history
 #: addon/globalPlugins/terminalAccess.py:3477
 msgid "No next command"
 msgstr "Žádný další příkaz"
-
-# Description for listing command history
-#: addon/globalPlugins/terminalAccess.py:3481
-#, fuzzy
-msgid "List all commands in history (deprecated)"
-msgstr "Seznam všech příkazů v historii"
 
 # Message listing command history
 #: addon/globalPlugins/terminalAccess.py:3515
@@ -1200,11 +1150,6 @@ msgstr "Vypnuto"
 msgid "Standard"
 msgstr "Standard"
 
-#: addon/lib/settings_panel.py:218
-#, fuzzy
-msgid "Highlight (deprecated)"
-msgstr "Sledování zvýraznění"
-
 # Cursor tracking mode option
 #: addon/lib/settings_panel.py:220
 msgid "Window"
@@ -1213,7 +1158,7 @@ msgstr "Okno"
 # Tooltip for cursor tracking mode
 #: addon/lib/settings_panel.py:226
 #, fuzzy
-msgid "Standard: announce line/column changes, Highlight (deprecated): announce highlighted text, Window: only announce within defined window"
+msgid "Standard: announce line/column changes, Window: only announce within defined window"
 msgstr "Standardní: oznamovat změny řádků/sloupců, Zvýraznění: oznamovat zvýrazněný text, Okno: oznamovat pouze v rámci definovaného okna"
 
 #: addon/lib/settings_panel.py:234

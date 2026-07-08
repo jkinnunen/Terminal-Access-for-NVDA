@@ -273,11 +273,6 @@ msgstr "커서 추적 해제"
 msgid "Standard cursor tracking"
 msgstr "표준 커서 추적"
 
-#: addon/globalPlugins/terminalAccess.py:1985
-#, fuzzy
-msgid "Highlight tracking (deprecated)"
-msgstr "하이라이트 추적"
-
 #: addon/globalPlugins/terminalAccess.py:1986
 msgid "Window tracking"
 msgstr "창 추적"
@@ -285,10 +280,6 @@ msgstr "창 추적"
 #: addon/globalPlugins/terminalAccess.py:1988
 msgid "Unknown mode"
 msgstr "알 수 없는 모드"
-
-#: addon/globalPlugins/terminalAccess.py:1993
-msgid "Note: Highlight tracking is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
 
 # Description for setting screen window
 #: addon/globalPlugins/terminalAccess.py:1997
@@ -631,16 +622,6 @@ msgstr "선택 항목 복사됨"
 msgid "Unable to copy: terminal not accessible"
 msgstr "복사할 수 없음: 터미널에 접근할 수 없음"
 
-# Description for copying rectangular selection
-#: addon/globalPlugins/terminalAccess.py:2967
-#, fuzzy
-msgid "Copy rectangular selection between marks (deprecated)"
-msgstr "표시 사이의 직사각형 선택 영역 복사"
-
-#: addon/globalPlugins/terminalAccess.py:2980
-msgid "Note: Rectangular selection is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
-
 #: addon/globalPlugins/terminalAccess.py:3003
 msgid "Unable to determine position"
 msgstr "위치를 확인할 수 없습니다"
@@ -801,19 +782,6 @@ msgstr "{count} 탭 감지됨"
 msgid "Switching to next tab"
 msgstr "다음 탭으로 전환"
 
-# Description for scanning command history
-#: addon/globalPlugins/terminalAccess.py:3385
-#, fuzzy
-msgid "Scan terminal output to detect and store command history (deprecated)"
-msgstr "터미널 출력을 스캔하여 명령어 이력을 감지하고 저장합니다"
-
-#: addon/globalPlugins/terminalAccess.py:3398
-#: addon/globalPlugins/terminalAccess.py:3432
-#: addon/globalPlugins/terminalAccess.py:3463
-#: addon/globalPlugins/terminalAccess.py:3494
-msgid "Note: Command history is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
-
 # Error message when command history manager not initialized
 #: addon/globalPlugins/terminalAccess.py:3403
 #: addon/globalPlugins/terminalAccess.py:3437
@@ -833,33 +801,15 @@ msgstr "{count}개의 새 명령어를 찾았습니다. {total}개 총계"
 msgid "No new commands found"
 msgstr "새로운 명령어가 발견되지 않았습니다."
 
-# Description for previous command navigation
-#: addon/globalPlugins/terminalAccess.py:3419
-#, fuzzy
-msgid "Navigate to previous command in history (deprecated)"
-msgstr "명령어 기록에서 이전 명령어로 이동"
-
 # Message when at beginning of history
 #: addon/globalPlugins/terminalAccess.py:3446
 msgid "No previous command"
 msgstr "이전 명령 없음"
 
-# Description for next command navigation
-#: addon/globalPlugins/terminalAccess.py:3450
-#, fuzzy
-msgid "Navigate to next command in history (deprecated)"
-msgstr "명령어 기록에서 다음 명령어로 이동"
-
 # Message when at end of history
 #: addon/globalPlugins/terminalAccess.py:3477
 msgid "No next command"
 msgstr "다음 명령 없음"
-
-# Description for listing command history
-#: addon/globalPlugins/terminalAccess.py:3481
-#, fuzzy
-msgid "List all commands in history (deprecated)"
-msgstr "명령어 기록에 있는 모든 명령어 목록 표시"
 
 # Message listing command history
 #: addon/globalPlugins/terminalAccess.py:3515
@@ -1200,11 +1150,6 @@ msgstr "꺼짐"
 msgid "Standard"
 msgstr "표준"
 
-#: addon/lib/settings_panel.py:218
-#, fuzzy
-msgid "Highlight (deprecated)"
-msgstr "하이라이트 추적"
-
 # Cursor tracking mode option
 #: addon/lib/settings_panel.py:220
 msgid "Window"
@@ -1213,7 +1158,7 @@ msgstr "창"
 # Tooltip for cursor tracking mode
 #: addon/lib/settings_panel.py:226
 #, fuzzy
-msgid "Standard: announce line/column changes, Highlight (deprecated): announce highlighted text, Window: only announce within defined window"
+msgid "Standard: announce line/column changes, Window: only announce within defined window"
 msgstr "표준: 행/열 변경 사항 알림 하이라이트: 하이라이트된 텍스트 알림 창: 정의된 창 내에서만 알림"
 
 #: addon/lib/settings_panel.py:234

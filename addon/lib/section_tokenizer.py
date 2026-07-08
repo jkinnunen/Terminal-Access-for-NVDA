@@ -7,7 +7,7 @@ import re
 from collections import namedtuple
 from typing import Optional
 
-from lib.text_processing import ErrorLineDetector
+from lib.text_processing import ANSIParser, ErrorLineDetector
 
 Section = namedtuple("Section", ["line_num", "category", "text"])
 SectionSpan = namedtuple("SectionSpan", ["start_line", "end_line", "category"])
@@ -56,8 +56,8 @@ class SectionTokenizer:
 		re.compile(r'\b\d{1,3}%\s*$'),
 		# "Downloading ..." with file/size info
 		re.compile(r'^\s*Downloading\s+\S+', re.IGNORECASE),
-		# Spinner characters at start: / | \ -
-		re.compile(r'^[/|\\]\s+\S'),
+		# Spinner characters at start: / \ (not | which appears in tables)
+		re.compile(r'^[/\\]\s+\S'),
 	]
 
 	# Timestamp patterns.
@@ -197,6 +197,10 @@ class SectionTokenizer:
 	def _classify(self, line: str, idx: int, all_lines: list[str]) -> str:
 		"""Return the semantic category for a single line.
 
+		ANSI escape codes are stripped before classification so that
+		colored terminal output (prompts, errors, headings) is still
+		detected correctly.
+
 		Classification priority:
 		1. Prompt (highest, so a prompt line with an error keyword
 		   is still treated as a prompt).
@@ -207,6 +211,8 @@ class SectionTokenizer:
 		6. Heading / separator.
 		7. Output (fallback).
 		"""
+		line = ANSIParser.stripANSI(line)
+
 		# 1. Prompt
 		for pat in self._PROMPT_PATTERNS:
 			if pat.search(line):
@@ -219,7 +225,7 @@ class SectionTokenizer:
 				return "stack_trace"
 		# Also classify indented code that follows a stack_trace File line
 		# as stack_trace (the "    result = process(data)" lines).
-		if idx > 0 and line.startswith("    "):
+		if idx > 0 and line.startswith("    ") and self._sections:
 			prev_section = self._sections[idx - 1] if idx <= len(self._sections) else None
 			if prev_section and prev_section.category == "stack_trace":
 				return "stack_trace"

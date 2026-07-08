@@ -123,6 +123,15 @@ class TestUnicodeWidthHelper(unittest.TestCase):
 		result = self.UnicodeWidthHelper.extractColumnRange(text, 7, 11)
 		self.assertEqual(result, 'World')
 
+	def test_extract_column_range_combining_chars_not_clipped(self):
+		"""Combining characters must stay with their base character."""
+		# e + combining acute accent = single grapheme occupying 1 column
+		text = "e\u0301x"  # "é" followed by "x"
+		# Column 1 is "e" + its combining mark; column 2 is "x"
+		result = self.UnicodeWidthHelper.extractColumnRange(text, 1, 1)
+		self.assertIn("\u0301", result,
+			"Combining accent was clipped from base character in column extraction")
+
 	def test_empty_text(self):
 		"""Test handling of empty text."""
 		result = self.UnicodeWidthHelper.extractColumnRange('', 1, 5)

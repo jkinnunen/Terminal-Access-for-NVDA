@@ -32,8 +32,12 @@ pub fn text_width(text: &str) -> u32 {
 pub fn extract_column_range(text: &str, start_col: u32, end_col: u32) -> String {
     let mut result = String::new();
     let mut current_col: u32 = 1;
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
 
-    for ch in text.chars() {
+    while i < len {
+        let ch = chars[i];
         let w = char_width(ch);
         let char_end_col = current_col + w.saturating_sub(1);
 
@@ -43,9 +47,15 @@ pub fn extract_column_range(text: &str, start_col: u32, end_col: u32) -> String 
             break;
         } else {
             result.push(ch);
+            // Consume any following combining characters (width 0)
+            while i + 1 < len && char_width(chars[i + 1]) == 0 {
+                i += 1;
+                result.push(chars[i]);
+            }
         }
 
         current_col += w;
+        i += 1;
     }
 
     result
@@ -124,6 +134,18 @@ mod tests {
     #[test]
     fn test_extract_column_range_partial() {
         assert_eq!(extract_column_range("Hello World", 7, 11), "World");
+    }
+
+    #[test]
+    fn test_extract_column_range_combining_char_not_clipped() {
+        // e + combining acute accent = single grapheme at column 1
+        // Extracting column 1 must include the combining mark
+        let result = extract_column_range("e\u{0301}x", 1, 1);
+        assert!(
+            result.contains('\u{0301}'),
+            "Combining accent was clipped: got {:?}",
+            result
+        );
     }
 
     #[test]

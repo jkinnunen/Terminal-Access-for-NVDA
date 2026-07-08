@@ -8,12 +8,11 @@
 1. [Public Classes](#public-classes)
 2. [New in This Release](#new-in-this-release)
 3. [Removed](#removed)
-4. [Deprecated for v2](#deprecated-for-v2)
-5. [Configuration API](#configuration-api)
-6. [Runtime Registry](#runtime-registry)
-7. [Extension API](#extension-api)
-8. [Event Hooks](#event-hooks)
-9. [Constants](#constants)
+4. [Configuration API](#configuration-api)
+5. [Runtime Registry](#runtime-registry)
+6. [Extension API](#extension-api)
+7. [Event Hooks](#event-hooks)
+8. [Constants](#constants)
 
 ## Public Classes
 
@@ -350,6 +349,146 @@ NVDA settings panel with three flat sections.
 
 ---
 
+### AiTurnTokenizer (`lib/ai_support.py`)
+
+Splits terminal buffer text into AI conversation turns by detecting role markers (user prompts and assistant responses). Each AI CLI profile provides its own marker patterns.
+
+#### Constructor
+
+```python
+AiTurnTokenizer(profile_name='claude')
+```
+
+- `profile_name`: Name of the AI CLI profile. Determines which marker patterns to use.
+
+#### Methods
+
+##### `tokenize(text: str) -> list[dict]`
+
+Parse the full buffer text and return a list of turn dicts. Each dict contains:
+- `role` (str): `'user'` or `'assistant'`
+- `start_line` (int): 0-based line index where the turn starts
+- `end_line` (int): 0-based line index where the turn ends (exclusive)
+- `text` (str): The full text of the turn
+
+##### `get_turn_at_line(line: int) -> dict | None`
+
+Return the turn containing the given line, or `None` if the line is outside any turn.
+
+##### `next_turn(current_line: int) -> dict | None`
+
+Return the next turn after the one containing `current_line`, or `None` if there are no more turns.
+
+##### `previous_turn(current_line: int) -> dict | None`
+
+Return the previous turn before the one containing `current_line`, or `None`.
+
+#### Profile Marker Patterns
+
+| Profile      | User Marker       | Assistant Marker   |
+|--------------|-------------------|--------------------|
+| claude       | `> ` (prompt)     | Non-prompt lines   |
+| aider        | `> ` (prompt)     | Non-prompt lines   |
+| chatgpt      | `You:` prefix     | `ChatGPT:` prefix  |
+| copilot      | `$ ` (shell)      | Suggestion lines   |
+| gemini       | `> ` (prompt)     | Non-prompt lines   |
+| codex        | `> ` (prompt)     | Non-prompt lines   |
+| ollama       | `>>> ` (prompt)   | Non-prompt lines   |
+
+---
+
+### CodeBlockDetector (`lib/ai_support.py`)
+
+Detects fenced code blocks (triple backtick delimiters) in terminal output. Tracks language tags, line ranges, and content for each block.
+
+#### Constructor
+
+```python
+CodeBlockDetector()
+```
+
+#### Methods
+
+##### `detect(text: str) -> list[dict]`
+
+Scan text for fenced code blocks. Returns a list of block dicts, each containing:
+- `language` (str): Language tag from the opening fence (e.g., `'python'`, `'javascript'`), or `''` if none
+- `start_line` (int): 0-based line index of the opening fence
+- `end_line` (int): 0-based line index of the closing fence
+- `content` (str): The code inside the fences (excluding the fence lines)
+
+##### `get_block_at_line(line: int) -> dict | None`
+
+Return the code block containing the given line, or `None`.
+
+##### `next_block(current_line: int) -> dict | None`
+
+Return the next code block after `current_line`, or `None`.
+
+##### `previous_block(current_line: int) -> dict | None`
+
+Return the previous code block before `current_line`, or `None`.
+
+##### `get_language(block: dict) -> str`
+
+Return the language tag for a block. Returns `'unknown'` if no language was specified.
+
+---
+
+### StreamingDeltaTracker (`lib/ai_support.py`)
+
+Monitors the terminal buffer for new content during AI streaming. Stores a snapshot and diffs it against the current buffer to determine what text is new.
+
+#### Constructor
+
+```python
+StreamingDeltaTracker()
+```
+
+#### Methods
+
+##### `snapshot(text: str) -> None`
+
+Store the current buffer text as the baseline for delta comparison.
+
+##### `get_delta(current_text: str) -> str | None`
+
+Compare `current_text` against the stored snapshot. Returns the new text that was added, or `None` if nothing changed. After returning a delta, the snapshot is updated to `current_text`.
+
+##### `reset() -> None`
+
+Clear the stored snapshot.
+
+---
+
+### PrivacyGuard (`lib/ai_support.py`)
+
+Gates AI CLI features that send terminal content to an external service. Checks privacy settings before allowing code explain or summarization operations.
+
+#### Constructor
+
+```python
+PrivacyGuard(config_manager)
+```
+
+- `config_manager`: A `ConfigManager` instance for reading privacy settings.
+
+#### Methods
+
+##### `can_explain_code() -> bool`
+
+Return `True` if the "Allow Code Explain" setting is enabled.
+
+##### `can_summarize() -> bool`
+
+Return `True` if the "Allow Summarization" setting is enabled.
+
+##### `check_or_warn(feature: str) -> bool`
+
+Check if the given feature is allowed. If not, speak a warning message and return `False`. Valid feature names: `'code_explain'`, `'summarize'`.
+
+---
+
 ## New in This Release
 
 | Class / Module | Location | What it does |
@@ -358,22 +497,19 @@ NVDA settings panel with three flat sections.
 | `BookmarkListDialog` | `lib/navigation.py` | Dialog showing bookmarks with line content labels |
 | `TerminalAccessSettingsPanel` | `lib/settings_panel.py` | Extracted settings panel with three flat sections |
 | `lib/_runtime.py` | `lib/_runtime.py` | Centralized dependency registry replacing scattered DI stubs |
+| `AiTurnTokenizer` | `lib/ai_support.py` | Splits terminal buffer into AI conversation turns |
+| `CodeBlockDetector` | `lib/ai_support.py` | Detects fenced code blocks with language tags |
+| `StreamingDeltaTracker` | `lib/ai_support.py` | Tracks new content during AI streaming responses |
+| `PrivacyGuard` | `lib/ai_support.py` | Gates privacy-sensitive AI features behind settings |
 
 ## Removed
 
 | Item | Was in | Notes |
 |------|--------|-------|
 | `NewOutputAnnouncer` | `lib/operations.py` | Fully removed. NVDA+Shift+N toggle and related settings (coalesce, max-lines, strip-ansi) are gone. |
-
-## Deprecated for v2
-
-These remain functional but will be removed in v2.0:
-
-| Item | Location | Replacement |
-|------|----------|-------------|
-| `CommandHistoryManager` | `lib/search.py` | None planned. Contact PratikP1 on GitHub if you use this. |
-| `CT_HIGHLIGHT` (mode 2) | `lib/config.py` | Use `CT_STANDARD` or `CT_WINDOW` instead. |
-| Rectangular Selection | `terminalAccess.py` | Use linear selection (NVDA+C). |
+| `CommandHistoryManager` | `lib/search.py` | Removed in v2.0.0. Shells have built-in history navigation. |
+| `CT_HIGHLIGHT` (mode 2) | `lib/config.py` | Removed in v2.0.0. Modern terminals strip ANSI from UIA text. `CT_WINDOW` is now mode 2. |
+| Rectangular Selection | `terminalAccess.py` | Removed in v2.0.0. Use linear selection (NVDA+C). |
 
 ---
 
@@ -394,7 +530,7 @@ config.conf["terminalAccess"]["cursorDelay"] = 50
 | Key | Type | Default | Range | What it controls |
 |-----|------|---------|-------|-----------------|
 | `cursorTracking` | bool | True | |Cursor tracking on/off |
-| `cursorTrackingMode` | int | 1 | 0-3 | Off / Standard / Highlight (deprecated) / Window |
+| `cursorTrackingMode` | int | 1 | 0-2 | Off / Standard / Window |
 | `keyEcho` | bool | True | |Announce typed characters |
 | `linePause` | bool | True | |Pause at line endings |
 | `punctuationLevel` | int | 2 | 0-3 | None / Some / Most / All |
@@ -513,8 +649,7 @@ A `frozenset` of gesture identifiers that conflict with NVDA built-in commands (
 ```python
 CT_OFF = 0        # No tracking
 CT_STANDARD = 1   # Announce character at cursor
-CT_HIGHLIGHT = 2  # Track highlights (DEPRECATED)
-CT_WINDOW = 3     # Only announce within defined window
+CT_WINDOW = 2     # Only announce within defined window
 ```
 
 ### Punctuation Levels

@@ -273,11 +273,6 @@ msgstr "Seguimiento del cursor desactivado"
 msgid "Standard cursor tracking"
 msgstr "Seguimiento estándar del cursor"
 
-#: addon/globalPlugins/terminalAccess.py:1985
-#, fuzzy
-msgid "Highlight tracking (deprecated)"
-msgstr "Seguimiento de resaltados"
-
 #: addon/globalPlugins/terminalAccess.py:1986
 msgid "Window tracking"
 msgstr "Seguimiento de ventanas"
@@ -285,10 +280,6 @@ msgstr "Seguimiento de ventanas"
 #: addon/globalPlugins/terminalAccess.py:1988
 msgid "Unknown mode"
 msgstr "Modo desconocido"
-
-#: addon/globalPlugins/terminalAccess.py:1993
-msgid "Note: Highlight tracking is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
 
 # Description for setting screen window
 #: addon/globalPlugins/terminalAccess.py:1997
@@ -631,16 +622,6 @@ msgstr "Selección copiada"
 msgid "Unable to copy: terminal not accessible"
 msgstr "No se puede copiar: terminal inaccesible."
 
-# Description for copying rectangular selection
-#: addon/globalPlugins/terminalAccess.py:2967
-#, fuzzy
-msgid "Copy rectangular selection between marks (deprecated)"
-msgstr "Copiar selección rectangular entre marcas"
-
-#: addon/globalPlugins/terminalAccess.py:2980
-msgid "Note: Rectangular selection is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
-
 #: addon/globalPlugins/terminalAccess.py:3003
 msgid "Unable to determine position"
 msgstr "No se puede determinar la posición."
@@ -801,19 +782,6 @@ msgstr "{count} pestañas detectadas"
 msgid "Switching to next tab"
 msgstr "Pasar a la siguiente pestaña"
 
-# Description for scanning command history
-#: addon/globalPlugins/terminalAccess.py:3385
-#, fuzzy
-msgid "Scan terminal output to detect and store command history (deprecated)"
-msgstr "Escanear la salida del terminal para detectar y almacenar el historial de comandos."
-
-#: addon/globalPlugins/terminalAccess.py:3398
-#: addon/globalPlugins/terminalAccess.py:3432
-#: addon/globalPlugins/terminalAccess.py:3463
-#: addon/globalPlugins/terminalAccess.py:3494
-msgid "Note: Command history is deprecated and will be removed in version 2. Contact PratikP1 on GitHub if you use this feature."
-msgstr ""
-
 # Error message when command history manager not initialized
 #: addon/globalPlugins/terminalAccess.py:3403
 #: addon/globalPlugins/terminalAccess.py:3437
@@ -833,33 +801,15 @@ msgstr "Se han encontrado {count} nuevos comandos, {total} en total."
 msgid "No new commands found"
 msgstr "No se han encontrado nuevos comandos."
 
-# Description for previous command navigation
-#: addon/globalPlugins/terminalAccess.py:3419
-#, fuzzy
-msgid "Navigate to previous command in history (deprecated)"
-msgstr "Navegar al comando anterior en el historial"
-
 # Message when at beginning of history
 #: addon/globalPlugins/terminalAccess.py:3446
 msgid "No previous command"
 msgstr "Sin comando previo"
 
-# Description for next command navigation
-#: addon/globalPlugins/terminalAccess.py:3450
-#, fuzzy
-msgid "Navigate to next command in history (deprecated)"
-msgstr "Navegar al siguiente comando en el historial"
-
 # Message when at end of history
 #: addon/globalPlugins/terminalAccess.py:3477
 msgid "No next command"
 msgstr "No hay siguiente comando"
-
-# Description for listing command history
-#: addon/globalPlugins/terminalAccess.py:3481
-#, fuzzy
-msgid "List all commands in history (deprecated)"
-msgstr "Mostrar todos los comandos del historial"
 
 # Message listing command history
 #: addon/globalPlugins/terminalAccess.py:3515
@@ -1200,11 +1150,6 @@ msgstr "Apagado"
 msgid "Standard"
 msgstr "Estándar"
 
-#: addon/lib/settings_panel.py:218
-#, fuzzy
-msgid "Highlight (deprecated)"
-msgstr "Seguimiento de resaltados"
-
 # Cursor tracking mode option
 #: addon/lib/settings_panel.py:220
 msgid "Window"
@@ -1213,7 +1158,7 @@ msgstr "Ventana"
 # Tooltip for cursor tracking mode
 #: addon/lib/settings_panel.py:226
 #, fuzzy
-msgid "Standard: announce line/column changes, Highlight (deprecated): announce highlighted text, Window: only announce within defined window"
+msgid "Standard: announce line/column changes, Window: only announce within defined window"
 msgstr "Estándar: anunciar cambios de línea/columna, Resaltar: anunciar texto resaltado, Ventana: anunciar solo dentro de la ventana definida"
 
 #: addon/lib/settings_panel.py:234

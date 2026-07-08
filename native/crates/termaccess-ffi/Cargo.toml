@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 termaccess-core = { path = "../termaccess-core" }
+serde_json = { workspace = true }
