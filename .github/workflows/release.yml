@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -32,7 +32,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -56,14 +56,14 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }} -p termaccess-helper
 
       - name: Upload DLL artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: termaccess-dll-${{ matrix.arch }}
           path: native/target/${{ matrix.target }}/release/termaccess_ffi.dll
           if-no-files-found: error
 
       - name: Upload helper EXE artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: termaccess-helper-${{ matrix.arch }}
           path: native/target/${{ matrix.target }}/release/termaccess-helper.exe
@@ -76,12 +76,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
@@ -115,6 +115,14 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Detected version: $VERSION"
 
+          # A semver pre-release (has a hyphen, e.g. 2.0.0-beta.2) is marked
+          # as a GitHub pre-release; a plain version (e.g. 2.0.0) is a full release.
+          if echo "$VERSION" | grep -q '-'; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Check if tag exists
         id: check_tag
         run: |
@@ -128,7 +136,7 @@ jobs:
 
       - name: Download native artifacts
         if: steps.check_tag.outputs.exists == 'false'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: termaccess-*
 
@@ -177,13 +185,13 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.check_tag.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
           body_path: changelog.txt
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.version.outputs.prerelease }}
           files: |
             terminalAccess-${{ steps.version.outputs.version }}.nvda-addon
         env:
