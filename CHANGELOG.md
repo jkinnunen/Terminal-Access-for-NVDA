@@ -6,6 +6,10 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+### Performance
+
+- **Search is much faster on a large terminal buffer**, especially when repeated. The add-on now caches the read-and-cleaned buffer and reuses it until the terminal produces new output, so searching, refining, and searching again no longer re-reads and re-cleans the whole buffer each time. Cleaning is skipped entirely when the output has no color codes, matching is limited to the most recent lines of very long scrollback, and the "did you mean" fuzzy fallback is skipped on very large buffers where it is slow and rarely useful. On a large buffer the matching now runs off NVDA's main thread (the add-on says "Searching" while it works), so a big search no longer makes the screen reader unresponsive.
+
 ## [2.0.0-beta.4] - 2026-07-09
 
 ### Added

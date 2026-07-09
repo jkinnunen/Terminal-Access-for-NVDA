@@ -109,6 +109,13 @@ class OutputSearchManager:
 		"""
 		self._terminal = terminal_obj
 		self._tab_manager = tab_manager
+		# Cached ANSI-stripped, length-capped buffer lines. Reused across
+		# searches until the plugin signals new output via
+		# note_content_changed(), so a search / refine / search-again loop
+		# does not re-read and re-strip the whole buffer each time.
+		self._cached_lines = None
+		self._cached_lines_gen = -1
+		self._content_generation = 0
 		# Search history (most recent first, max 10 entries)
 		self._search_history: list[str] = []
 		# Message from the last search (e.g. fuzzy fallback notification)
@@ -170,10 +177,88 @@ class OutputSearchManager:
 	MAX_PATTERN_LENGTH = 500
 	MAX_MATCHES = 1000
 	MAX_LINE_LENGTH = 10000
+	# Only the most recent MAX_SEARCH_LINES are scanned, so a huge scrollback
+	# cannot make a single search unbounded. Line numbers stay absolute so
+	# lazy jump still resolves correctly.
+	MAX_SEARCH_LINES = 50000
+	# The fuzzy "did you mean" fallback is skipped above this many scanned
+	# lines: on a big buffer it is both costly and rarely useful.
+	FUZZY_MAX_LINES = 20000
+
+	def note_content_changed(self):
+		"""Signal that the terminal produced new output.
+
+		Invalidates the cached buffer lines so the next search re-reads.
+		Cheap enough to call from every text-change event (an int bump).
+		"""
+		self._content_generation += 1
+
+	def _acquire_raw_text(self):
+		"""Read the full terminal buffer as a single string, or None.
+
+		Uses the helper's off-main-thread UIA read when native acceleration
+		is available and the helper is running; otherwise reads in-process
+		via makeTextInfo (which is main-thread-affine and must not run on a
+		worker thread).
+		"""
+		all_text = None
+		if _rt.native_available:
+			try:
+				helper = _rt.get_helper()
+			except Exception:
+				helper = None
+			if helper is not None and helper.is_running:
+				hwnd = getattr(self._terminal, "windowHandle", None)
+				if hwnd:
+					try:
+						all_text = helper.read_text(hwnd)
+					except Exception:
+						all_text = None
+		if all_text is None:
+			try:
+				info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
+				all_text = info.text
+			except Exception:
+				all_text = None
+		return all_text
+
+	def _get_buffer_lines(self, raw_text=None):
+		"""Return the ANSI-stripped, length-capped lines of the buffer.
+
+		Cached across searches keyed on the content generation. When
+		*raw_text* is given (a buffer already read by the caller, e.g. on the
+		main thread before handing matching to a worker), it is used directly
+		instead of reading the terminal.
+		"""
+		gen = self._content_generation
+		if (raw_text is None and self._cached_lines is not None
+				and self._cached_lines_gen == gen):
+			return self._cached_lines
+
+		if raw_text is None:
+			raw_text = self._acquire_raw_text()
+		if not raw_text:
+			# Don't cache a transient empty/failed read; the next text change
+			# would not necessarily bump the generation to clear it.
+			return []
+
+		# Skip the ANSI strip entirely when there are no escape sequences:
+		# a full-buffer regex sub is wasted work on clean output.
+		if '\x1b' in raw_text:
+			raw_text = _rt.strip_ansi(raw_text)
+
+		max_line = self.MAX_LINE_LENGTH
+		lines = [
+			ln if len(ln) <= max_line else ln[:max_line]
+			for ln in raw_text.split('\n')
+		]
+		self._cached_lines = lines
+		self._cached_lines_gen = gen
+		return lines
 
 	def search(self, pattern: str, case_sensitive: bool = False,
 			  use_regex: bool = False, scope: str = "buffer",
-			  current_line: int = 0) -> int:
+			  current_line: int = 0, raw_text: str = None) -> int:
 		"""
 		Search for pattern in terminal output.
 
@@ -186,6 +271,9 @@ class OutputSearchManager:
 				SectionTokenizer)
 			current_line: Current cursor line (used when scope="section"
 				to determine section boundaries)
+			raw_text: Pre-read buffer text. When given, matching runs on it
+				directly instead of reading the terminal, so the caller can
+				do the (main-thread) read and hand matching to a worker.
 
 		Returns:
 			int: Number of matches found
@@ -255,59 +343,39 @@ class OutputSearchManager:
 				return offset if offset >= 0 else 0
 
 		try:
-			# ─── Acquire the buffer text ───
-			# Prefer the helper's off-main-thread UIA read when native
-			# acceleration is on and the helper is running; otherwise read
-			# in-process. Either way the matching runs in Python, which is
-			# both faster than the native FFI search (measured) and simpler.
-			all_text = None
-			if _rt.native_available:
-				try:
-					helper = _rt.get_helper()
-				except Exception:
-					helper = None
-				if helper is not None and helper.is_running:
-					hwnd = getattr(self._terminal, "windowHandle", None)
-					if hwnd:
-						try:
-							all_text = helper.read_text(hwnd)
-						except Exception:
-							all_text = None
-
-			if all_text is None:
-				info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
-				all_text = info.text
-
-			if not all_text:
+			# ─── Acquire the buffer lines ───
+			# Cached, ANSI-stripped, length-capped. The read uses the helper's
+			# off-main-thread path when available; matching runs in Python.
+			lines = self._get_buffer_lines(raw_text)
+			if not lines:
 				return 0
 
-			# Strip ANSI escape sequences that some terminals leave in the
-			# text buffer.
-			all_text = _rt.strip_ansi(all_text)
-
-			# Cap each line's length before matching. A malicious program
-			# can emit a multi-megabyte line with no newline; matching the
-			# full line (regex, substring, or fuzzy) on NVDA's main thread
-			# would stall the screen reader. MAX_LINE_LENGTH is already the
-			# cap applied to stored match text, so applying it here keeps
-			# matching bounded and consistent.
-			max_line = self.MAX_LINE_LENGTH
-			lines = [
-				ln if len(ln) <= max_line else ln[:max_line]
-				for ln in all_text.split('\n')
-			]
+			# ─── Bound the scan to the most recent lines ───
+			# A huge scrollback would otherwise make a single search scan
+			# unbounded work. Indices stay absolute so line numbers (used for
+			# lazy jump) remain correct.
+			total_lines = len(lines)
+			if total_lines > self.MAX_SEARCH_LINES:
+				scan_start = total_lines - self.MAX_SEARCH_LINES
+				self._last_search_message = (
+					f"Searched the most recent {self.MAX_SEARCH_LINES} lines."
+				)
+			else:
+				scan_start = 0
 
 			if use_regex:
 				flags = 0 if case_sensitive else re.IGNORECASE
 				compiled = re.compile(pattern, flags)
 				matching_indices = [
-					i for i, line in enumerate(lines) if compiled.search(line)
+					i for i in range(scan_start, total_lines)
+					if compiled.search(lines[i])
 				]
 			else:
 				search_pattern = pattern if case_sensitive else pattern.lower()
 				matching_indices = [
-					i for i, line in enumerate(lines)
-					if search_pattern in (line if case_sensitive else line.lower())
+					i for i in range(scan_start, total_lines)
+					if search_pattern in (
+						lines[i] if case_sensitive else lines[i].lower())
 				]
 
 			# ─── Section scoping ───
@@ -344,9 +412,13 @@ class OutputSearchManager:
 
 			# ─── Fuzzy fallback ───
 			# If exact search returned nothing, try fuzzy matching
-			# (Levenshtein distance <= 1 on each word in each line).
+			# (Levenshtein distance <= 1 on each word in each line). Skipped
+			# on very large buffers where it is costly and rarely useful.
 			fuzzy_fallback = False
-			if not matching_indices and not use_regex and not case_sensitive:
+			scanned_lines = total_lines - scan_start
+			fuzzy_allowed = scanned_lines <= self.FUZZY_MAX_LINES
+			if (not matching_indices and not use_regex and not case_sensitive
+					and fuzzy_allowed):
 				fuzzy_lines = lines
 
 				# Apply section scoping to fuzzy search too. In section scope
@@ -358,7 +430,7 @@ class OutputSearchManager:
 					else:
 						fuzzy_candidate_indices = range(0)
 				else:
-					fuzzy_candidate_indices = range(len(fuzzy_lines))
+					fuzzy_candidate_indices = range(scan_start, total_lines)
 
 				for i in fuzzy_candidate_indices:
 					if i >= len(fuzzy_lines):
@@ -728,6 +800,9 @@ class OutputSearchManager:
 			terminal_obj: New terminal TextInfo object
 		"""
 		self._terminal = terminal_obj
+		# A different terminal means a different buffer: drop the cache.
+		self.note_content_changed()
+		self._cached_lines = None
 		# Clear search results when terminal changes
 		self.clear_search()
 

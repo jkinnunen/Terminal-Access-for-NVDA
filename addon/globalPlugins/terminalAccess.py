@@ -1554,6 +1554,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# was caused by output, not user navigation.
 		self._lastTextChangeTime = time.monotonic()
 
+		# New output invalidates the search manager's cached buffer so the
+		# next search re-reads. Cheap (an int bump).
+		searchManager = getattr(self, "_searchManager", None)
+		if searchManager is not None:
+			searchManager.note_content_changed()
+
 		if self._configManager.get("progressMilestones", True):
 			self._checkProgressMilestone(obj)
 
@@ -4168,7 +4174,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._searchDialogOpen = True
 
 		def show_search_dialog():
-			"""Show search dialog, then results dialog if matches found."""
+			"""Prompt for text, run the search, then show results."""
+			search_text = None
 			try:
 				gui.mainFrame.prePopup()
 				dlg = wx.TextEntryDialog(
@@ -4178,31 +4185,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					# Translators: Search dialog title
 					_("Search Terminal Output")
 				)
-
 				if dlg.ShowModal() == wx.ID_OK:
 					search_text = dlg.GetValue()
-					dlg.Destroy()
-
-					if search_text:
-						# Perform search (case insensitive by default)
-						match_count = self._searchManager.search(search_text, case_sensitive=False)
-
-						if self._handleSearchResult(search_text, match_count):
-							# Show results in a browsable dialog instead of
-							# auto-jumping.  The dialog's Jump handler sets
-							# _searchJumpPending so event_gainFocus won't
-							# reset the review cursor.
-							from lib.search import SearchResultsDialog
-
-							def on_jump():
-								self._searchJumpPending = True
-
-							results_dlg = SearchResultsDialog(
-								gui.mainFrame, self._searchManager, on_jump)
-							results_dlg.ShowModal()
-							results_dlg.Destroy()
-				else:
-					dlg.Destroy()
+				dlg.Destroy()
 			except Exception:
 				try:
 					import logHandler
@@ -4211,10 +4196,98 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					pass
 			finally:
 				gui.mainFrame.postPopup()
+
+			if not search_text:
 				self._searchDialogOpen = False
+				return
+
+			# Run the search (matching moves off the main thread for large
+			# buffers) and present results when it completes.
+			self._runTerminalSearch(search_text, self._presentSearchResults)
 
 		# Run dialog in main thread
 		wx.CallAfter(show_search_dialog)
+
+	# Buffers at or above this size (characters) have their matching run on a
+	# worker thread so a large scrollback cannot block NVDA during a search.
+	_SEARCH_ASYNC_THRESHOLD = 200_000
+
+	def _runTerminalSearch(self, search_text, on_complete):
+		"""Read the terminal buffer, then match and deliver the count.
+
+		The buffer read happens on the main thread (makeTextInfo is
+		main-thread-affine; the native helper read is off-thread already).
+		For a large buffer the ANSI strip and matching run on a worker
+		thread, and the result is marshalled back with wx.CallAfter so
+		on_complete always runs on the main thread.
+		"""
+		import wx
+		mgr = self._searchManager
+		if mgr is None:
+			on_complete(search_text, 0)
+			return
+
+		try:
+			raw_text = mgr._acquire_raw_text()
+		except Exception:
+			raw_text = None
+
+		# Small buffer (or failed read): match synchronously. A failed read
+		# means raw_text is None, so search() reads in-process on this (main)
+		# thread, which is safe.
+		if not raw_text or len(raw_text) < self._SEARCH_ASYNC_THRESHOLD:
+			try:
+				count = mgr.search(search_text, case_sensitive=False,
+									raw_text=raw_text)
+			except Exception:
+				count = 0
+			on_complete(search_text, count)
+			return
+
+		# Large buffer: match off the main thread.
+		# Translators: Spoken while a search of a large terminal buffer runs.
+		ui.message(_("Searching"))
+
+		def worker():
+			try:
+				count = mgr.search(search_text, case_sensitive=False,
+									raw_text=raw_text)
+			except Exception:
+				count = 0
+			wx.CallAfter(on_complete, search_text, count)
+
+		import threading
+		threading.Thread(target=worker, name="TerminalAccessSearch",
+						 daemon=True).start()
+
+	def _presentSearchResults(self, search_text, match_count):
+		"""Announce the outcome and show the results dialog (main thread)."""
+		try:
+			if self._handleSearchResult(search_text, match_count):
+				# Show results in a browsable dialog instead of auto-jumping.
+				# The dialog's Jump handler sets _searchJumpPending so
+				# event_gainFocus won't reset the review cursor.
+				from lib.search import SearchResultsDialog
+
+				def on_jump():
+					self._searchJumpPending = True
+
+				try:
+					gui.mainFrame.prePopup()
+					results_dlg = SearchResultsDialog(
+						gui.mainFrame, self._searchManager, on_jump)
+					results_dlg.ShowModal()
+					results_dlg.Destroy()
+				finally:
+					gui.mainFrame.postPopup()
+		except Exception:
+			try:
+				import logHandler
+				logHandler.log.error("Search results failed", exc_info=True)
+			except Exception:
+				pass
+		finally:
+			self._searchDialogOpen = False
 
 	def _navigateSearch(self, direction):
 		"""Navigate to the next or previous search match.
