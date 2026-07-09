@@ -10,10 +10,15 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 - Three code-block commands now have default shortcuts: Announce code block, language and line count (Ctrl+L or NVDA+Alt+L); Copy code block to clipboard (Ctrl+C or NVDA+Alt+C); and Explain code block (Ctrl+E or NVDA+Alt+E).
 - Cycle the verbosity level (quiet, normal, verbose) with Shift+V in the command layer or NVDA+Shift+V.
+- **Save an issue report**: press Shift+I in the command layer (or NVDA+Alt+I) to save a text file with your add-on and NVDA versions, the terminal, the active profile, and a buffer sample, so a mis-read table or turn can be reported with the detail needed to reproduce it.
 
 ### Changed
 
 - ANSI stripping and terminal search now run in Python instead of the native DLL. The native path was measured about 10x slower for these operations (the FFI marshaling dominates), so it was removed along with the helper's in-process search. When native acceleration is on, the helper process still reads the buffer off NVDA's main thread; the search then runs in Python on the result.
+
+### Removed
+
+- Removed the now-unused native search handler from the helper process and the corresponding Rust FFI symbols (dead code after the change above, no user-visible effect).
 - The user guide now marks table-mode column detection and AI turn detection as experimental, with a short note on how to report a miss.
 - Corrected the user guide's AI section against the code: fixed the previous-turn and previous-code-block command-layer keys.
 

@@ -231,6 +231,8 @@ _COMMAND_LAYER_MAP = {
 	"kb:h": "findCommand",
 	# Transcript export
 	"kb:control+s": "exportTranscript",
+	# Diagnostic issue report
+	"kb:shift+i": "reportIssue",
 	# URL list (elements)
 	"kb:e": "listUrls",
 	# Summarization
@@ -357,6 +359,8 @@ _DEFAULT_GESTURES = {
 	"kb:NVDA+shift+d": "whatChanged",
 	# Verbosity
 	"kb:NVDA+shift+v": "cycleVerbosity",
+	# Diagnostic issue report
+	"kb:NVDA+alt+i": "reportIssue",
 	# Table mode
 	"kb:NVDA+alt+g": "toggleTableMode",
 }
@@ -3828,6 +3832,90 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except OSError:
 			# Translators: Announced when the transcript file cannot be written
 			ui.message(_("Unable to save transcript"))
+
+	@script(
+		# Translators: Description for saving a diagnostic issue report
+		description=_("Save a diagnostic issue report for the current terminal"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_reportIssue(self, gesture):
+		"""Save a diagnostic report the user can attach to a bug report."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		lines = self._getBufferLines()
+		if not lines:
+			# Translators: Message when terminal buffer cannot be read
+			ui.message(_("Cannot read terminal buffer"))
+			return
+		stripped = [_rt.strip_ansi(line) for line in lines]
+		context = self._collectDiagnosticContext()
+		wx.CallAfter(self._showIssueReportDialog, context, stripped)
+
+	def _collectDiagnosticContext(self):
+		"""Gather environment fields for a diagnostic report."""
+		context = {}
+		try:
+			import addonHandler
+			context["addon_version"] = addonHandler.getCodeAddon().manifest["version"]
+		except Exception:
+			context["addon_version"] = "unknown"
+		try:
+			import versionInfo
+			context["nvda_version"] = versionInfo.version
+		except Exception:
+			context["nvda_version"] = "unknown"
+		context["terminal_app"] = getattr(self, "lastTerminalAppName", None)
+		try:
+			context["window_title"] = self._boundTerminal.name
+		except Exception:
+			context["window_title"] = ""
+		context["profile"] = (
+			self._currentProfile.displayName if self._currentProfile else "none"
+		)
+		context["native_available"] = bool(getattr(_rt, "native_available", False))
+		try:
+			context["helper_running"] = _get_helper() is not None
+		except Exception:
+			context["helper_running"] = False
+		context["verbosity_level"] = self._verbosityLevel()
+		context["review_line"] = self._getCurrentLineNumber()
+		return context
+
+	def _showIssueReportDialog(self, context, lines):
+		"""Prompt for a save location and write the diagnostic report."""
+		from lib.diagnostics import build_issue_report
+		import gui
+		path = None
+		try:
+			gui.mainFrame.prePopup()
+			dlg = wx.FileDialog(
+				gui.mainFrame,
+				# Translators: Title of the issue report save dialog
+				message=_("Save issue report"),
+				defaultDir=os.path.expanduser("~"),
+				defaultFile="terminal-access-report.txt",
+				# Translators: File type filter in the issue report save dialog
+				wildcard=_("Text files (*.txt)|*.txt|All files (*.*)|*.*"),
+				style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+			)
+			try:
+				if dlg.ShowModal() == wx.ID_OK:
+					path = dlg.GetPath()
+			finally:
+				dlg.Destroy()
+		finally:
+			gui.mainFrame.postPopup()
+		if not path:
+			return
+		try:
+			with open(path, "w", encoding="utf-8") as report_file:
+				report_file.write(build_issue_report(context, lines))
+			# Translators: Announced after the issue report file is written
+			ui.message(_("Issue report saved"))
+		except OSError:
+			# Translators: Announced when the issue report file cannot be written
+			ui.message(_("Unable to save issue report"))
 
 	# Section 8.5: AI turn list gesture (v1.5.0+)
 

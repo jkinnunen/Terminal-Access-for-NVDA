@@ -579,5 +579,6 @@ The settings panel also has a "NVDA Gesture Conflicts" section for disabling con
 ## Getting Help
 
 - Press **NVDA+Shift+F1** in any terminal to reopen this guide.
+- **Save an issue report**: press **Shift+I** in the command layer (or **NVDA+Alt+I** directly) when a feature reads something wrong, for example table mode splitting a column in the wrong place or an AI turn detected at the wrong line. It saves a text file with your add-on and NVDA versions, the terminal, the active profile, and a buffer sample. Add a sentence about what you expected, then attach the file to a GitHub issue.
 - Report issues on the [GitHub issue tracker](https://github.com/PratikP1/Terminal-Access-for-NVDA/issues). Include your NVDA version, Terminal Access version, terminal application and version, steps to reproduce, and expected versus actual behavior.
 - The [frequently asked questions](https://github.com/PratikP1/Terminal-Access-for-NVDA/blob/main/docs/user/FAQ.md) and [version history](https://github.com/PratikP1/Terminal-Access-for-NVDA/blob/main/CHANGELOG.md) are on GitHub.

@@ -267,9 +267,6 @@ fn handle_request(
         }
         Request::Subscribe { id, hwnd } => handle_subscribe(pipe, subs, *id, *hwnd),
         Request::Unsubscribe { id, hwnd } => handle_unsubscribe(pipe, subs, *id, *hwnd),
-        Request::SearchText { id, hwnd, ref pattern, case_sensitive, use_regex } => {
-            handle_search(pipe, uia, *id, *hwnd, pattern, *case_sensitive, *use_regex)
-        }
         Request::Shutdown { id } => {
             let _ = pipe.send_response(Response::Pong { id: *id });
             Ok(false)
@@ -334,34 +331,3 @@ fn handle_unsubscribe(
     Ok(true)
 }
 
-fn handle_search(
-    pipe: &PipeServer, uia: &Option<UiaReader>, id: u64, hwnd: isize,
-    pattern: &str, case_sensitive: bool, use_regex: bool,
-) -> io::Result<bool> {
-    let response = match read_text_with_fallback(uia, hwnd) {
-        Ok(text) => {
-            use termaccess_core::search;
-            let line_count = text.split('\n').count() as u32;
-            match search::search_text(&text, pattern, case_sensitive, use_regex) {
-                Ok(matches) => Response::SearchResult {
-                    id,
-                    matches: matches
-                        .into_iter()
-                        .map(|m| protocol::SearchMatchResult {
-                            line_index: m.line_index,
-                            char_offset: m.char_offset,
-                            line_text: m.line_text,
-                        })
-                        .collect(),
-                    total_lines: line_count,
-                },
-                Err(search::SearchError::InvalidRegex(msg)) => {
-                    Response::error(id, "invalid_regex", msg)
-                }
-            }
-        }
-        Err(e) => Response::error(id, "read_failed", e),
-    };
-    pipe.send_response(response)?;
-    Ok(true)
-}

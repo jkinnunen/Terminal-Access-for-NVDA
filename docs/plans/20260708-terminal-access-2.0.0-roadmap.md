@@ -84,9 +84,11 @@ Legend: **[NOW]** implemented in this pass · **[NEXT]** next beta · **[LATER]*
 
 ---
 
-### Milestone 3 — Overlay-class architecture migration [LATER]
+### Milestone 3 — Complete the overlay-class migration [design done; phased impl LATER]
 
-- Replace GlobalPlugin-level event interception with `chooseNVDAObjectOverlayClasses()` inserting a custom `NVDAObject` overlay (per `CLAUDE.md` notes). Biggest architectural lever: fixes blank-after-Enter, activity tones on `textChange`, and consolidates quiet-mode logic. Large; sequence as a dedicated spike + phased migration behind a flag, with the verification protocol (2.2) as the safety net.
+- The overlay already exists and is live (`TerminalAccessTerminal` in `addon/lib/terminal_overlay.py`, inserted via `chooseNVDAObjectOverlayClasses`). The migration is roughly half done: the overlay owns new-output handling, but the GlobalPlugin still intercepts `event_caret`/`event_textChange`/`event_typedCharacter` globally, so the two systems overlap.
+- Design spike written: [20260708-overlay-migration-design.md](20260708-overlay-migration-design.md). It maps the dual-system state and lays out a five-phase plan (A: de-duplicate `event_textChange`; B: move caret handling; C: move typed-character handling; D: decouple config; E: remove scaffolding), each verified against real NVDA.
+- Implementation is phased and gated behind a maintainer who can run NVDA (the wiring is untestable in CI). Fixes blank-after-Enter, activity-tone inconsistency, and quiet-mode duplication.
 
 ---
 

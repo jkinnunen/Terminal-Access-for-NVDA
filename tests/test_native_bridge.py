@@ -12,7 +12,6 @@ Tests are skipped when the native DLL is not available.
 """
 
 import os
-import re
 import sys
 import time
 import unittest
@@ -21,7 +20,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "addon"))
 
 # Import Python implementations
-from globalPlugins.terminalAccess import TextDiffer, PositionCache, ANSIParser
+from globalPlugins.terminalAccess import TextDiffer, PositionCache
 
 # Try to import native implementations
 try:
