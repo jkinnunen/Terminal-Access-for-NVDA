@@ -2,6 +2,24 @@
 
 All notable changes to Terminal Access for NVDA will be documented in this file.
 
+Version 2.0.0 is being developed and released through a series of pre-releases (2.0.0-beta, 2.0.0-beta.2, and so on). Each beta is a step toward the final 2.0.0 release. The entries below are grouped by pre-release and roll up into 2.0.0 when it ships.
+
+## [Unreleased]
+
+### Added
+
+- Benchmark harness that compares the native and in-process text-processing paths, so the choice of default can be based on measurements rather than assumption.
+
+### Changed
+
+- The user guide now marks table-mode column detection and AI turn detection as experimental, with a short note on how to report a miss.
+- Corrected the user guide's AI section against the code: fixed the previous-turn and previous-code-block command-layer keys, and removed shortcuts that were documented but never bound. Announce code block and Explain code block have no default shortcut and are assignable in NVDA's Input Gestures dialog; the verbosity level is a setting, not a gesture.
+
+### Testing
+
+- A gesture-consistency test keeps the user guide and the code in sync: every gesture the guide names must be a real binding, and every binding must point to a script that exists.
+- Added a real-NVDA release verification protocol to run before each release across the common terminals and features.
+
 ## [2.0.0-beta.3] - 2026-07-08
 
 ### Fixed
@@ -52,7 +70,7 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 - Internal burst detector superseded by the output grace period mechanism (dead code, no user-visible change).
 
-## [2.0.0] - 2026-03-27
+## [2.0.0-beta] - 2026-07-08
 
 ### Added
 

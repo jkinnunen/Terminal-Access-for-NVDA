@@ -220,7 +220,7 @@ Table mode recognizes two shapes:
 | **Aligned columns** | Space-padded output such as `docker ps`, `kubectl get pods`, and `ls -l` |
 | **Pipe tables** | Markdown-style tables and `psql` grids that use `|` separators |
 
-### Column Detection Is Heuristic
+### Column Detection Is Heuristic (Experimental)
 
 Table mode's column detection is heuristic. It infers where columns begin and end from the alignment of spaces and pipe characters in the visible text, because terminal output carries no structural markup describing its columns. This works well for the common tools listed above, but unusual spacing, wrapped lines, cells that contain multiple spaces, or wide (CJK) characters can place a column boundary in the wrong spot.
 
@@ -470,6 +470,8 @@ Terminal Access includes optimizations for large terminal buffers.
 
 Terminal Access detects AI command-line tools and adds navigation for conversational workflows. Supported tools: Claude, Aider, ChatGPT CLI, GitHub Copilot CLI, Gemini CLI, OpenAI Codex CLI, and Ollama.
 
+**Experimental:** turn and code-block detection is heuristic. It infers boundaries from each tool's prompt markers, so a tool with unusual output can split turns in the wrong place or miss a code block. If a conversation reads incorrectly, please report it with a sample so the detection can be improved.
+
 ### Turn Navigation
 
 Terminal Access splits the buffer into turns based on the role markers each AI CLI uses (user prompts and assistant responses).
@@ -477,7 +479,7 @@ Terminal Access splits the buffer into turns based on the role markers each AI C
 | Command layer | Direct gesture | Action |
 |---------------|----------------|--------|
 | **Ctrl+T** | **NVDA+Alt+T** | Jump to next turn |
-| **Shift+T** | **NVDA+Alt+Shift+T** | Jump to previous turn |
+| **Ctrl+Shift+T** | **NVDA+Alt+Shift+T** | Jump to previous turn |
 
 When you land on a turn, Terminal Access announces the role (user or assistant) and the first line. If no more turns exist in that direction, you hear "No more turns."
 
@@ -488,12 +490,12 @@ Terminal Access scans for fenced code blocks (triple backtick delimiters) and tr
 | Command layer | Direct gesture | Action |
 |---------------|----------------|--------|
 | **Ctrl+B** | **NVDA+Alt+B** | Next code block |
-| **Shift+B** | **NVDA+Alt+Shift+B** | Previous code block |
-| **Ctrl+L** | **NVDA+Alt+L** | Announce language |
-| **Ctrl+C** | **NVDA+Alt+C** | Copy code block to clipboard |
-| **Ctrl+E** | **NVDA+Alt+E** | Explain code block |
+| **Ctrl+Shift+B** | **NVDA+Alt+Shift+B** | Previous code block |
 
-The explain command sends the code block to the running AI for a brief summary. It is gated by the "Allow Code Explain" privacy setting, which is off by default.
+Two more code-block commands have no default shortcut. Assign them in NVDA's Input Gestures dialog under the "Terminal Access" category:
+
+- **Announce code block**: speaks the language and line count of the block at the cursor.
+- **Explain code block**: gives a brief offline explanation of the block. It is gated by the "Allow Code Explain" privacy setting, which is off by default.
 
 ### Streaming Delta
 
@@ -516,12 +518,12 @@ Terminal Access recognizes AI-specific error patterns in addition to standard co
 
 Rate limit and token limit errors produce a pulsing low tone (two quick 220 Hz beeps). Other API errors produce a single low tone.
 
-### Verbosity Presets
+### Verbosity Level
 
-Press **Shift+V** in the command layer (or **NVDA+Shift+V**) to cycle through verbosity presets.
+The verbosity level controls how much optional context Terminal Access speaks. Set it in NVDA menu > Preferences > Settings > Terminal Settings.
 
-| Preset | Behavior |
-|--------|----------|
+| Level | Behavior |
+|-------|----------|
 | **Quiet** | Only errors and turn boundaries are announced |
 | **Normal** | Standard announcements (default) |
 | **Verbose** | Extra context such as the section category on a jump, the search match count, and profile override detail |
