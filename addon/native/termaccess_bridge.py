@@ -9,10 +9,10 @@ ctypes wrapper around the Rust ``termaccess.dll``.
 Provides drop-in replacements for the CPU-bound Python classes:
 
 * :class:`NativeTextDiffer` — replaces :class:`TextDiffer`
-* :func:`native_strip_ansi` — replaces :meth:`ANSIParser.stripANSI`
-* :func:`native_search_text` — replaces the search loop in
-  :class:`OutputSearchManager`
 * :class:`NativePositionCache` — replaces :class:`PositionCache`
+
+ANSI stripping and text search are done in Python (the FFI round-trip
+measured about 10x slower), so they are not provided here.
 
 All functions are designed to fail gracefully: if the DLL cannot be loaded,
 :func:`native_available` returns ``False`` and callers should fall back to
@@ -148,29 +148,8 @@ def _setup_signatures(lib: ctypes.CDLL) -> None:
 	]
 	lib.ta_text_differ_last_text.restype = c_int32
 
-	# ANSI stripping
-	lib.ta_strip_ansi.argtypes = [
-		POINTER(c_ubyte),  # text_ptr
-		c_size_t,          # text_len
-		POINTER(POINTER(c_ubyte)),  # out_ptr
-		POINTER(c_size_t),          # out_len
-	]
-	lib.ta_strip_ansi.restype = c_int32
-
-	# Search
-	lib.ta_search_text.argtypes = [
-		POINTER(c_ubyte),  # text_ptr
-		c_size_t,          # text_len
-		POINTER(c_ubyte),  # pattern_ptr
-		c_size_t,          # pattern_len
-		c_uint32,          # case_sensitive
-		c_uint32,          # use_regex
-		ctypes.c_void_p,   # out_results (pointer to TaSearchResults)
-	]
-	lib.ta_search_text.restype = c_int32
-
-	lib.ta_search_results_free.argtypes = [ctypes.c_void_p]
-	lib.ta_search_results_free.restype = None
+	# ANSI stripping and search are done in Python (faster than the FFI
+	# round-trip), so those symbols are no longer declared here.
 
 	# PositionCache
 	lib.ta_position_cache_new.argtypes = [c_uint32, c_uint32]
@@ -272,31 +251,6 @@ def native_available() -> bool:
 _native_available = False   # Set True after DLL loads successfully
 _ffi_error_logged = False   # True after the first FFI error is logged
 _fallback_count = 0         # Number of times callers fell back to Python
-
-
-def safe_native_strip_ansi(text: str) -> str:
-	"""Strip ANSI sequences using native DLL with automatic fallback.
-
-	If the native DLL is unavailable or an FFI call fails, returns the
-	input text unchanged and increments ``_fallback_count``.  The first
-	FFI failure logs an error and sets ``_native_available`` to False so
-	subsequent calls skip the FFI attempt entirely.
-	"""
-	global _native_available, _ffi_error_logged, _fallback_count
-
-	if not _native_available:
-		_fallback_count += 1
-		return text
-
-	try:
-		return native_strip_ansi(text)
-	except Exception as exc:
-		_native_available = False
-		_fallback_count += 1
-		if not _ffi_error_logged:
-			_ffi_error_logged = True
-			log.error("Native FFI call failed, falling back to Python: %s", exc)
-		return text
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -451,108 +405,10 @@ class NativeTextDiffer:
 		self.close()
 
 
-# ═══════════════════════════════════════════════════════════════
-#  ANSI stripping
-# ═══════════════════════════════════════════════════════════════
-
-def native_strip_ansi(text: str) -> str:
-	"""Strip all ANSI escape sequences from *text*.
-
-	Drop-in replacement for ``ANSIParser.stripANSI(text)``.
-	"""
-	lib = _get_dll()
-	if lib is None:
-		raise RuntimeError("Native DLL not available")
-
-	text_buf, text_len = _str_to_utf8(text)
-
-	out_ptr = POINTER(c_ubyte)()
-	out_len = c_size_t(0)
-
-	rc = lib.ta_strip_ansi(
-		text_buf,
-		c_size_t(text_len),
-		byref(out_ptr),
-		byref(out_len),
-	)
-	_check_rc(rc, "ta_strip_ansi")
-
-	return _read_ffi_string(lib, out_ptr, out_len.value)
-
-
-# ═══════════════════════════════════════════════════════════════
-#  Search
-# ═══════════════════════════════════════════════════════════════
-
-class _TaSearchMatch(Structure):
-	"""Mirrors the C ``TaSearchMatch`` struct."""
-	_fields_ = [
-		("line_index", c_uint32),
-		("char_offset", c_uint32),
-		("line_text_ptr", POINTER(c_ubyte)),
-		("line_text_len", c_size_t),
-	]
-
-
-class _TaSearchResults(Structure):
-	"""Mirrors the C ``TaSearchResults`` struct."""
-	_fields_ = [
-		("matches", POINTER(_TaSearchMatch)),
-		("match_count", c_size_t),
-	]
-
-
-def native_search_text(
-	text: str,
-	pattern: str,
-	case_sensitive: bool = True,
-	use_regex: bool = False,
-) -> list[tuple[int, int, str]]:
-	"""Search *text* for *pattern* with optional regex and case flags.
-
-	Returns a list of ``(line_index, char_offset, line_text)`` tuples
-	for each matching line.  ANSI codes are stripped before matching.
-
-	Raises ``ValueError`` if *use_regex* is True and *pattern* is invalid.
-	"""
-	lib = _get_dll()
-	if lib is None:
-		raise RuntimeError("Native DLL not available")
-
-	text_buf, text_len = _str_to_utf8(text)
-	pat_buf, pat_len = _str_to_utf8(pattern)
-
-	results = _TaSearchResults()
-
-	rc = lib.ta_search_text(
-		text_buf,
-		c_size_t(text_len),
-		pat_buf,
-		c_size_t(pat_len),
-		c_uint32(1 if case_sensitive else 0),
-		c_uint32(1 if use_regex else 0),
-		ctypes.byref(results),
-	)
-
-	if rc == ERR_INVALID_REGEX:
-		raise ValueError(f"Invalid regex pattern: {pattern}")
-	_check_rc(rc, "ta_search_text")
-
-	# Copy results into Python before freeing
-	matches: list[tuple[int, int, str]] = []
-	try:
-		for i in range(results.match_count):
-			m = results.matches[i]
-			line_text = ""
-			if m.line_text_ptr and m.line_text_len > 0:
-				line_text = ctypes.string_at(
-					m.line_text_ptr, m.line_text_len
-				).decode("utf-8")
-			matches.append((m.line_index, m.char_offset, line_text))
-	finally:
-		lib.ta_search_results_free(ctypes.byref(results))
-
-	return matches
+# ANSI stripping and text search were removed from the native path: the
+# FFI round-trip measured about 10x slower than Python's re/str, so both
+# are done in Python now. The helper process still reads buffers off the
+# main thread (read_text/read_lines); Python searches the result.
 
 
 # ═══════════════════════════════════════════════════════════════

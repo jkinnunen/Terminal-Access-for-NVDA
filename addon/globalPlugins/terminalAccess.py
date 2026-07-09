@@ -116,8 +116,6 @@ try:
 	from native.termaccess_bridge import (
 		native_available as _native_available_fn,
 		NativeTextDiffer as _NativeTextDiffer,
-		native_strip_ansi as _native_strip_ansi,
-		native_search_text as _native_search_text,
 		NativePositionCache as _NativePositionCache,
 		get_helper as _get_helper,
 		stop_helper as _stop_helper,
@@ -245,11 +243,16 @@ _COMMAND_LAYER_MAP = {
 	"kb:control+shift+t": "prevTurn",
 	"kb:control+b": "nextCodeBlock",
 	"kb:control+shift+b": "prevCodeBlock",
+	"kb:control+l": "announceCodeBlock",
+	"kb:control+c": "copyCodeBlock",
+	"kb:control+e": "explainCodeBlock",
 	# Section navigation
 	"kb:n": "nextSection",
 	"kb:shift+n": "prevSection",
 	# Streaming delta
 	"kb:shift+d": "whatChanged",
+	# Verbosity
+	"kb:shift+v": "cycleVerbosity",
 	# Table mode
 	"kb:g": "toggleTableMode",
 	# Layer exit
@@ -347,8 +350,13 @@ _DEFAULT_GESTURES = {
 	"kb:NVDA+alt+shift+t": "prevTurn",
 	"kb:NVDA+alt+b": "nextCodeBlock",
 	"kb:NVDA+alt+shift+b": "prevCodeBlock",
+	"kb:NVDA+alt+l": "announceCodeBlock",
+	"kb:NVDA+alt+c": "copyCodeBlock",
+	"kb:NVDA+alt+e": "explainCodeBlock",
 	# Streaming delta
 	"kb:NVDA+shift+d": "whatChanged",
+	# Verbosity
+	"kb:NVDA+shift+v": "cycleVerbosity",
 	# Table mode
 	"kb:NVDA+alt+g": "toggleTableMode",
 }
@@ -572,20 +580,13 @@ def _make_position_cache() -> PositionCache:
 	return PositionCache()
 
 
-def _strip_ansi_fallback(text: str) -> str:
-	"""Strip ANSI escape sequences using the Python regex fallback."""
+def _strip_ansi(text: str) -> str:
+	"""Strip ANSI escape sequences.
+
+	Always the Python implementation: the native FFI strip path was
+	measured about 10x slower (FFI marshaling dominates), so it was dropped.
+	"""
 	return ANSIParser.stripANSI(text)
-
-
-if _native_available:
-	def _strip_ansi(text: str) -> str:
-		"""Strip ANSI escape sequences using the native Rust implementation."""
-		try:
-			return _native_strip_ansi(text)
-		except Exception:
-			return ANSIParser.stripANSI(text)
-else:
-	_strip_ansi = _strip_ansi_fallback
 
 # Populate runtime dependency registry (must be after _strip_ansi is defined)
 import lib._runtime as _rt
@@ -595,10 +596,6 @@ _rt.read_terminal_text = _read_terminal_text
 _rt.native_available = _native_available
 _rt.make_text_differ = _make_text_differ
 _rt.make_position_cache = _make_position_cache
-try:
-	_rt.native_search_text = _native_search_text
-except NameError:
-	pass
 _rt.api_module = api
 _rt.webbrowser_module = webbrowser
 
@@ -4746,6 +4743,55 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 		explanation = block.explain(lines)
 		ui.message(explanation)
+
+	@script(
+		# Translators: Description for copying a code block to the clipboard
+		description=_("Copy the code block at cursor to the clipboard"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_copyCodeBlock(self, gesture):
+		"""Copy the fenced code block at the current line to the clipboard."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		lines = self._getBufferLines()
+		if not lines:
+			tones.beep(200, 100)
+			return
+		current = self._getCurrentLineNumber() or 0
+		blocks = self._codeBlockDetector.detect(lines)
+		block = self._codeBlockDetector.find_block_at(current, blocks)
+		if block is None:
+			# Translators: Message when cursor is not inside a code block
+			ui.message(_("Not inside a code block"))
+			return
+		text, truncated = block.copy_text(lines)
+		if not self._copyToClipboard(text):
+			# Translators: Announced when copying a code block fails
+			ui.message(_("Unable to copy"))
+			return
+		if truncated:
+			# Translators: Announced after copying a code block that was cut at the size cap
+			ui.message(_("Code block copied, truncated"))
+		else:
+			# Translators: Announced after copying a code block
+			ui.message(_("Code block copied"))
+
+	@script(
+		# Translators: Description for cycling the verbosity level
+		description=_("Cycle the verbosity level: quiet, normal, verbose"),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_cycleVerbosity(self, gesture):
+		"""Cycle the verbosity level and announce the new setting."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		new_level = (self._verbosityLevel() + 1) % 3
+		self._configManager.set("verbosityLevel", new_level)
+		# Translators: Verbosity level names, in order: quiet, normal, verbose
+		names = [_("Quiet"), _("Normal"), _("Verbose")]
+		ui.message(names[new_level])
 
 	def _getReviewPosition(self):
 		"""

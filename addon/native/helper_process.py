@@ -371,56 +371,10 @@ class HelperProcess:
         except Exception:
             return False
 
-    def search_text(
-        self,
-        hwnd: int,
-        pattern: str,
-        case_sensitive: bool = False,
-        use_regex: bool = False,
-    ) -> Optional[Dict[str, Any]]:
-        """Search terminal text via the helper process.
-
-        The helper reads the terminal buffer via UIA and runs the search
-        in a single IPC round-trip — no buffer transfer to Python needed.
-
-        Returns the full search result dict
-        ``{matches: [{line_index, char_offset, line_text}, ...], total_lines: N}``
-        on success, or ``None`` on error.
-
-        Raises ``ValueError`` for invalid regex patterns.
-        """
-        if not self.is_running:
-            return None
-
-        try:
-            resp = self._send_request(
-                "search_text",
-                hwnd=hwnd,
-                pattern=pattern,
-                case_sensitive=case_sensitive,
-                use_regex=use_regex,
-            )
-            if resp is None:
-                return None
-            if resp.get("type") == "search_result":
-                return resp
-            if resp.get("type") == "error":
-                code = resp.get("code", "")
-                if code == "invalid_regex":
-                    raise ValueError(
-                        f"Invalid regex pattern: {resp.get('message', pattern)}"
-                    )
-                log.debug(
-                    "search_text error: %s: %s",
-                    code,
-                    resp.get("message"),
-                )
-            return None
-        except ValueError:
-            raise
-        except Exception:
-            log.debug("search_text failed", exc_info=True)
-            return None
+    # The helper is a reader only: it reads the terminal buffer off NVDA's
+    # main thread (read_text/read_lines). Searching is done in Python on the
+    # returned text, which is faster than a native search and keeps the
+    # helper's job small.
 
     # ───────────────────────────────────────────────────────────
     #  Subscription operations

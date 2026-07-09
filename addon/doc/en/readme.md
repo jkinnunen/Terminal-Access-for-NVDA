@@ -462,7 +462,7 @@ Terminal Access includes optimizations for large terminal buffers.
 - **Position caching**: Position calculations are cached for up to 100 positions with a 1-second timeout, and invalidated on content changes, resize, or terminal switch. A calculation that is O(n) on first access becomes O(1) when cached.
 - **Incremental tracking**: Small cursor movements (within 10 positions) are 10 to 20 times faster than a full calculation, with automatic fallback for large jumps.
 - **Background processing**: Selections over 100 rows run in a background thread with a progress dialog and cancellation support.
-- **Native acceleration**: When the native component (`termaccess.dll`) is available, CPU-bound work such as ANSI stripping, text diffing, search, and Unicode width calculation runs in compiled Rust. A background helper process reads terminal buffers via UIA on a separate thread, and falls back to the Win32 Console API for terminals without UIA TextPattern support. All native features fall back to pure Python when unavailable, with no user action required.
+- **Native acceleration**: A background helper process reads terminal buffers via UIA on a separate thread, keeping large reads off NVDA's main thread, and falls back to the Win32 Console API for terminals without UIA TextPattern support. The native component (`termaccess.dll`) also accelerates text diffing, position caching, and Unicode width calculation. Searching and ANSI stripping run in Python, which measured faster than the native round-trip. Everything falls back to pure Python when the native component is unavailable, and the whole native path can be turned off with the "Use native acceleration" setting.
 
 ---
 
@@ -491,11 +491,11 @@ Terminal Access scans for fenced code blocks (triple backtick delimiters) and tr
 |---------------|----------------|--------|
 | **Ctrl+B** | **NVDA+Alt+B** | Next code block |
 | **Ctrl+Shift+B** | **NVDA+Alt+Shift+B** | Previous code block |
+| **Ctrl+L** | **NVDA+Alt+L** | Announce code block (language and line count) |
+| **Ctrl+C** | **NVDA+Alt+C** | Copy code block to clipboard |
+| **Ctrl+E** | **NVDA+Alt+E** | Explain code block |
 
-Two more code-block commands have no default shortcut. Assign them in NVDA's Input Gestures dialog under the "Terminal Access" category:
-
-- **Announce code block**: speaks the language and line count of the block at the cursor.
-- **Explain code block**: gives a brief offline explanation of the block. It is gated by the "Allow Code Explain" privacy setting, which is off by default.
+The explain command gives a brief offline explanation of the block. It is gated by the "Allow Code Explain" privacy setting, which is off by default.
 
 ### Streaming Delta
 
@@ -520,7 +520,7 @@ Rate limit and token limit errors produce a pulsing low tone (two quick 220 Hz b
 
 ### Verbosity Level
 
-The verbosity level controls how much optional context Terminal Access speaks. Set it in NVDA menu > Preferences > Settings > Terminal Settings.
+The verbosity level controls how much optional context Terminal Access speaks. Press **Shift+V** in the command layer (or **NVDA+Shift+V**) to cycle through the levels, or set it in NVDA menu > Preferences > Settings > Terminal Settings.
 
 | Level | Behavior |
 |-------|----------|

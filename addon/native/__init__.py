@@ -11,8 +11,6 @@ Phase 1 — DLL-based drop-in replacements for CPU-bound algorithms::
     from native.termaccess_bridge import (
         native_available,
         NativeTextDiffer,
-        native_strip_ansi,
-        native_search_text,
         NativePositionCache,
     )
 

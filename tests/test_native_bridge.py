@@ -28,8 +28,6 @@ try:
 	from native.termaccess_bridge import (
 		native_available,
 		NativeTextDiffer,
-		native_strip_ansi,
-		native_search_text,
 		NativePositionCache,
 		native_text_width,
 	)
@@ -145,150 +143,6 @@ class TestTextDifferParity(unittest.TestCase):
 		lines = "Building project...\n"
 		updates = [lines + f"Progress: [{('=' * i):50s}] {i*2}%" for i in range(51)]
 		self._run_parity(updates)
-
-
-@unittest.skipUnless(_HAS_NATIVE, _skip_msg)
-class TestAnsiStripParity(unittest.TestCase):
-	"""Verify that native_strip_ansi produces identical results to ANSIParser.stripANSI."""
-
-	def _check(self, text):
-		py_result = ANSIParser.stripANSI(text)
-		native_result = native_strip_ansi(text)
-		self.assertEqual(
-			py_result,
-			native_result,
-			f"Mismatch for input={text!r}: python={py_result!r}, native={native_result!r}",
-		)
-
-	def test_no_ansi(self):
-		self._check("plain text")
-
-	def test_empty(self):
-		self._check("")
-
-	def test_sgr_color(self):
-		self._check("\x1b[31mRed text\x1b[0m")
-
-	def test_sgr_bold(self):
-		self._check("\x1b[1mBold\x1b[0m normal")
-
-	def test_256_color(self):
-		self._check("\x1b[38;5;196mRed 256\x1b[0m")
-
-	def test_rgb_color(self):
-		self._check("\x1b[38;2;255;128;0mOrange\x1b[0m")
-
-	def test_cursor_movement(self):
-		self._check("\x1b[10;20Htext at position")
-
-	def test_osc_title(self):
-		self._check("\x1b]0;Terminal Title\x07rest")
-
-	def test_mixed_sequences(self):
-		self._check("\x1b[1;31mBold Red\x1b[0m normal \x1b[32mGreen\x1b[0m end")
-
-	def test_unicode_preserved(self):
-		self._check("\x1b[31m日本語テスト\x1b[0m")
-
-	def test_complex_prompt(self):
-		"""Realistic terminal prompt with multiple ANSI sequences."""
-		prompt = (
-			"\x1b[1;32muser@host\x1b[0m:\x1b[1;34m~/project\x1b[0m$ "
-			"echo \x1b[33mhello\x1b[0m"
-		)
-		self._check(prompt)
-
-	def test_hyperlink_osc8(self):
-		self._check("\x1b]8;;https://example.com\x07Click here\x1b]8;;\x07")
-
-	def test_only_ansi(self):
-		self._check("\x1b[31m\x1b[0m")
-
-	def test_incomplete_sequence(self):
-		"""Malformed ANSI sequence at end of string."""
-		self._check("text\x1b[")
-
-	def test_large_input(self):
-		"""Performance: strip ANSI from large text."""
-		line = "\x1b[32m" + "x" * 200 + "\x1b[0m\n"
-		text = line * 500
-		self._check(text)
-
-
-@unittest.skipUnless(_HAS_NATIVE, _skip_msg)
-class TestSearchParity(unittest.TestCase):
-	"""Verify that native_search_text matches the Python search logic."""
-
-	def _python_search(self, text, pattern, case_sensitive=True, use_regex=False):
-		"""Replicate the Python search logic from terminalAccess.py."""
-		# Strip ANSI
-		stripped = ANSIParser.stripANSI(text)
-		lines = stripped.split("\n")
-
-		if use_regex:
-			flags = 0 if case_sensitive else re.IGNORECASE
-			compiled = re.compile(pattern, flags)
-			results = []
-			for i, line in enumerate(lines):
-				m = compiled.search(line)
-				if m:
-					results.append((i, m.start(), line))
-		else:
-			search_pattern = pattern if case_sensitive else pattern.lower()
-			results = []
-			for i, line in enumerate(lines):
-				target = line if case_sensitive else line.lower()
-				idx = target.find(search_pattern)
-				if idx >= 0:
-					results.append((i, idx, line))
-
-		return results
-
-	def _check(self, text, pattern, case_sensitive=True, use_regex=False):
-		py_result = self._python_search(text, pattern, case_sensitive, use_regex)
-		native_result = native_search_text(text, pattern, case_sensitive, use_regex)
-		self.assertEqual(
-			py_result,
-			native_result,
-			f"Search mismatch for pattern={pattern!r}, cs={case_sensitive}, regex={use_regex}",
-		)
-
-	def test_literal_case_sensitive(self):
-		self._check("foo\nbar\nbaz", "bar")
-
-	def test_literal_case_insensitive(self):
-		self._check("Hello\nWorld\nhello", "hello", case_sensitive=False)
-
-	def test_literal_no_match(self):
-		self._check("foo\nbar", "xyz")
-
-	def test_regex_basic(self):
-		self._check("error: file not found\nwarning: unused", r"error|warning", use_regex=True)
-
-	def test_regex_case_insensitive(self):
-		self._check("Error: bad\nERROR: worse", "error", case_sensitive=False, use_regex=True)
-
-	def test_ansi_stripped_before_search(self):
-		text = "\x1b[31merror\x1b[0m message\nnormal line"
-		self._check(text, "error")
-
-	def test_empty_text(self):
-		self._check("", "pattern")
-
-	def test_empty_pattern(self):
-		# Empty pattern matches every line in both implementations
-		self._check("a\nb\nc", "")
-
-	def test_multiple_matches(self):
-		text = "apple\nbanana\napricot\navocado"
-		self._check(text, "a", case_sensitive=False)
-
-	def test_unicode_search(self):
-		self._check("hello\n世界\nfoo", "世界")
-
-	def test_invalid_regex_raises(self):
-		with self.assertRaises(ValueError):
-			native_search_text("text", r"[invalid", use_regex=True)
 
 
 @unittest.skipUnless(_HAS_NATIVE, _skip_msg)
@@ -411,13 +265,6 @@ class TestNativeResourceCleanup(unittest.TestCase):
 			for j in range(20):
 				c.set(f"key_{j}", j, j)
 			c.close()
-
-	def test_many_strip_ansi_calls(self):
-		"""Verify no memory leaks in repeated strip_ansi calls."""
-		text = "\x1b[31m" + "x" * 1000 + "\x1b[0m"
-		for _ in range(1000):
-			result = native_strip_ansi(text)
-			self.assertEqual(len(result), 1000)
 
 
 @unittest.skipUnless(_HAS_NATIVE, _skip_msg)

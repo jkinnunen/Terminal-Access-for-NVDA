@@ -255,104 +255,51 @@ class OutputSearchManager:
 				return offset if offset >= 0 else 0
 
 		try:
-			# ─── Fast path: helper-side search (no buffer transfer) ───
-			# When the helper is running, it reads the terminal buffer via
-			# UIA and searches it in one IPC round-trip.  This avoids the
-			# expensive makeTextInfo(POSITION_ALL) call entirely.
-			helper_search_result = None
-			try:
-				helper = _rt.get_helper()
-			except Exception:
-				helper = None
-
-			if helper is not None and helper.is_running:
-				hwnd = getattr(self._terminal, "windowHandle", None)
-				if hwnd:
-					try:
-						resp = helper.search_text(
-							hwnd, pattern, case_sensitive, use_regex,
-						)
-						if resp is not None:
-							helper_search_result = resp
-					except ValueError:
-						raise
-					except Exception:
+			# ─── Acquire the buffer text ───
+			# Prefer the helper's off-main-thread UIA read when native
+			# acceleration is on and the helper is running; otherwise read
+			# in-process. Either way the matching runs in Python, which is
+			# both faster than the native FFI search (measured) and simpler.
+			all_text = None
+			if _rt.native_available:
+				try:
+					helper = _rt.get_helper()
+				except Exception:
+					helper = None
+				if helper is not None and helper.is_running:
+					hwnd = getattr(self._terminal, "windowHandle", None)
+					if hwnd:
 						try:
-							import logHandler
-							logHandler.log.debug("Terminal Access: helper search_text failed", exc_info=True)
+							all_text = helper.read_text(hwnd)
 						except Exception:
-							pass
+							all_text = None
 
-			if helper_search_result is not None:
-				# Helper returned matches — build matching_indices and
-				# line_text/offset maps from the response.
-				resp = helper_search_result
-				matching_indices = [m["line_index"] for m in resp.get("matches", [])]
-				native_offset_map = {
-					m["line_index"]: m["char_offset"]
-					for m in resp.get("matches", [])
-				}
-				helper_line_texts = {
-					m["line_index"]: m["line_text"]
-					for m in resp.get("matches", [])
-				}
-				total_lines = resp.get("total_lines", 0)
-				lines = None  # Not available in helper path
-				native_line_texts = None  # Helper provides its own line texts
-			else:
-				# ─── Standard path: read buffer + match locally ───
+			if all_text is None:
 				info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
 				all_text = info.text
 
-				if not all_text:
-					return 0
+			if not all_text:
+				return 0
 
-				# Strip ANSI escape sequences that some terminals leave
-				# in the text buffer.
-				all_text = _rt.strip_ansi(all_text)
+			# Strip ANSI escape sequences that some terminals leave in the
+			# text buffer.
+			all_text = _rt.strip_ansi(all_text)
 
-				helper_line_texts = None
-				native_offset_map = None
-				native_line_texts = None
-				lines = None
+			lines = all_text.split('\n')
+			total_lines = len(lines)
 
-				# Try Rust-accelerated search first.
-				if _rt.native_available:
-					try:
-						native_matches = _rt.native_search_text(
-							all_text, pattern, case_sensitive, use_regex,
-						)
-						matching_indices = [m[0] for m in native_matches]
-						native_offset_map = {m[0]: m[1] for m in native_matches}
-						native_line_texts = {m[0]: m[2] for m in native_matches}
-						# Count newlines instead of splitting to get total_lines.
-						total_lines = all_text.count('\n') + 1
-					except ValueError:
-						raise
-					except Exception:
-						try:
-							import logHandler
-							logHandler.log.debug("Terminal Access: native search_text failed", exc_info=True)
-						except Exception:
-							pass
-						native_offset_map = None
-						native_line_texts = None
-
-				if native_offset_map is None:
-					# Python fallback: need full line split.
-					lines = all_text.split('\n')
-					total_lines = len(lines)
-					native_line_texts = None
-					if use_regex:
-						flags = 0 if case_sensitive else re.IGNORECASE
-						compiled = re.compile(pattern, flags)
-						matching_indices = [i for i, line in enumerate(lines) if compiled.search(line)]
-					else:
-						search_pattern = pattern if case_sensitive else pattern.lower()
-						matching_indices = [
-							i for i, line in enumerate(lines)
-							if search_pattern in (line if case_sensitive else line.lower())
-						]
+			if use_regex:
+				flags = 0 if case_sensitive else re.IGNORECASE
+				compiled = re.compile(pattern, flags)
+				matching_indices = [
+					i for i, line in enumerate(lines) if compiled.search(line)
+				]
+			else:
+				search_pattern = pattern if case_sensitive else pattern.lower()
+				matching_indices = [
+					i for i, line in enumerate(lines)
+					if search_pattern in (line if case_sensitive else line.lower())
+				]
 
 			# ─── Section scoping ───
 			# When scope="section", restrict matching_indices to lines
@@ -360,16 +307,7 @@ class OutputSearchManager:
 			if scope == "section":
 				try:
 					from lib.section_tokenizer import SectionTokenizer
-					# We need lines for the tokenizer. Build them if we
-					# only have native/helper results.
-					if lines is None:
-						src_info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
-						src_text = src_info.text or ""
-						src_text = _rt.strip_ansi(src_text)
-						section_lines = src_text.split('\n')
-					else:
-						section_lines = lines
-
+					section_lines = lines
 					tokenizer = SectionTokenizer()
 					tokenizer.tokenize(section_lines)
 					spans = tokenizer.get_spans()
@@ -398,14 +336,7 @@ class OutputSearchManager:
 			# (Levenshtein distance <= 1 on each word in each line).
 			fuzzy_fallback = False
 			if not matching_indices and not use_regex and not case_sensitive:
-				# Build lines list if we don't have it.
-				if lines is None:
-					src_info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
-					src_text = src_info.text or ""
-					src_text = _rt.strip_ansi(src_text)
-					fuzzy_lines = src_text.split('\n')
-				else:
-					fuzzy_lines = lines
+				fuzzy_lines = lines
 
 				# Apply section scoping to fuzzy search too.
 				if scope == "section" and section_start is not None:
@@ -427,10 +358,6 @@ class OutputSearchManager:
 						f"fuzzy match{'es' if len(matching_indices) != 1 else ''}."
 					)
 
-					# Ensure lines is set for _get_line_text below.
-					if lines is None:
-						lines = fuzzy_lines
-
 			if not matching_indices:
 				self.add_to_history(pattern)
 				return 0
@@ -440,21 +367,16 @@ class OutputSearchManager:
 			# is performed here. The TextInfo is resolved lazily in
 			# _jump_to_match_index() when the user selects a match.
 			def _get_line_text(line_index):
-				"""Get line text from whichever source is available."""
-				if helper_line_texts is not None and line_index in helper_line_texts:
-					return helper_line_texts[line_index]
-				if native_line_texts is not None and line_index in native_line_texts:
-					return native_line_texts[line_index]
-				if lines is not None and line_index < len(lines):
+				"""Get line text for a matched line index."""
+				if 0 <= line_index < len(lines):
 					return lines[line_index]
 				return ""
 
 			for line_index in matching_indices:
 				line_text = _get_line_text(line_index)
-				if native_offset_map is not None and line_index in native_offset_map:
-					char_offset = native_offset_map[line_index]
-				else:
-					char_offset = _find_match_offset(line_text, pattern, case_sensitive, use_regex)
+				char_offset = _find_match_offset(
+					line_text, pattern, case_sensitive, use_regex
+				)
 				_store_match(line_text, line_index + 1, char_offset)
 
 			# Record pattern in search history.

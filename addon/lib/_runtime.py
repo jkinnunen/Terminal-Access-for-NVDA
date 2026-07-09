@@ -36,7 +36,6 @@ make_text_differ = TextDiffer
 
 # Native acceleration
 native_available = False
-native_search_text = None
 
 # Helper process
 get_helper = lambda: None

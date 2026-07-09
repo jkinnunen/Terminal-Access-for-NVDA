@@ -8,12 +8,14 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ### Added
 
-- Benchmark harness that compares the native and in-process text-processing paths, so the choice of default can be based on measurements rather than assumption.
+- Three code-block commands now have default shortcuts: Announce code block, language and line count (Ctrl+L or NVDA+Alt+L); Copy code block to clipboard (Ctrl+C or NVDA+Alt+C); and Explain code block (Ctrl+E or NVDA+Alt+E).
+- Cycle the verbosity level (quiet, normal, verbose) with Shift+V in the command layer or NVDA+Shift+V.
 
 ### Changed
 
+- ANSI stripping and terminal search now run in Python instead of the native DLL. The native path was measured about 10x slower for these operations (the FFI marshaling dominates), so it was removed along with the helper's in-process search. When native acceleration is on, the helper process still reads the buffer off NVDA's main thread; the search then runs in Python on the result.
 - The user guide now marks table-mode column detection and AI turn detection as experimental, with a short note on how to report a miss.
-- Corrected the user guide's AI section against the code: fixed the previous-turn and previous-code-block command-layer keys, and removed shortcuts that were documented but never bound. Announce code block and Explain code block have no default shortcut and are assignable in NVDA's Input Gestures dialog; the verbosity level is a setting, not a gesture.
+- Corrected the user guide's AI section against the code: fixed the previous-turn and previous-code-block command-layer keys.
 
 ### Testing
 
