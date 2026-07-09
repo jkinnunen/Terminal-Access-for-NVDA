@@ -285,8 +285,17 @@ class OutputSearchManager:
 			# text buffer.
 			all_text = _rt.strip_ansi(all_text)
 
-			lines = all_text.split('\n')
-			total_lines = len(lines)
+			# Cap each line's length before matching. A malicious program
+			# can emit a multi-megabyte line with no newline; matching the
+			# full line (regex, substring, or fuzzy) on NVDA's main thread
+			# would stall the screen reader. MAX_LINE_LENGTH is already the
+			# cap applied to stored match text, so applying it here keeps
+			# matching bounded and consistent.
+			max_line = self.MAX_LINE_LENGTH
+			lines = [
+				ln if len(ln) <= max_line else ln[:max_line]
+				for ln in all_text.split('\n')
+			]
 
 			if use_regex:
 				flags = 0 if case_sensitive else re.IGNORECASE
@@ -303,7 +312,11 @@ class OutputSearchManager:
 
 			# ─── Section scoping ───
 			# When scope="section", restrict matching_indices to lines
-			# within the current section span.
+			# within the current section span. Initialise the span bounds
+			# before the try so the fuzzy fallback below can read them even
+			# if tokenization raises early.
+			section_start = None
+			section_end = None
 			if scope == "section":
 				try:
 					from lib.section_tokenizer import SectionTokenizer
@@ -312,8 +325,6 @@ class OutputSearchManager:
 					tokenizer.tokenize(section_lines)
 					spans = tokenizer.get_spans()
 					# Find the span containing current_line.
-					section_start = None
-					section_end = None
 					for sp in spans:
 						if sp.start_line <= current_line <= sp.end_line:
 							section_start = sp.start_line
@@ -338,9 +349,14 @@ class OutputSearchManager:
 			if not matching_indices and not use_regex and not case_sensitive:
 				fuzzy_lines = lines
 
-				# Apply section scoping to fuzzy search too.
-				if scope == "section" and section_start is not None:
-					fuzzy_candidate_indices = range(section_start, section_end + 1)
+				# Apply section scoping to fuzzy search too. In section scope
+				# with no containing span, fuzzy-match nothing rather than
+				# leaking to the whole buffer (mirrors the exact path above).
+				if scope == "section":
+					if section_start is not None:
+						fuzzy_candidate_indices = range(section_start, section_end + 1)
+					else:
+						fuzzy_candidate_indices = range(0)
 				else:
 					fuzzy_candidate_indices = range(len(fuzzy_lines))
 
@@ -662,10 +678,18 @@ class OutputSearchManager:
 		"""Check whether any word in *line* is within Levenshtein
 		distance 1 of *pattern* (case-insensitive)."""
 		pat_lower = pattern.lower()
+		pat_len = len(pat_lower)
 		# Split on whitespace and common punctuation to get words.
 		words = re.split(r'[\s:;,.()\[\]{}=<>!@#$%^&*|/\\]+', line)
 		for word in words:
 			if not word:
+				continue
+			# Levenshtein distance is at least the length difference, so a
+			# word whose length differs from the pattern by more than 1 can
+			# never be within distance 1. Reject it in O(1) before building
+			# the O(len1*len2) matrix — this bounds the work against a
+			# pathologically long unbroken "word" from malicious output.
+			if abs(len(word) - pat_len) > 1:
 				continue
 			if self._levenshtein_distance(pat_lower, word.lower()) <= 1:
 				return True
@@ -819,7 +843,8 @@ class UrlExtractorManager:
 	# Schemes that are always blocked regardless of user settings.
 	_BLOCKED_SCHEMES = ('file://', 'javascript:', 'data:')
 
-	def _is_safe_url(self, url: str) -> bool:
+	@classmethod
+	def _is_safe_url(cls, url: str) -> bool:
 		"""Check whether a URL uses a safe scheme.
 
 		Returns True for http://, https://, and ftp:// URLs.
@@ -827,12 +852,28 @@ class UrlExtractorManager:
 		unrecognized scheme.
 		"""
 		lower = url.lower()
-		if any(lower.startswith(s) for s in self._BLOCKED_SCHEMES):
+		if any(lower.startswith(s) for s in cls._BLOCKED_SCHEMES):
 			return False
 		# www. URLs are treated as safe (will get https:// prepended)
 		if lower.startswith('www.'):
 			return True
-		return lower.startswith(self._SAFE_SCHEMES)
+		return lower.startswith(cls._SAFE_SCHEMES)
+
+	@classmethod
+	def _prepare_safe_url(cls, url: str):
+		"""Normalize *url* and return it if safe to open, else None.
+
+		Single source of truth shared by ``open_url`` and the URL-list
+		dialog's Open action so the two paths cannot drift apart. Strips
+		surrounding whitespace, prepends ``https://`` to bare ``www.``
+		links, then applies the blocklist+allowlist scheme check.
+		"""
+		url = url.strip()
+		if url.lower().startswith('www.'):
+			url = 'https://' + url
+		if not cls._is_safe_url(url):
+			return None
+		return url
 
 	def open_url(self, index: int) -> bool:
 		"""Open URL at index in default browser.
@@ -842,15 +883,11 @@ class UrlExtractorManager:
 		terminal from launching local executables.
 		"""
 		if 0 <= index < len(self._urls):
-			url = self._urls[index].url
-			# Ensure scheme for www. URLs
-			if url.lower().startswith('www.'):
-				url = 'https://' + url
-			# Block unsafe schemes using centralized check
-			if not self._is_safe_url(url):
+			safe_url = self._prepare_safe_url(self._urls[index].url)
+			if safe_url is None:
 				return False
 			try:
-				_rt.webbrowser_module.open(url)
+				_rt.webbrowser_module.open(safe_url)
 				return True
 			except (OSError, ValueError):
 				return False
@@ -892,16 +929,15 @@ def UrlListDialog(parent, urls, manager):
 
 	def on_open(original_index):
 		entry = urls[original_index]
-		url = entry.url
-		if url.lower().startswith('www.'):
-			url = 'https://' + url
-		# Block unsafe schemes (file://, javascript:, etc.)
-		if not url.lower().startswith(UrlExtractorManager._SAFE_SCHEMES):
+		# Use the shared normalize+scheme check so this path stays in sync
+		# with UrlExtractorManager.open_url (blocklist + allowlist).
+		safe_url = UrlExtractorManager._prepare_safe_url(entry.url)
+		if safe_url is None:
 			# Translators: Announced when a URL with an unsafe scheme is blocked
 			ui.message(_("Cannot open this URL type for security reasons"))
 			return
 		try:
-			_rt.webbrowser_module.open(url)
+			_rt.webbrowser_module.open(safe_url)
 		except Exception:
 			pass
 

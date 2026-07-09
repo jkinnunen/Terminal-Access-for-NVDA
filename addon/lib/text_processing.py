@@ -144,6 +144,10 @@ class ANSIParser:
 		r')'
 	)
 
+	# Defence-in-depth cap on stripANSI's converge loop. In practice it
+	# settles in a handful of passes; this bounds a pathological input.
+	_MAX_STRIP_PASSES = 64
+
 	def __init__(self) -> None:
 		"""Initialize the ANSI parser."""
 		self.reset()
@@ -356,11 +360,14 @@ class ANSIParser:
 			str: Text with ANSI codes removed
 		"""
 		# Loop until stable: removing one sequence can expose another
-		# (e.g., ESC ESC[31m 0 -> first pass leaves ESC 0 -> second pass strips it)
+		# (e.g., ESC ESC[31m 0 -> first pass leaves ESC 0 -> second pass strips it).
+		# Bounded by _MAX_STRIP_PASSES as defence in depth.
 		prev = None
-		while text != prev:
+		passes = 0
+		while text != prev and passes < ANSIParser._MAX_STRIP_PASSES:
 			prev = text
 			text = ANSIParser._STRIP_PATTERN.sub('', text)
+			passes += 1
 		return text
 
 
@@ -957,6 +964,10 @@ class ErrorLineDetector:
 		re.compile(r'\bwarn\b:', re.IGNORECASE),
 	]
 
+	# Longest line prefix classify inspects. Bounds regex/ANSI-strip work
+	# against an unbroken multi-megabyte line from malicious output.
+	_MAX_CLASSIFY_LENGTH = 2000
+
 	@staticmethod
 	def classify(line_text: str) -> str | None:
 		"""Classify a line as 'ai_error', 'ai_warning', 'error', 'warning', or None.
@@ -975,6 +986,12 @@ class ErrorLineDetector:
 		"""
 		if not line_text:
 			return None
+		# Bound the work against a pathologically long line (a program can
+		# emit megabytes with no newline). classify runs ~40 regexes and an
+		# ANSI strip on NVDA's main thread; error and warning markers appear
+		# near the start of a line, so a generous prefix loses nothing real.
+		if len(line_text) > ErrorLineDetector._MAX_CLASSIFY_LENGTH:
+			line_text = line_text[:ErrorLineDetector._MAX_CLASSIFY_LENGTH]
 		line_text = ANSIParser.stripANSI(line_text)
 		# AI warnings checked before AI errors so "approaching rate limit"
 		# returns 'ai_warning' instead of matching 'rate limit' as ai_error.

@@ -9,6 +9,22 @@ plain-text report with the environment and a buffer sample makes the issue
 actionable instead of a guess.
 """
 
+import re
+
+# Newlines and other control characters, stripped from single-line report
+# fields so an untrusted value (for example a terminal window title an
+# attacker can set) cannot inject additional "key: value" lines.
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _sanitize_single_line(text):
+    """Collapse control characters in *text* to spaces and trim it.
+
+    Keeps a field that came from untrusted terminal output on a single
+    line so it cannot forge extra header fields in the report.
+    """
+    return _CONTROL_CHARS.sub(" ", text).strip()
+
 _DESCRIBE_PLACEHOLDER = (
     "Describe what you expected and what actually happened, and which "
     "command or feature misbehaved (for example: table mode split a column "
@@ -33,7 +49,11 @@ def build_issue_report(context, lines, max_buffer_lines=1000):
     """
     def field(key, default="unknown"):
         value = context.get(key, default)
-        return default if value in (None, "") else value
+        if value in (None, ""):
+            value = default
+        if isinstance(value, str):
+            value = _sanitize_single_line(value)
+        return value
 
     native = "on" if context.get("native_available") else "off"
     helper = "running" if context.get("helper_running") else "not running"

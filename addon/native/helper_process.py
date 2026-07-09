@@ -686,15 +686,21 @@ class HelperProcess:
     #  Watchdog: force-kill a wedged helper
     # ───────────────────────────────────────────────────────────
 
-    def _kill_helper(self):
+    def _kill_helper(self, target=None):
         """Force-terminate the helper process (idempotent).
 
         Killing the process breaks the pipe, which unblocks any thread stuck
         in a pipe read or write and makes the reader loop exit and restart.
+
+        If *target* is given, kill only when it is still the current process.
+        A watchdog bound to an old generation must not kill the replacement
+        helper that a concurrent restart has already installed.
         """
         with self._kill_lock:
             proc = self._proc
             if proc is None or proc.poll() is not None:
+                return
+            if target is not None and proc is not target:
                 return
             try:
                 proc.kill()
@@ -730,7 +736,7 @@ class HelperProcess:
                     "Helper watchdog: request stuck %.1fs; killing helper",
                     now - oldest,
                 )
-                self._kill_helper()
+                self._kill_helper(target=proc)
                 # The reader loop will restart the helper, which spawns a
                 # fresh watchdog, so this one is done.
                 return
@@ -885,9 +891,13 @@ class HelperProcess:
             self._started = False
             self._ready.clear()
 
-            # Clean up the old process to avoid handle leaks
-            old_proc = self._proc
-            self._proc = None
+            # Clean up the old process to avoid handle leaks. Swap the
+            # pointer under _kill_lock so a watchdog reading self._proc sees
+            # a consistent generation (it waits on old_proc outside the lock
+            # so the blocking wait never stalls a concurrent kill).
+            with self._kill_lock:
+                old_proc = self._proc
+                self._proc = None
             if old_proc is not None:
                 try:
                     old_proc.wait(timeout=1.0)

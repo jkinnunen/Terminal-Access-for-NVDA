@@ -23,6 +23,19 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 - The user guide now marks table-mode column detection and AI turn detection as experimental, with a short note on how to report a miss.
 - Corrected the user guide's AI section against the code: fixed the previous-turn and previous-code-block command-layer keys.
 
+### Fixed
+
+- Progress-percent announcements now read the terminal that actually produced the output rather than whichever terminal was last focused, so a background terminal's progress can no longer be read from the wrong terminal.
+- Section-scoped search no longer falls back to searching the entire buffer when the cursor is not inside a detected section; it now correctly returns no matches, matching the exact-search behavior.
+- In a rare restart race, the native helper watchdog could terminate a freshly restarted helper instead of the wedged one; the kill is now bound to the specific process generation it was watching.
+
+### Security
+
+- Hardened terminal search against hostile program output. A program that prints an extremely long line with no line breaks can no longer make a search, or the fuzzy "did you mean" fallback, stall NVDA: each line's length is capped before matching, and fuzzy matching rejects impossibly long words before doing any expensive comparison.
+- Error and warning sound cues now cap how much of a very long output line they inspect, so a single multi-megabyte line cannot momentarily freeze the screen reader.
+- The saved issue report now strips control characters and line breaks from single-line fields (such as the terminal window title), so a crafted title can no longer forge extra fields in the report.
+- The URL list's Open action and the open-URL command now share one scheme-safety check, so both consistently block unsafe schemes (`file:`, `javascript:`, `data:`, and anything other than http, https, and ftp) and cannot drift apart.
+
 ### Testing
 
 - A gesture-consistency test keeps the user guide and the code in sync: every gesture the guide names must be a real binding, and every binding must point to a script that exists.

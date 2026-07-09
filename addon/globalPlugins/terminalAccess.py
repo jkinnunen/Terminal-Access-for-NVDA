@@ -1555,7 +1555,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._lastTextChangeTime = time.monotonic()
 
 		if self._configManager.get("progressMilestones", True):
-			self._checkProgressMilestone()
+			self._checkProgressMilestone(obj)
 
 		if self._configManager.get("outputActivityTones", False):
 			self._checkOutputActivityTone()
@@ -1567,19 +1567,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		return not isQuietMode
 
-	def _checkProgressMilestone(self):
+	def _checkProgressMilestone(self, terminal=None):
 		"""Announce a progress milestone found on the last buffer line.
 
-		Called from event_textChange. Throttled to one buffer read per
-		_PROGRESS_CHECK_INTERVAL because textChange fires rapidly during
+		Called from event_textChange with the terminal object that changed.
+		Reads that terminal's last line (not self._boundTerminal, which may
+		be a different or unfocused terminal). Throttled to one buffer read
+		per _PROGRESS_CHECK_INTERVAL because textChange fires rapidly during
 		streaming output and each read costs COM/UIA calls.
 		"""
+		if terminal is None:
+			terminal = self._boundTerminal
 		now = time.monotonic()
 		if (now - self._lastProgressCheckTime) < self._PROGRESS_CHECK_INTERVAL:
 			return
 		self._lastProgressCheckTime = now
 		try:
-			info = self._boundTerminal.makeTextInfo(textInfos.POSITION_LAST)
+			info = terminal.makeTextInfo(textInfos.POSITION_LAST)
 			info.expand(textInfos.UNIT_LINE)
 			milestone = self._progressTracker.update(info.text)
 			if milestone is not None:

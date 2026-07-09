@@ -274,3 +274,169 @@ class TestHelperMaxRestartAttempts:
         assert hp._should_restart() is True
 
 
+# ================================================================
+#  4. Sweep hardening: DoS bounds, report injection, dead-path fixes
+# ================================================================
+
+
+def _terminal_with_lines(lines):
+    """Mock terminal whose makeTextInfo returns the joined lines."""
+    terminal = Mock()
+    info = Mock()
+    info.text = "\n".join(lines)
+    terminal.makeTextInfo = Mock(return_value=info)
+    return terminal
+
+
+class TestFuzzyLengthBound:
+    """A word whose length differs from the pattern by more than 1 can never
+    be within Levenshtein distance 1, so it is rejected before the O(n*m)
+    matrix is built -- bounding work against a giant unbroken token."""
+
+    def _mgr(self):
+        from lib.search import OutputSearchManager
+        return OutputSearchManager.__new__(OutputSearchManager)
+
+    def test_huge_word_rejected_without_building_matrix(self):
+        # 5,000,000-char token: without the guard this allocates a
+        # ~500 x 5,000,000 matrix on NVDA's main thread.
+        assert self._mgr()._line_fuzzy_matches("error", "a" * 5_000_000) is False
+
+    def test_near_length_word_still_matches(self):
+        mgr = self._mgr()
+        assert mgr._line_fuzzy_matches("error", "the erro happened") is True
+        assert mgr._line_fuzzy_matches("error", "an errorr occurred") is True
+
+    def test_transposition_still_matches(self):
+        assert self._mgr()._line_fuzzy_matches("error", "an erorr here") is True
+
+    def test_search_against_giant_line_is_bounded(self):
+        from lib.search import OutputSearchManager
+        terminal = _terminal_with_lines(["x" * 2_000_000])
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("error") == 0
+
+
+class TestLineCapAffectsMatching:
+    """The per-line cap applies to matching, not just stored match text."""
+
+    def test_match_beyond_cap_not_found(self):
+        from lib.search import OutputSearchManager
+        cap = OutputSearchManager.MAX_LINE_LENGTH
+        terminal = _terminal_with_lines(["a" * (cap + 100) + " needle"])
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("needle") == 0
+
+    def test_match_within_cap_found(self):
+        from lib.search import OutputSearchManager
+        terminal = _terminal_with_lines(["needle " + "a" * 20000])
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("needle") == 1
+
+
+class TestSectionScopeFuzzyNoLeak:
+    """Section-scoped fuzzy search must not fall back to the whole buffer
+    when no span contains the cursor line."""
+
+    def test_no_containing_span_yields_nothing(self):
+        from lib.search import OutputSearchManager
+        lines = ["$ make build", "compiling main.c", "an erro happened"]
+        terminal = _terminal_with_lines(lines)
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("error", scope="section", current_line=99999) == 0
+
+
+class TestUrlSharedChecker:
+    """open_url and the dialog Open action share one normalize+scheme check."""
+
+    def test_safe_schemes_prepared(self):
+        from lib.search import UrlExtractorManager
+        for url in ("http://x.com", "https://x.com/p", "ftp://f.x.com",
+                    "www.x.com", "  https://x.com  "):
+            assert UrlExtractorManager._prepare_safe_url(url) is not None
+
+    def test_unsafe_schemes_rejected(self):
+        from lib.search import UrlExtractorManager
+        for url in ("javascript:alert(1)", "file:///c:/x", "data:text/html,x",
+                    "vbscript:msgbox", "mailto:a@b.c", ""):
+            assert UrlExtractorManager._prepare_safe_url(url) is None
+
+    def test_www_normalized_to_https(self):
+        from lib.search import UrlExtractorManager
+        assert UrlExtractorManager._prepare_safe_url("www.x.com") == \
+            "https://www.x.com"
+
+    def test_surrounding_whitespace_trimmed(self):
+        from lib.search import UrlExtractorManager
+        assert UrlExtractorManager._prepare_safe_url("  http://x.com  ") == \
+            "http://x.com"
+
+
+class TestDiagnosticInjection:
+    """A crafted window title cannot forge extra report fields."""
+
+    def test_title_newlines_do_not_forge_fields(self):
+        from lib import diagnostics
+        context = {
+            "addon_version": "2.0.0",
+            "nvda_version": "2026.1",
+            "window_title": "evil\nNVDA version: HACKED\rmore",
+        }
+        report = diagnostics.build_issue_report(context, ["output"])
+        nvda_lines = [ln for ln in report.splitlines()
+                      if ln.startswith("NVDA version:")]
+        assert nvda_lines == ["NVDA version: 2026.1"]
+        assert "Window title: evil NVDA version: HACKED more" in report
+
+    def test_control_chars_stripped(self):
+        from lib import diagnostics
+        report = diagnostics.build_issue_report(
+            {"terminal_app": "wt\x07\x08\x00"}, [])
+        assert "Terminal: wt" in report
+        assert "\x07" not in report and "\x00" not in report
+
+
+class TestClassifyLengthCap:
+    """classify() bounds regex/ANSI work against a giant single line."""
+
+    def test_marker_past_cap_not_classified(self):
+        from lib.text_processing import ErrorLineDetector
+        cap = ErrorLineDetector._MAX_CLASSIFY_LENGTH
+        assert ErrorLineDetector.classify("x" * (cap + 50) + " error: late") is None
+
+    def test_marker_at_start_still_classified(self):
+        from lib.text_processing import ErrorLineDetector
+        assert ErrorLineDetector.classify("error: boom " + "x" * 5_000_000) == "error"
+
+    def test_strip_ansi_terminates_on_long_escape_run(self):
+        from lib.text_processing import ANSIParser
+        # Must return (not hang) on a long run of escape introducers.
+        out = ANSIParser.stripANSI("\x1b" * 5000)
+        assert isinstance(out, str)
+
+    def test_strip_ansi_removes_real_sequences(self):
+        from lib.text_processing import ANSIParser
+        assert ANSIParser.stripANSI("\x1b[31mred\x1b[0m text") == "red text"
+
+
+class TestProgressMilestoneTerminal:
+    """_checkProgressMilestone reads the terminal that changed, not the
+    last-bound terminal."""
+
+    def test_reads_passed_terminal(self):
+        from globalPlugins.terminalAccess import GlobalPlugin
+        plugin = GlobalPlugin.__new__(GlobalPlugin)
+        plugin._lastProgressCheckTime = 0.0
+        plugin._PROGRESS_CHECK_INTERVAL = 0.0
+        plugin._progressTracker = Mock()
+        plugin._progressTracker.update = Mock(return_value=None)
+        bound = Mock(name="bound")
+        changed = _terminal_with_lines(["build 50%"])
+        plugin._boundTerminal = bound
+
+        plugin._checkProgressMilestone(changed)
+
+        changed.makeTextInfo.assert_called_once()
+        bound.makeTextInfo.assert_not_called()
+
+
