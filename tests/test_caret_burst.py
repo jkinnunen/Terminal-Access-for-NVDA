@@ -83,31 +83,27 @@ class TestTextChangeAlwaysWakesPipeline:
         }.get(key, default))
         return plugin
 
-    def test_textChange_calls_nextHandler_during_rapid_output(self):
-        """Rapid successive textChange events must each call nextHandler."""
+    def test_textChange_signals_speech_during_rapid_output(self):
+        """Rapid successive textChange events must each signal the overlay
+        to wake the monitor (return True in normal mode)."""
         from unittest.mock import MagicMock
 
         plugin = self._make_plugin()
 
-        nextHandler = MagicMock()
         obj = MagicMock()
         # Simulate a streaming burst: several textChange events back to back
-        for _ in range(5):
-            plugin.event_textChange(obj, nextHandler)
+        results = [plugin._handleTerminalTextChange(obj) for _ in range(5)]
 
-        assert nextHandler.call_count == 5
+        assert results == [True, True, True, True, True]
 
-    def test_textChange_calls_nextHandler_after_idle(self):
-        """A lone textChange (no recent output) calls nextHandler normally."""
+    def test_textChange_signals_speech_after_idle(self):
+        """A lone textChange (no recent output) signals speech normally."""
         from unittest.mock import MagicMock
 
         plugin = self._make_plugin()
 
-        nextHandler = MagicMock()
         obj = MagicMock()
-        plugin.event_textChange(obj, nextHandler)
-
-        nextHandler.assert_called_once()
+        assert plugin._handleTerminalTextChange(obj) is True
 
 
 class TestOutputGracePreservesAudioCues:
@@ -133,7 +129,7 @@ class TestOutputGracePreservesAudioCues:
         plugin._lastTextChangeTime = time.monotonic()
 
         with patch.object(plugin, '_checkOutputActivityTone') as mock_tone:
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
             mock_tone.assert_called_once()
 
     def test_streaming_delta_speaks_during_output_grace(self):
@@ -263,7 +259,7 @@ class TestTextChangeRecordsTimestamp:
         }.get(key, default))
 
         before = time.monotonic()
-        plugin.event_textChange(MagicMock(), MagicMock())
+        plugin._handleTerminalTextChange(MagicMock())
         after = time.monotonic()
 
         assert before <= plugin._lastTextChangeTime <= after
@@ -309,5 +305,5 @@ class TestOutputGraceConfig:
         plugin._lastTextChangeTime = time.monotonic()
 
         with patch('wx.CallLater') as mock_call_later:
-            plugin.event_caret(MagicMock(), MagicMock())
+            plugin._handleTerminalCaret(MagicMock())
             mock_call_later.assert_not_called()

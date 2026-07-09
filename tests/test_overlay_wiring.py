@@ -108,64 +108,11 @@ class TestChooseNVDAObjectOverlayClasses:
         assert hasattr(overlay, '_configManager')
 
 
-class TestEventTextChangeDelegation:
-    """GlobalPlugin.event_textChange should delegate to overlay when present."""
-
-    def _make_plugin(self):
-        from globalPlugins.terminalAccess import GlobalPlugin
-        plugin = GlobalPlugin.__new__(GlobalPlugin)
-        plugin._gestureMap = {}
-        plugin._boundTerminal = None
-        plugin._configManager = Mock()
-        return plugin
-
-    def test_non_terminal_calls_next_handler(self):
-        """Outside terminals, event_textChange calls nextHandler."""
-        plugin = self._make_plugin()
-        plugin._boundTerminal = None
-        obj = Mock()
-        nextHandler = Mock()
-
-        plugin.event_textChange(obj, nextHandler)
-        nextHandler.assert_called_once()
-
-    def test_terminal_with_overlay_skips_old_logic(self):
-        """When object has overlay, GlobalPlugin should not duplicate
-        activity tone/error cue logic (overlay handles it)."""
-        from lib.terminal_overlay import TerminalAccessTerminal
-        plugin = self._make_plugin()
-        plugin._boundTerminal = Mock()
-        plugin._configManager = Mock()
-        plugin._configManager.get = Mock(return_value=False)
-
-        # Object with overlay class in its MRO
-        obj = Mock(spec=TerminalAccessTerminal)
-        nextHandler = Mock()
-
-        plugin.event_textChange(obj, nextHandler)
-        # Should not call our old activity tone/error cue methods
-        # because the overlay handles those in its own event_textChange
-
-
-class TestEventCaretWithOverlay:
-    """event_caret should be simplified when overlay handles output."""
-
-    def _make_plugin(self):
-        from globalPlugins.terminalAccess import GlobalPlugin
-        plugin = GlobalPlugin.__new__(GlobalPlugin)
-        plugin._gestureMap = {}
-        plugin._boundTerminal = None
-        plugin._configManager = Mock()
-        plugin._cursorTrackingTimer = None
-        plugin._lastTypedCharTime = 0
-        return plugin
-
-    def test_non_terminal_passes_through(self):
-        """Outside terminals, event_caret calls nextHandler."""
-        plugin = self._make_plugin()
-        plugin._boundTerminal = None
-        obj = Mock()
-        nextHandler = Mock()
-
-        plugin.event_caret(obj, nextHandler)
-        nextHandler.assert_called_once()
+# TestEventTextChangeDelegation and TestEventCaretWithOverlay were removed.
+# They tested the old global GlobalPlugin.event_textChange/event_caret
+# handlers and their non-terminal pass-through. After the migration there
+# are no global handlers: the overlay (inserted only for terminals) is the
+# entry point and delegates to _handleTerminalTextChange/_handleTerminalCaret.
+# That dispatch is covered by tests/test_terminal_overlay.py and the delegate
+# logic by tests/test_terminal_event_delegation.py. Non-terminal scoping is
+# guaranteed by the overlay not being inserted (TestChooseNVDAObjectOverlayClasses).

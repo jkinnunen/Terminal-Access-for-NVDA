@@ -38,10 +38,10 @@ class TestOutputInducedCaretSuppression:
         plugin = self._make_plugin()
 
         # Simulate textChange then caret in quick succession
-        plugin.event_textChange(MagicMock(), MagicMock())
+        plugin._handleTerminalTextChange(MagicMock())
 
         with patch('wx.CallLater') as mock_later:
-            plugin.event_caret(MagicMock(), MagicMock())
+            plugin._handleTerminalCaret(MagicMock())
             # Should NOT schedule character announcement
             mock_later.assert_not_called()
 
@@ -54,7 +54,7 @@ class TestOutputInducedCaretSuppression:
         plugin._lastTextChangeTime = 0
 
         with patch('wx.CallLater') as mock_later:
-            plugin.event_caret(MagicMock(), MagicMock())
+            plugin._handleTerminalCaret(MagicMock())
             # SHOULD schedule character announcement
             mock_later.assert_called_once()
 
@@ -66,7 +66,7 @@ class TestOutputInducedCaretSuppression:
         plugin._lastTextChangeTime = time.monotonic() - 0.5
 
         with patch('wx.CallLater') as mock_later:
-            plugin.event_caret(MagicMock(), MagicMock())
+            plugin._handleTerminalCaret(MagicMock())
             # SHOULD speak -- enough time passed that this is user nav
             mock_later.assert_called_once()
 
@@ -75,7 +75,7 @@ class TestOutputInducedCaretSuppression:
         plugin = self._make_plugin()
 
         before = time.monotonic()
-        plugin.event_textChange(MagicMock(), MagicMock())
+        plugin._handleTerminalTextChange(MagicMock())
         after = time.monotonic()
 
         assert hasattr(plugin, '_lastTextChangeTime')
@@ -86,7 +86,7 @@ class TestOutputInducedCaretSuppression:
         plugin = self._make_plugin()
 
         # Simulate textChange just now
-        plugin.event_textChange(MagicMock(), MagicMock())
+        plugin._handleTerminalTextChange(MagicMock())
 
         gesture = MagicMock()
         with patch.object(plugin, 'isTerminalApp', return_value=True):

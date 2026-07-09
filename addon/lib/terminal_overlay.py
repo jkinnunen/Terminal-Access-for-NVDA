@@ -131,64 +131,67 @@ class TerminalAccessTerminal:
             from lib.audio_cues import play_cue
             play_cue(classification)
 
-    def event_textChange(self):
-        """Override Terminal.event_textChange.
+    def _get_plugin(self):
+        """Return the running GlobalPlugin, wired in on terminal focus."""
+        return getattr(self, "_plugin", None)
 
-        In quiet mode: don't wake the monitor thread (no speech).
-        Optionally play error cues and activity tones.
-        In normal mode: wake the monitor thread, play activity tones.
+    def _wake_monitor(self):
+        """Wake the LiveText monitor thread so it speaks the new output.
+
+        This is what NVDA's LiveText.event_textChange does; done here so the
+        overlay controls exactly when the monitor runs.
         """
-        is_quiet = False
-        if self._configManager:
-            is_quiet = self._configManager.get("quietMode", False)
+        event = getattr(self, "_event", None)
+        if event is not None:
+            event.set()
 
-        if is_quiet:
-            # Quiet mode: no speech, but optionally check for errors
-            if self._configManager:
-                if (self._configManager.get("errorAudioCues", True)
-                        and self._configManager.get("errorAudioCuesInQuietMode", False)):
-                    self._checkErrorAudioCue()
-                if self._configManager.get("outputActivityTones", False):
-                    self._playActivityTone()
-            # Do NOT call super or set _event (silence)
+    def event_textChange(self):
+        """Terminal buffer content changed.
+
+        The plugin owns activity tones, progress milestones, and quiet-mode
+        error detection (its state drives them). It returns whether to wake
+        the monitor thread, which then speaks the new output via
+        _reportNewLines. In quiet mode the monitor is not woken (silence).
+        """
+        plugin = self._get_plugin()
+        if plugin is None:
+            # Not wired yet: keep NVDA's default behavior (speak output).
+            self._wake_monitor()
             return
+        if plugin._handleTerminalTextChange(self):
+            self._wake_monitor()
 
-        # Normal mode: play activity tones, then wake monitor
-        if self._configManager and self._configManager.get("outputActivityTones", False):
-            self._playActivityTone()
+    def event_caret(self):
+        """Caret moved.
 
-        # Wake the monitor thread (equivalent to super().event_textChange())
-        if hasattr(self, "_event"):
-            self._event.set()
-
-    def _playActivityTone(self):
-        """Play two ascending tones, debounced and not during typing."""
-        now = time.time()
-
-        # Don't play during typing
-        if now - self._lastTypedCharTime < 0.3:
+        The plugin owns terminal caret announcement (debounced cursor
+        tracking, blank suppression, error cues), so NVDA's native caret
+        handling is intentionally suppressed here (no super call).
+        """
+        plugin = self._get_plugin()
+        if plugin is None:
+            try:
+                super(TerminalAccessTerminal, self).event_caret()
+            except AttributeError:
+                pass
             return
+        plugin._handleTerminalCaret(self)
 
-        # Debounce
-        debounce_ms = 1000
-        if self._configManager:
-            debounce_ms = self._configManager.get("outputActivityDebounce", 1000)
-        if now - self._lastActivityToneTime < debounce_ms / 1000.0:
+    def event_typedCharacter(self, ch):
+        """A character was typed.
+
+        The plugin decides whether NVDA echoes (via the speak_default
+        callback), whether the add-on adds its own echo, and quiet-mode
+        suppression.
+        """
+        def speak_default():
+            try:
+                super(TerminalAccessTerminal, self).event_typedCharacter(ch)
+            except AttributeError:
+                pass
+
+        plugin = self._get_plugin()
+        if plugin is None:
+            speak_default()
             return
-
-        self._lastActivityToneTime = now
-        if tones:
-            tones.beep(600, 30)
-            tones.beep(800, 30)
-
-    def _checkErrorAudioCue(self):
-        """Check current line for error/warning and beep."""
-        try:
-            import textInfos
-            info = self.makeTextInfo(textInfos.POSITION_CARET)
-            info.expand(textInfos.UNIT_LINE)
-            text = getattr(info, "text", "")
-            if isinstance(text, str):
-                self._beepForClassification(text)
-        except Exception:
-            pass
+        plugin._terminalTypedCharacter(self, ch, speak_default)

@@ -215,7 +215,7 @@ class TestEventTextChangeIntegration:
         self._set_last_line(plugin, "Downloading 50%")
 
         with patch('globalPlugins.terminalAccess.ui') as ui_mock:
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
 
         ui_mock.message.assert_called_once()
         assert "50" in ui_mock.message.call_args[0][0]
@@ -225,9 +225,9 @@ class TestEventTextChangeIntegration:
         self._set_last_line(plugin, "30%")
 
         with patch('globalPlugins.terminalAccess.ui') as ui_mock:
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
             self._set_last_line(plugin, "60%")
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
 
         # Second event arrived within the throttle window: one read, one announcement
         assert plugin._boundTerminal.makeTextInfo.call_count == 1
@@ -239,11 +239,11 @@ class TestEventTextChangeIntegration:
         self._set_last_line(plugin, "30%")
 
         with patch('globalPlugins.terminalAccess.ui') as ui_mock:
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
             # Simulate the throttle window elapsing
             plugin._lastProgressCheckTime = time.monotonic() - 1.0
             self._set_last_line(plugin, "60%")
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
 
         assert ui_mock.message.call_count == 2
         assert "50" in ui_mock.message.call_args[0][0]
@@ -253,7 +253,7 @@ class TestEventTextChangeIntegration:
         self._set_last_line(plugin, "Downloading 50%")
 
         with patch('globalPlugins.terminalAccess.ui') as ui_mock:
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
 
         plugin._boundTerminal.makeTextInfo.assert_not_called()
         ui_mock.message.assert_not_called()
@@ -263,7 +263,7 @@ class TestEventTextChangeIntegration:
         self._set_last_line(plugin, "Compiling mycrate v0.1.0")
 
         with patch('globalPlugins.terminalAccess.ui') as ui_mock:
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
 
         ui_mock.message.assert_not_called()
 
@@ -272,7 +272,7 @@ class TestEventTextChangeIntegration:
         plugin._boundTerminal.makeTextInfo.side_effect = RuntimeError("COM error")
 
         with patch('globalPlugins.terminalAccess.ui') as ui_mock:
-            plugin.event_textChange(MagicMock(), MagicMock())
+            plugin._handleTerminalTextChange(MagicMock())
 
         ui_mock.message.assert_not_called()
 

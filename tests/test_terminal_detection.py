@@ -199,13 +199,13 @@ class TestEventCaretNoCrash:
         from globalPlugins.terminalAccess import GlobalPlugin
         return GlobalPlugin()
 
-    def test_event_caret_uses_configManager_not_ta_conf(self):
-        """event_caret must use self._configManager.get(), not ta_conf variable."""
+    def test_caret_handler_uses_configManager_not_ta_conf(self):
+        """The caret handler must use self._configManager.get(), not ta_conf."""
         import inspect
         from globalPlugins.terminalAccess import GlobalPlugin
-        source = inspect.getsource(GlobalPlugin.event_caret)
+        source = inspect.getsource(GlobalPlugin._handleTerminalCaret)
         assert "ta_conf" not in source, (
-            "event_caret still references 'ta_conf' which is undefined. "
+            "_handleTerminalCaret still references 'ta_conf' which is undefined. "
             "Use self._configManager.get() instead."
         )
 
@@ -227,7 +227,7 @@ class TestEventCaretNoCrash:
 
         # Should not raise NameError. nextHandler is NOT called when
         # Terminal Access is active (we handle caret tracking ourselves).
-        plugin.event_caret(obj, next_handler)
+        plugin._handleTerminalCaret(obj)
         next_handler.assert_not_called()
         wx.CallLater.assert_called_once()
         # Verify the delay value passed is 20 (from configManager)

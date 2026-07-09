@@ -393,7 +393,7 @@ class TestErrorCueContextBehavior:
 
 		# Simulate cursor tracking announcement
 		plugin._announceCursorPosition = MagicMock()
-		plugin.event_caret(obj, lambda: None)
+		plugin._handleTerminalCaret(obj)
 
 		tones.beep.assert_not_called()
 
@@ -407,64 +407,62 @@ class TestErrorCueContextBehavior:
 		)
 
 	def test_quiet_mode_beep_on_error_when_enabled(self):
-		"""In quiet mode with setting enabled, overlay checks for error cues."""
-		from unittest.mock import patch, Mock
-		from lib.terminal_overlay import TerminalAccessTerminal
+		"""In quiet mode with the setting on, the error-cue check runs and
+		the monitor is not woken (returns False, so the overlay stays silent)."""
+		from unittest.mock import Mock
 
-		obj = TerminalAccessTerminal()
-		obj._event = Mock()
-		obj._configManager = Mock()
-		obj._configManager.get = Mock(side_effect=lambda k, d=None: {
+		plugin = self._make_plugin()
+		plugin._configManager = Mock()
+		plugin._configManager.get = Mock(side_effect=lambda k, d=None: {
 			"quietMode": True,
 			"errorAudioCuesInQuietMode": True,
 			"errorAudioCues": True,
 			"outputActivityTones": False,
+			"progressMilestones": False,
 		}.get(k, d))
-		obj._checkErrorAudioCue = Mock()
+		plugin._checkErrorAudioCue = Mock()
 
-		obj.event_textChange()
+		result = plugin._handleTerminalTextChange(Mock())
 
-		obj._checkErrorAudioCue.assert_called_once()
-		obj._event.set.assert_not_called()
+		plugin._checkErrorAudioCue.assert_called_once()
+		assert result is False
 
 	def test_quiet_mode_no_beep_when_setting_disabled(self):
-		"""In quiet mode with setting disabled, no beep even on error lines."""
+		"""In quiet mode with the setting off, no error-cue check runs."""
 		from unittest.mock import Mock
-		from lib.terminal_overlay import TerminalAccessTerminal
 
-		obj = TerminalAccessTerminal()
-		obj._event = Mock()
-		obj._configManager = Mock()
-		obj._configManager.get = Mock(side_effect=lambda k, d=None: {
+		plugin = self._make_plugin()
+		plugin._configManager = Mock()
+		plugin._configManager.get = Mock(side_effect=lambda k, d=None: {
 			"quietMode": True,
 			"errorAudioCuesInQuietMode": False,
 			"errorAudioCues": True,
 			"outputActivityTones": False,
+			"progressMilestones": False,
 		}.get(k, d))
-		obj._checkErrorAudioCue = Mock()
+		plugin._checkErrorAudioCue = Mock()
 
-		obj.event_textChange()
+		plugin._handleTerminalTextChange(Mock())
 
-		obj._checkErrorAudioCue.assert_not_called()
+		plugin._checkErrorAudioCue.assert_not_called()
 
 	def test_quiet_mode_no_speech_only_beep(self):
-		"""In quiet mode, overlay does not wake monitor thread (no speech)."""
+		"""In quiet mode the monitor is not woken (no speech)."""
 		from unittest.mock import Mock
-		from lib.terminal_overlay import TerminalAccessTerminal
 
-		obj = TerminalAccessTerminal()
-		obj._event = Mock()
-		obj._configManager = Mock()
-		obj._configManager.get = Mock(side_effect=lambda k, d=None: {
+		plugin = self._make_plugin()
+		plugin._configManager = Mock()
+		plugin._configManager.get = Mock(side_effect=lambda k, d=None: {
 			"quietMode": True,
 			"errorAudioCues": False,
 			"errorAudioCuesInQuietMode": False,
 			"outputActivityTones": False,
+			"progressMilestones": False,
 		}.get(k, d))
 
-		obj.event_textChange()
+		result = plugin._handleTerminalTextChange(Mock())
 
-		obj._event.set.assert_not_called()
+		assert result is False
 
 	def test_quiet_mode_warning_beep(self):
 		"""Warning lines produce 440 Hz via overlay _reportNewLines."""
@@ -502,7 +500,7 @@ class TestErrorCueContextBehavior:
 		pos.copy.return_value = line_info
 		plugin._getReviewPosition = MagicMock(return_value=pos)
 
-		plugin.event_caret(obj, lambda: None)
+		plugin._handleTerminalCaret(obj)
 
 		tones.beep.assert_not_called()
 
@@ -528,28 +526,27 @@ class TestOutputActivityTones:
 		assert "outputActivityTones" in confspec
 
 	def test_activity_tone_on_new_output(self):
-		"""Two ascending tones via overlay event_textChange."""
-		from unittest.mock import patch, Mock, MagicMock
-		from lib.terminal_overlay import TerminalAccessTerminal
+		"""Two ascending tones fire on new output via _handleTerminalTextChange."""
+		import tones
+		import config as config_mod
+		tones.beep = MagicMock()
 
-		obj = TerminalAccessTerminal()
-		obj._event = Mock()
-		obj._configManager = Mock()
-		obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-			"quietMode": False,
-			"outputActivityTones": True,
-			"outputActivityDebounce": 1000,
-		}.get(k, d))
-		obj._lastActivityToneTime = 0
-		obj._lastTypedCharTime = 0
+		plugin = self._make_plugin()
+		config_mod.conf["terminalAccess"]["outputActivityTones"] = True
+		config_mod.conf["terminalAccess"]["quietMode"] = False
+		config_mod.conf["terminalAccess"]["progressMilestones"] = False
 
-		mock_tones = MagicMock()
-		with patch("lib.terminal_overlay.tones", mock_tones):
-			obj.event_textChange()
-			assert mock_tones.beep.call_count == 2
-			first = mock_tones.beep.call_args_list[0][0][0]
-			second = mock_tones.beep.call_args_list[1][0][0]
-			assert first < second
+		obj = self._make_terminal_obj()
+		plugin._boundTerminal = obj
+		plugin._lastTypedCharTime = 0.0
+		plugin._lastOutputActivityTime = 0.0
+
+		plugin._handleTerminalTextChange(obj)
+
+		assert tones.beep.call_count == 2
+		first = tones.beep.call_args_list[0][0][0]
+		second = tones.beep.call_args_list[1][0][0]
+		assert first < second
 
 	def test_no_activity_tone_when_setting_disabled(self):
 		"""No activity tones when outputActivityTones is False."""
@@ -566,7 +563,7 @@ class TestOutputActivityTones:
 		plugin._lastTypedCharTime = 0.0
 		plugin._lastOutputActivityTime = 0.0
 
-		plugin.event_caret(obj, lambda: None)
+		plugin._handleTerminalCaret(obj)
 
 		tones.beep.assert_not_called()
 
@@ -588,35 +585,32 @@ class TestOutputActivityTones:
 		plugin._lastTypedCharTime = time.time()
 		plugin._lastOutputActivityTime = 0.0
 
-		plugin.event_caret(obj, lambda: None)
+		plugin._handleTerminalCaret(obj)
 
 		tones.beep.assert_not_called()
 
 	def test_no_repeated_tones_during_burst(self):
-		"""Activity tones debounce on rapid textChange events via overlay."""
-		import time
-		from unittest.mock import patch, Mock, MagicMock
-		from lib.terminal_overlay import TerminalAccessTerminal
+		"""Activity tones debounce across rapid new-output events."""
+		import tones
+		import config as config_mod
+		tones.beep = MagicMock()
 
-		obj = TerminalAccessTerminal()
-		obj._event = Mock()
-		obj._configManager = Mock()
-		obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-			"quietMode": False,
-			"outputActivityTones": True,
-			"outputActivityDebounce": 1000,
-		}.get(k, d))
-		obj._lastActivityToneTime = 0
-		obj._lastTypedCharTime = 0
+		plugin = self._make_plugin()
+		config_mod.conf["terminalAccess"]["outputActivityTones"] = True
+		config_mod.conf["terminalAccess"]["quietMode"] = False
+		config_mod.conf["terminalAccess"]["progressMilestones"] = False
 
-		mock_tones = MagicMock()
-		with patch("lib.terminal_overlay.tones", mock_tones):
-			obj.event_textChange()
-			assert mock_tones.beep.call_count == 2
+		obj = self._make_terminal_obj()
+		plugin._boundTerminal = obj
+		plugin._lastTypedCharTime = 0.0
+		plugin._lastOutputActivityTime = 0.0
 
-			mock_tones.beep.reset_mock()
-			obj.event_textChange()
-			mock_tones.beep.assert_not_called()
+		plugin._handleTerminalTextChange(obj)
+		assert tones.beep.call_count == 2
+
+		tones.beep.reset_mock()
+		plugin._handleTerminalTextChange(obj)  # immediately again: debounced
+		tones.beep.assert_not_called()
 
 	def test_activity_tones_distinct_from_error(self):
 		"""Activity tones must use different frequencies than error/warning."""
@@ -633,7 +627,7 @@ class TestOutputActivityTones:
 		plugin._lastTypedCharTime = 0.0
 		plugin._lastOutputActivityTime = 0.0
 
-		plugin.event_caret(obj, lambda: None)
+		plugin._handleTerminalCaret(obj)
 
 		# Activity tones must not be 220 Hz (error) or 440 Hz (warning)
 		for call in tones.beep.call_args_list:
@@ -648,54 +642,51 @@ class TestOutputActivityTones:
 		assert "outputActivityDebounce" in confspec
 
 	def test_custom_debounce_interval(self):
-		"""User-configured debounce interval controls repeat suppression via overlay."""
+		"""A user-configured debounce interval controls repeat suppression."""
 		import time
-		from unittest.mock import patch, Mock, MagicMock
-		from lib.terminal_overlay import TerminalAccessTerminal
+		import tones
+		import config as config_mod
+		tones.beep = MagicMock()
 
-		obj = TerminalAccessTerminal()
-		obj._event = Mock()
-		obj._configManager = Mock()
-		obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-			"quietMode": False,
-			"outputActivityTones": True,
-			"outputActivityDebounce": 5000,
-		}.get(k, d))
-		obj._lastTypedCharTime = 0
+		plugin = self._make_plugin()
+		config_mod.conf["terminalAccess"]["outputActivityTones"] = True
+		config_mod.conf["terminalAccess"]["quietMode"] = False
+		config_mod.conf["terminalAccess"]["progressMilestones"] = False
+		config_mod.conf["terminalAccess"]["outputActivityDebounce"] = 5000
 
-		mock_tones = MagicMock()
-		with patch("lib.terminal_overlay.tones", mock_tones):
-			obj._lastActivityToneTime = 0
-			obj.event_textChange()
-			assert mock_tones.beep.call_count == 2
+		obj = self._make_terminal_obj()
+		plugin._boundTerminal = obj
+		plugin._lastTypedCharTime = 0.0
 
-			mock_tones.beep.reset_mock()
-			obj._lastActivityToneTime = time.time() - 2.0
-			obj.event_textChange()
-			mock_tones.beep.assert_not_called()
+		plugin._lastOutputActivityTime = 0.0
+		plugin._handleTerminalTextChange(obj)
+		assert tones.beep.call_count == 2
 
-			mock_tones.beep.reset_mock()
-			obj._lastActivityToneTime = time.time() - 6.0
-			obj.event_textChange()
-			assert mock_tones.beep.call_count == 2
+		tones.beep.reset_mock()
+		plugin._lastOutputActivityTime = time.time() - 2.0  # within 5s debounce
+		plugin._handleTerminalTextChange(obj)
+		tones.beep.assert_not_called()
+
+		tones.beep.reset_mock()
+		plugin._lastOutputActivityTime = time.time() - 6.0  # past 5s debounce
+		plugin._handleTerminalTextChange(obj)
+		assert tones.beep.call_count == 2
 
 	def test_activity_tones_in_normal_mode_when_enabled(self):
-		"""Activity tones work in normal mode via overlay event_textChange."""
-		from unittest.mock import patch, Mock, MagicMock
-		from lib.terminal_overlay import TerminalAccessTerminal
+		"""Activity tones fire in normal mode."""
+		import tones
+		import config as config_mod
+		tones.beep = MagicMock()
 
-		obj = TerminalAccessTerminal()
-		obj._event = Mock()
-		obj._configManager = Mock()
-		obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-			"quietMode": False,
-			"outputActivityTones": True,
-			"outputActivityDebounce": 1000,
-		}.get(k, d))
-		obj._lastActivityToneTime = 0
-		obj._lastTypedCharTime = 0
+		plugin = self._make_plugin()
+		config_mod.conf["terminalAccess"]["outputActivityTones"] = True
+		config_mod.conf["terminalAccess"]["quietMode"] = False
+		config_mod.conf["terminalAccess"]["progressMilestones"] = False
 
-		mock_tones = MagicMock()
-		with patch("lib.terminal_overlay.tones", mock_tones):
-			obj.event_textChange()
-			assert mock_tones.beep.call_count >= 2
+		obj = self._make_terminal_obj()
+		plugin._boundTerminal = obj
+		plugin._lastTypedCharTime = 0.0
+		plugin._lastOutputActivityTime = 0.0
+
+		plugin._handleTerminalTextChange(obj)
+		assert tones.beep.call_count >= 2

@@ -1207,10 +1207,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				current.update_terminal(obj)
 
 	def _wireOverlayConfig(self, obj):
-		"""Pass the config manager to the overlay if present on the object."""
+		"""Give the terminal overlay its config manager and a plugin reference.
+
+		The overlay is the entry point for terminal caret, text-change, and
+		typed-character events; it delegates the work back to this plugin,
+		whose state (position cache, cursor timer, profile config) the logic
+		depends on. See the event_* methods on TerminalAccessTerminal.
+		"""
 		from lib.terminal_overlay import TerminalAccessTerminal
 		if isinstance(obj, TerminalAccessTerminal):
 			obj._configManager = self._configManager
+			obj._plugin = self
 
 	def _detectAndApplyProfile(self, obj):
 		"""Detect and activate the appropriate application profile."""
@@ -1381,33 +1388,29 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return False
 		return True
 
-	def event_typedCharacter(self, obj, nextHandler, ch):
+	def _terminalTypedCharacter(self, obj, ch, speak_default):
+		"""Handle a typed character in a terminal.
+
+		Called from the overlay's event_typedCharacter. ``speak_default`` is
+		a callable that invokes NVDA's own typed-character handling (the
+		overlay's ``super().event_typedCharacter``); it runs only in normal
+		mode, before the add-on's own echo.
+
+		Announces characters as they are typed if keyEcho is enabled, using
+		the punctuation level to decide symbol names and repeatedSymbols to
+		condense runs. When NVDA's own speak-typed-characters setting is on,
+		the add-on defers to NVDA to avoid duplicate announcements.
 		"""
-		Handle typed character events.
-
-		Announces characters as they are typed if keyEcho is enabled.
-		Uses punctuation level system to determine whether to speak symbol names.
-		Uses repeatedSymbols to condense sequences of repeated symbols.
-
-		When NVDA's own speak-typed-characters setting is enabled, the addon
-		defers to NVDA to avoid duplicate announcements.
-		"""
-		# In a terminal, we handle character echo ourselves.
-		# Skip nextHandler in quiet mode so NVDA doesn't speak.
-		if self._boundTerminal is None:
-			nextHandler()
-			return
-
 		# Record typing timestamp so cursor tracking can distinguish
 		# typing-induced caret events from navigation.
 		self._lastTypedCharTime = time.time()
 
-		# In quiet mode, skip nextHandler entirely (no speech at all)
+		# In quiet mode, no speech at all (neither NVDA's nor ours).
 		if self._getEffective("quietMode"):
 			return
 
 		# Let NVDA handle its own echo, then check if we should add ours
-		nextHandler()
+		speak_default()
 
 		# Don't echo if disabled or NVDA is already echoing
 		if not self._isKeyEchoActive():
@@ -1485,21 +1488,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			ui.message(symbolName)
 
-	def event_caret(self, obj, nextHandler):
-		"""
-		Handle caret movement events.
+	def _handleTerminalCaret(self, obj):
+		"""Handle a caret movement event in a terminal.
 
-		When Terminal Access is active, this handler takes over caret
-		announcement from NVDA's native handler. In quiet mode,
-		nextHandler is skipped entirely so NVDA does not speak.
-		In normal mode, nextHandler is skipped because our own
-		_announceCursorPosition handles speech with debouncing,
-		blank suppression, and error audio cues.
+		Called from the overlay's event_caret. The overlay never falls
+		through to NVDA's native caret handling for terminals: our own
+		_announceCursorPosition does the speech with debouncing, blank
+		suppression, and error audio cues. In quiet mode nothing is spoken.
 		"""
-		if self._boundTerminal is None:
-			nextHandler()
-			return
-
 		isQuietMode = self._configManager.get("quietMode")
 
 		# In quiet mode, do NOT call nextHandler (suppresses all speech).
@@ -1541,32 +1537,26 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._configManager.get("cursorDelay", 20), self._announceCursorPosition, obj
 		)
 
-	def event_textChange(self, obj, nextHandler):
-		"""Handle text content changes in the terminal.
+	def _handleTerminalTextChange(self, obj):
+		"""Handle a terminal text-content change (called from the overlay).
 
-		Fires when the terminal buffer content changes (program output).
-		Unlike event_caret, this fires even when the caret stays in place
-		(e.g., output scrolling above the input line).
+		Fires when the buffer content changes (program output). Unlike a
+		caret event, this fires even when the caret stays in place (output
+		scrolling above the input line). Handles the output-caret timestamp,
+		progress milestones, activity tones, and quiet-mode error detection.
 
-		Used for output activity tones and quiet-mode error detection.
-		In quiet mode, nextHandler is skipped so NVDA doesn't speak.
+		Returns True if the overlay should wake the live-text monitor to
+		speak the new output (normal mode), or False to stay silent (quiet
+		mode).
 		"""
-		if self._boundTerminal is None:
-			nextHandler()
-			return
-
 		isQuietMode = self._configManager.get("quietMode")
 
-		# Record timestamp so event_caret knows this cursor movement
+		# Record timestamp so the caret handler knows this cursor movement
 		# was caused by output, not user navigation.
 		self._lastTextChangeTime = time.monotonic()
 
 		if self._configManager.get("progressMilestones", True):
 			self._checkProgressMilestone()
-
-		# In quiet mode, skip nextHandler (no speech)
-		if not isQuietMode:
-			nextHandler()
 
 		if self._configManager.get("outputActivityTones", False):
 			self._checkOutputActivityTone()
@@ -1575,6 +1565,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if (self._configManager.get("errorAudioCues", True)
 					and self._configManager.get("errorAudioCuesInQuietMode", False)):
 				self._checkErrorAudioCue()
+
+		return not isQuietMode
 
 	def _checkProgressMilestone(self):
 		"""Announce a progress milestone found on the last buffer line.

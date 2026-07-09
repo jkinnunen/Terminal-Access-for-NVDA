@@ -243,39 +243,54 @@ class TestOverlayOutputCoalescing:
         assert obj._reportNewText.call_count <= 3
 
 
-class TestOverlayQuietMode:
-    """Quiet mode should prevent the monitor thread from waking."""
+class TestOverlayEventDelegation:
+    """The overlay delegates terminal events to the plugin and wakes the
+    monitor thread only when the plugin says to (normal mode)."""
 
-    def test_quiet_mode_skips_event_set(self):
-        """event_textChange in quiet mode does not wake monitor thread."""
+    def _overlay(self, wake_return):
         from lib.terminal_overlay import TerminalAccessTerminal
-
         obj = TerminalAccessTerminal()
         obj._event = Mock()
-        obj._configManager = Mock()
-        obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-            "quietMode": True,
-            "errorAudioCues": False,
-            "errorAudioCuesInQuietMode": False,
-            "outputActivityTones": False,
-        }.get(k, d))
+        obj._plugin = Mock()
+        obj._plugin._handleTerminalTextChange = Mock(return_value=wake_return)
+        return obj
 
+    def test_text_change_wakes_monitor_when_plugin_returns_true(self):
+        obj = self._overlay(True)
+        obj.event_textChange()
+        obj._plugin._handleTerminalTextChange.assert_called_once_with(obj)
+        obj._event.set.assert_called_once()
+
+    def test_text_change_does_not_wake_when_plugin_returns_false(self):
+        obj = self._overlay(False)
         obj.event_textChange()
         obj._event.set.assert_not_called()
 
-    def test_normal_mode_wakes_monitor(self):
-        """event_textChange in normal mode wakes the monitor thread."""
+    def test_text_change_wakes_when_not_yet_wired(self):
         from lib.terminal_overlay import TerminalAccessTerminal
-
         obj = TerminalAccessTerminal()
         obj._event = Mock()
-        obj._configManager = Mock()
-        obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-            "quietMode": False,
-        }.get(k, d))
-
+        # no _plugin set: fall back to NVDA's default (speak output)
         obj.event_textChange()
         obj._event.set.assert_called_once()
+
+    def test_caret_delegates_to_plugin(self):
+        from lib.terminal_overlay import TerminalAccessTerminal
+        obj = TerminalAccessTerminal()
+        obj._plugin = Mock()
+        obj.event_caret()
+        obj._plugin._handleTerminalCaret.assert_called_once_with(obj)
+
+    def test_typed_character_delegates_with_speak_default(self):
+        from lib.terminal_overlay import TerminalAccessTerminal
+        obj = TerminalAccessTerminal()
+        obj._plugin = Mock()
+        obj.event_typedCharacter("x")
+        obj._plugin._terminalTypedCharacter.assert_called_once()
+        args = obj._plugin._terminalTypedCharacter.call_args[0]
+        assert args[0] is obj
+        assert args[1] == "x"
+        assert callable(args[2])  # speak_default callback
 
 
 class TestOverlayBlankSuppression:
@@ -306,94 +321,9 @@ class TestOverlayBlankSuppression:
         obj._reportNewText.assert_called_once()
 
 
-class TestOverlayActivityTones:
-    """Activity tones should fire from event_textChange, not event_caret."""
-
-    def test_activity_tone_on_text_change(self):
-        """When outputActivityTones enabled, event_textChange plays tones."""
-        from lib.terminal_overlay import TerminalAccessTerminal
-
-        obj = TerminalAccessTerminal()
-        obj._event = Mock()
-        obj._configManager = Mock()
-        obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-            "quietMode": False,
-            "outputActivityTones": True,
-            "outputActivityDebounce": 1000,
-        }.get(k, d))
-        obj._lastActivityToneTime = 0
-        obj._lastTypedCharTime = 0
-
-        mock_tones = MagicMock()
-        with patch("lib.terminal_overlay.tones", mock_tones):
-            obj.event_textChange()
-            assert mock_tones.beep.call_count >= 2  # Two ascending tones
-
-    def test_activity_tone_debounced(self):
-        """Activity tones respect debounce interval."""
-        from lib.terminal_overlay import TerminalAccessTerminal
-
-        obj = TerminalAccessTerminal()
-        obj._event = Mock()
-        obj._configManager = Mock()
-        obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-            "quietMode": False,
-            "outputActivityTones": True,
-            "outputActivityDebounce": 1000,
-        }.get(k, d))
-        obj._lastActivityToneTime = time.time()  # Just played
-        obj._lastTypedCharTime = 0
-
-        mock_tones = MagicMock()
-        with patch("lib.terminal_overlay.tones", mock_tones):
-            obj.event_textChange()
-            mock_tones.beep.assert_not_called()  # Debounced
-
-    def test_no_activity_tone_during_typing(self):
-        """Activity tones don't play for typed character echo."""
-        from lib.terminal_overlay import TerminalAccessTerminal
-
-        obj = TerminalAccessTerminal()
-        obj._event = Mock()
-        obj._configManager = Mock()
-        obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-            "quietMode": False,
-            "outputActivityTones": True,
-            "outputActivityDebounce": 1000,
-        }.get(k, d))
-        obj._lastActivityToneTime = 0
-        obj._lastTypedCharTime = time.time()  # Just typed
-
-        mock_tones = MagicMock()
-        with patch("lib.terminal_overlay.tones", mock_tones):
-            obj.event_textChange()
-            mock_tones.beep.assert_not_called()
-
-
-class TestOverlayQuietModeErrorCues:
-    """Error cues in quiet mode should fire from event_textChange."""
-
-    def test_error_cue_in_quiet_mode(self):
-        """With errorAudioCuesInQuietMode on, error beep fires in quiet mode."""
-        from lib.terminal_overlay import TerminalAccessTerminal
-
-        obj = TerminalAccessTerminal()
-        obj._event = Mock()
-        obj._configManager = Mock()
-        obj._configManager.get = Mock(side_effect=lambda k, d=None: {
-            "quietMode": True,
-            "errorAudioCues": True,
-            "errorAudioCuesInQuietMode": True,
-            "outputActivityTones": False,
-        }.get(k, d))
-        # Mock the method that checks the current line for errors
-        obj._checkErrorAudioCue = Mock()
-
-        obj.event_textChange()
-
-        obj._checkErrorAudioCue.assert_called_once()
-        # Monitor thread should NOT be woken
-        obj._event.set.assert_not_called()
+# Activity tones, quiet-mode skipping, and quiet-mode error cues moved from
+# the overlay into the plugin's _handleTerminalTextChange. They are covered
+# by tests/test_terminal_event_delegation.py.
 
 
 class TestChooseOverlayClasses:

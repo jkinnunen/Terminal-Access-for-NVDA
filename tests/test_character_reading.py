@@ -260,7 +260,7 @@ class TestCharacterReading(unittest.TestCase):
 			plugin._boundTerminal = Mock()
 			plugin._positionCalculator = MagicMock()
 
-			plugin.event_typedCharacter(Mock(), lambda: None, '!')
+			plugin._terminalTypedCharacter(Mock(), '!', lambda: None)
 
 			mock_ui.message.assert_called_with('bang')
 		finally:
@@ -372,7 +372,7 @@ class TestCharacterReading(unittest.TestCase):
 		profile.keyEcho = False
 		plugin._currentProfile = profile
 
-		plugin.event_typedCharacter(Mock(), lambda: None, 'q')
+		plugin._terminalTypedCharacter(Mock(), 'q', lambda: None)
 		mock_ui.message.assert_not_called()
 
 	def test_shouldProcessSymbol_uses_profile_punctuation(self):

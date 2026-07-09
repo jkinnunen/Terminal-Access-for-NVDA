@@ -14,6 +14,7 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ### Changed
 
+- Terminal caret, text-change, and typed-character events are now handled by the terminal overlay object (inserted via `chooseNVDAObjectOverlayClasses`) rather than by global event handlers on the plugin. This takes the add-on out of NVDA's global event chain for non-terminal apps and removes the duplicate text-change handling that ran both in the overlay and the plugin. The event logic itself is unchanged (it is delegated back to the plugin); the consolidation is the groundwork for fixing output-timing behavior.
 - ANSI stripping and terminal search now run in Python instead of the native DLL. The native path was measured about 10x slower for these operations (the FFI marshaling dominates), so it was removed along with the helper's in-process search. When native acceleration is on, the helper process still reads the buffer off NVDA's main thread; the search then runs in Python on the result.
 
 ### Removed

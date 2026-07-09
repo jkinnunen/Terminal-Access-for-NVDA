@@ -190,40 +190,18 @@ class TestContentGenerationTracking(unittest.TestCase):
             obj = Mock()
             nextHandler = Mock()
 
-            plugin.event_typedCharacter(obj, nextHandler, 'a')
+            plugin._terminalTypedCharacter(obj, 'a', nextHandler)
             self.assertEqual(plugin._contentGeneration, 1)
 
-            plugin.event_typedCharacter(obj, nextHandler, 'b')
+            plugin._terminalTypedCharacter(obj, 'b', nextHandler)
             self.assertEqual(plugin._contentGeneration, 2)
         finally:
             config_mock.conf.__getitem__ = original_getitem
 
-    def test_content_generation_not_incremented_when_not_terminal(self):
-        import sys
-        plugin = self._make_plugin()
-        plugin.isTerminalApp = Mock(return_value=False)
-
-        conf_data = {
-            "terminalAccess": {
-                "keyEcho": True,
-                "quietMode": False,
-                "repeatedSymbols": False,
-                "repeatedSymbolsValues": "-_=!",
-            },
-            "keyboard": {
-                "speakTypedCharacters": False,
-            },
-        }
-
-        config_mock = sys.modules['config']
-        original_getitem = config_mock.conf.__getitem__
-        try:
-            config_mock.conf.__getitem__ = lambda self, key: conf_data[key]
-            plugin.event_typedCharacter(Mock(), Mock(), 'x')
-        finally:
-            config_mock.conf.__getitem__ = original_getitem
-
-        self.assertEqual(plugin._contentGeneration, 0)
+    # test_content_generation_not_incremented_when_not_terminal was removed:
+    # after the overlay migration the typed-character handler is only ever
+    # invoked for terminal objects (the overlay is inserted only for
+    # terminals), so the "not a terminal" path no longer reaches it.
 
 
 # ---------------------------------------------------------------------------
