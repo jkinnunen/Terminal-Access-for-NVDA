@@ -23,10 +23,10 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Provides enhanced terminal accessibility for Windows Terminal and PowerShell, enabling screen reader users to efficiently navigate and interact with command-line interfaces. Inspired by TDSR (Terminal Data Structure Reader) and incorporates functionality from both TDSR and Speakup. Advanced features inspired by community suggestions and discussions."""),
 	# version
-	addon_version="2.0.0-beta.3",
+	addon_version="2.0.0-beta.4",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""v2.0.0-beta.3: fixes a freeze where the find command could lock up the whole machine on Windows Terminal. The native helper now runs in the multi-threaded COM apartment, never starts on NVDA's main thread, and is force-killed if it stops responding. Adds a "Use native acceleration" setting to fall back to the in-process reader."""),
+	addon_changelog=_("""v2.0.0-beta.4: safety and reliability hardening. Terminal search and error sound cues can no longer be frozen by a program that prints an extremely long line with no line breaks, the saved issue report is protected against crafted window titles, and the two open-URL paths now share one scheme-safety check. Also fixes progress-percent announcements reading the wrong terminal and a rare helper-restart race."""),
 	# Author(s)
 	addon_author="Pratik Patel",
 	# URL for the add-on documentation support

@@ -6,6 +6,8 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.4] - 2026-07-09
+
 ### Added
 
 - Three code-block commands now have default shortcuts: Announce code block, language and line count (Ctrl+L or NVDA+Alt+L); Copy code block to clipboard (Ctrl+C or NVDA+Alt+C); and Explain code block (Ctrl+E or NVDA+Alt+E).
