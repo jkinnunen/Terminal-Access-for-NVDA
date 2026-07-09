@@ -122,15 +122,20 @@ try:
 		get_helper as _get_helper,
 		stop_helper as _stop_helper,
 		start_helper_eagerly as _start_helper_eagerly,
+		set_native_enabled as _set_native_enabled,
 	)
 	_native_available = _native_available_fn()
 except Exception:
 	_native_available = False
+	def _native_available_fn():
+		return False
 	def _get_helper():
 		return None
 	def _stop_helper():
 		pass
 	def _start_helper_eagerly():
+		pass
+	def _set_native_enabled(enabled):
 		pass
 
 try:
@@ -802,6 +807,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._windowManager = WindowManager(self._configManager)
 		self._positionCalculator = PositionCalculator()
 
+		# Apply the native acceleration toggle from config at startup.
+		self._applyNativeAccelerationSetting()
+
 		# Background calculation thread for long operations
 		self._backgroundCalculationThread = None
 
@@ -847,11 +855,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Gesture conflict detection
 		self._conflictDetector = GestureConflictDetector()
 
-		# Helper process is started lazily on first terminal focus
-		# (in _startHelperIfNeeded). Eager startup during __init__ was
-		# removed because subprocess.Popen and named pipe connection
-		# acquire the GIL, causing NVDA to freeze for several seconds
-		# during restart.
+		# The native helper is started on first terminal focus (in
+		# _startHelperIfNeeded). get_helper() now kicks the start onto a
+		# daemon thread and returns immediately, so neither terminal focus
+		# nor the first search ever blocks NVDA's main thread on the
+		# subprocess spawn and named-pipe handshake. Until the helper is
+		# ready, callers fall back to the in-process read path.
 
 	def _initBindings(self):
 		"""Set up gesture bindings and settings panel registration."""
@@ -1153,6 +1162,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			_get_helper()
 		except (OSError, RuntimeError):
+			pass
+
+	def _applyNativeAccelerationSetting(self):
+		"""Enable or disable native acceleration from the config setting.
+
+		Off forces the in-process Python path (the pre-2.0 behavior) and
+		stops any running helper. Keeps the runtime flag the search path
+		reads in sync so the change takes effect without an NVDA restart.
+		"""
+		try:
+			enabled = bool(self._configManager.get("useNativeAcceleration", True))
+		except Exception:
+			enabled = True
+		_set_native_enabled(enabled)
+		try:
+			_rt.native_available = _native_available_fn()
+		except Exception:
 			pass
 
 	def _handleSearchJumpSuppression(self, obj):

@@ -92,6 +92,7 @@ confspec = {
 	"progressMilestones": "boolean(default=True)",  # Announce progress percentages at milestone thresholds
 	"earconVolume": "integer(default=100, min=10, max=100)",  # Earcon volume percent
 	"earconPitchShift": "integer(default=100, min=50, max=200)",  # Earcon pitch shift percent (100 = unchanged)
+	"useNativeAcceleration": "boolean(default=True)",  # Use the native DLL + helper process; off forces the in-process path
 }
 
 

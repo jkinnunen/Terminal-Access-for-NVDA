@@ -2,6 +2,21 @@
 
 All notable changes to Terminal Access for NVDA will be documented in this file.
 
+## [2.0.0-beta.3] - 2026-07-08
+
+### Fixed
+
+- **The find command could freeze the whole machine on Windows Terminal, forcing a Windows restart.** The native helper that reads terminal output ran in a single-threaded COM apartment (STA) with no message loop while making synchronous cross-process UI Automation calls. Under those conditions a large read can deadlock and wedge the terminal's UI Automation provider and NVDA, which a screen reader user cannot recover from without restarting Windows. The helper now runs in the multi-threaded apartment (MTA), which does not require a message loop for those calls, removing the deadlock. Before 2.0 this read ran on NVDA's own thread, so the same stall only wedged NVDA and the user could restart NVDA.
+
+### Changed
+
+- Search no longer starts the helper on NVDA's main thread. The helper starts on a background thread and callers get it only once it is running, so terminal focus and the first search never block on the subprocess spawn and pipe handshake. Until the helper is ready, reads fall back to the in-process path.
+- A watchdog force-kills a helper that stops responding so a stuck request can never freeze the calling thread, and a request that times out tears the helper down and restarts it. The startup handshake read is now bounded, and each UIA read is capped instead of reading an unbounded amount.
+
+### Added
+
+- **Use native acceleration setting** (Advanced section, on by default): turn it off to force the slower in-process reader if you hit a freeze or a compatibility problem with a terminal. Takes effect immediately.
+
 ## [2.0.0-beta.2] - 2026-07-08
 
 ### Added

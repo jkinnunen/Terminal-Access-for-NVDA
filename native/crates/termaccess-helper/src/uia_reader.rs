@@ -11,6 +11,15 @@ use windows::Win32::UI::Accessibility::*;
 
 use crate::security;
 
+/// Upper bound on characters read from a terminal in one call.
+///
+/// `GetText(-1)` reads the entire document; on a pathologically large
+/// scrollback that marshals an unbounded string across the process
+/// boundary. A positive limit truncates instead, bounding the cost. The
+/// cap is generous (well above a normal terminal scrollback) so real
+/// content is not lost in practice.
+const MAX_TEXT_CHARS: i32 = 5_000_000;
+
 /// A UIA reader that holds a reference to the automation instance.
 pub struct UiaReader {
     automation: IUIAutomation,
@@ -60,9 +69,10 @@ impl UiaReader {
                 .DocumentRange()
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("DocumentRange failed: {e}")))?;
 
-            // Get text (-1 = no length limit)
+            // Read up to MAX_TEXT_CHARS characters (a positive limit
+            // truncates; -1 would read the whole document unbounded).
             let text = range
-                .GetText(-1)
+                .GetText(MAX_TEXT_CHARS)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("GetText failed: {e}")))?;
 
             Ok(text.to_string())

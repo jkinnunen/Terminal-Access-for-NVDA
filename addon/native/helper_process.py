@@ -110,6 +110,16 @@ def _get_kernel32() -> ctypes.WinDLL:
         k.CloseHandle.restype = ctypes.wintypes.BOOL
         k.CloseHandle.argtypes = [ctypes.wintypes.HANDLE]
 
+        k.PeekNamedPipe.restype = ctypes.wintypes.BOOL
+        k.PeekNamedPipe.argtypes = [
+            ctypes.wintypes.HANDLE,
+            ctypes.c_void_p,                        # lpBuffer (NULL)
+            ctypes.wintypes.DWORD,                  # nBufferSize
+            ctypes.POINTER(ctypes.wintypes.DWORD),  # lpBytesRead (NULL)
+            ctypes.POINTER(ctypes.wintypes.DWORD),  # lpTotalBytesAvail
+            ctypes.POINTER(ctypes.wintypes.DWORD),  # lpBytesLeftThisMessage (NULL)
+        ]
+
         _k32 = k
         return _k32
 
@@ -151,11 +161,13 @@ def _find_helper_exe() -> Optional[str]:
 class _PendingResponse:
     """A slot that a caller waits on for a response to a specific request."""
 
-    __slots__ = ("event", "result")
+    __slots__ = ("event", "result", "start")
 
     def __init__(self):
         self.event = threading.Event()
         self.result: Optional[Dict[str, Any]] = None
+        # Monotonic timestamp used by the watchdog to detect a wedged helper.
+        self.start = time.monotonic()
 
     def set(self, msg: Dict[str, Any]):
         self.result = msg
@@ -186,6 +198,18 @@ class HelperProcess:
     # Timeout for waiting for a response (seconds)
     _RESPONSE_TIMEOUT = 5.0
 
+    # Hard deadline after which a wedged helper is force-killed by the
+    # watchdog. Set above _RESPONSE_TIMEOUT so the normal per-request timeout
+    # handles a merely slow reply; the watchdog only fires when a request is
+    # stuck far longer (for example a caller blocked writing to a helper that
+    # has stopped draining the pipe), which is the only way to unblock the
+    # calling thread. Killing the helper closes the pipe, which unblocks the
+    # write/read and triggers the auto-restart path.
+    _HARD_TIMEOUT = 8.0
+
+    # How often the watchdog scans for stuck requests (seconds).
+    _WATCHDOG_INTERVAL = 1.0
+
     def __init__(self):
         self._proc: Optional[subprocess.Popen] = None
         self._pipe_handle: Optional[int] = None
@@ -212,6 +236,11 @@ class HelperProcess:
         self._restart_count = 0
         self._restart_timestamps: list = []
         self._exe_path = _find_helper_exe()
+
+        # Watchdog: force-kills a wedged helper so a stuck request can never
+        # freeze the calling (NVDA main) thread indefinitely.
+        self._watchdog_thread: Optional[threading.Thread] = None
+        self._kill_lock = threading.Lock()
 
     # ───────────────────────────────────────────────────────────
     #  Lifecycle
@@ -512,8 +541,15 @@ class HelperProcess:
                 self._proc.kill()
             raise RuntimeError("Timed out connecting to helper pipe")
 
-        # Read HelperReady notification (before reader thread starts)
-        msg = self._read_message()
+        # Read HelperReady notification (before reader thread starts).
+        # Bounded so a helper that connects but never sends helper_ready
+        # cannot block this startup thread forever.
+        try:
+            msg = self._read_message_bounded(self._HARD_TIMEOUT)
+        except TimeoutError:
+            if self._proc.poll() is None:
+                self._proc.kill()
+            raise RuntimeError("Timed out waiting for helper_ready")
         if msg is None or msg.get("type") != "helper_ready":
             raise RuntimeError(f"Expected helper_ready, got: {msg}")
 
@@ -527,6 +563,12 @@ class HelperProcess:
             target=self._reader_loop, daemon=True, name="helper-reader"
         )
         self._reader_thread.start()
+
+        # Start the watchdog that force-kills a wedged helper.
+        self._watchdog_thread = threading.Thread(
+            target=self._watchdog_loop, daemon=True, name="helper-watchdog"
+        )
+        self._watchdog_thread.start()
 
         log.info("Helper process started (PID %d)", self._proc.pid)
 
@@ -565,6 +607,15 @@ class HelperProcess:
 
             # Wait for the reader thread to deliver our response
             result = pending.wait(self._RESPONSE_TIMEOUT)
+            if result is None and not self._stopping:
+                # No response within the timeout: the helper is
+                # unresponsive. Kill it so it cannot linger wedged; the
+                # reader thread then observes the closed pipe and triggers
+                # auto-restart, and the next call gets a fresh helper.
+                log.warning(
+                    "Helper request %r timed out; killing helper", msg_type
+                )
+                self._kill_helper()
             return result
         finally:
             with self._pending_lock:
@@ -632,6 +683,103 @@ class HelperProcess:
         except Exception:
             log.debug("Failed to read message", exc_info=True)
             return None
+
+    def _wait_for_pipe_data(self, nbytes: int, deadline: float):
+        """Block until at least nbytes are available, or the deadline passes.
+
+        Uses PeekNamedPipe so the caller never commits to a blocking ReadFile
+        for data that may never arrive. Raises TimeoutError on deadline.
+        """
+        k32 = _get_kernel32()
+        avail = ctypes.wintypes.DWORD(0)
+        while True:
+            ok = k32.PeekNamedPipe(
+                self._pipe_handle, None, 0, None, ctypes.byref(avail), None
+            )
+            if not ok:
+                err = ctypes.get_last_error()
+                raise IOError(f"PeekNamedPipe failed: error {err}")
+            if avail.value >= nbytes:
+                return
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"Timed out waiting for {nbytes} bytes (have {avail.value})"
+                )
+            time.sleep(0.02)
+
+    def _read_message_bounded(self, timeout: float) -> Optional[Dict[str, Any]]:
+        """Read one message, waiting at most `timeout` seconds for it to arrive.
+
+        Unlike _read_message (used by the reader thread, which may block
+        indefinitely by design), this bounds the wait so a helper that
+        connects but never speaks cannot block the startup thread forever.
+        Raises TimeoutError if no complete message arrives in time.
+        """
+        deadline = time.monotonic() + timeout
+        self._wait_for_pipe_data(4, deadline)
+        header = self._read_exact(4)
+        length = struct.unpack("<I", header)[0]
+        if length > self._MAX_PAYLOAD_SIZE:
+            raise IOError(
+                f"Response too large: {length} bytes (max {self._MAX_PAYLOAD_SIZE})"
+            )
+        if length:
+            self._wait_for_pipe_data(length, deadline)
+        payload = self._read_exact(length)
+        return json.loads(payload.decode("utf-8"))
+
+    # ───────────────────────────────────────────────────────────
+    #  Watchdog: force-kill a wedged helper
+    # ───────────────────────────────────────────────────────────
+
+    def _kill_helper(self):
+        """Force-terminate the helper process (idempotent).
+
+        Killing the process breaks the pipe, which unblocks any thread stuck
+        in a pipe read or write and makes the reader loop exit and restart.
+        """
+        with self._kill_lock:
+            proc = self._proc
+            if proc is None or proc.poll() is not None:
+                return
+            try:
+                proc.kill()
+                log.warning("Helper process killed by watchdog/timeout")
+            except Exception:
+                log.debug("Failed to kill helper", exc_info=True)
+
+    def _watchdog_loop(self):
+        """Force-kill the helper if any request stays in flight too long.
+
+        The per-request _RESPONSE_TIMEOUT already bounds the common case
+        (a slow reply). This covers the case the response timeout cannot: a
+        caller blocked inside WriteFile because the helper stopped draining
+        the pipe, where only an external kill can free the calling thread.
+        """
+        # Bind to the process we were started for. When the helper is
+        # replaced (restart) or dies, this watchdog exits; the replacement's
+        # _start_process spawns a fresh one, so there is always exactly one.
+        proc = self._proc
+        while not self._stopping:
+            time.sleep(self._WATCHDOG_INTERVAL)
+            if self._stopping or self._proc is not proc:
+                return
+            if proc is not None and proc.poll() is not None:
+                return
+            now = time.monotonic()
+            with self._pending_lock:
+                oldest = min(
+                    (p.start for p in self._pending.values()), default=None
+                )
+            if oldest is not None and (now - oldest) >= self._HARD_TIMEOUT:
+                log.warning(
+                    "Helper watchdog: request stuck %.1fs; killing helper",
+                    now - oldest,
+                )
+                self._kill_helper()
+                # The reader loop will restart the helper, which spawns a
+                # fresh watchdog, so this one is done.
+                return
 
     # ───────────────────────────────────────────────────────────
     #  Reader thread: demultiplexes responses and notifications

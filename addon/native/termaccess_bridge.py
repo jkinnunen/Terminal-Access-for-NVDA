@@ -238,9 +238,31 @@ def _setup_signatures(lib: ctypes.CDLL) -> None:
 	lib.ta_text_width.restype = c_uint32
 
 
+# Master switch for native acceleration (DLL + helper). Users can turn it
+# off via the "Use native acceleration" setting to force the in-process
+# Python path (the pre-2.0 behavior) as an escape hatch.
+_native_enabled = True
+
+
+def set_native_enabled(enabled: bool):
+	"""Enable or disable all native acceleration (DLL and helper process).
+
+	When disabled, :func:`native_available` returns False and
+	:func:`get_helper` returns None, so every caller falls back to the
+	in-process Python implementation. Disabling also stops a running helper.
+	"""
+	global _native_enabled
+	_native_enabled = bool(enabled)
+	if not _native_enabled:
+		try:
+			stop_helper()
+		except Exception:
+			pass
+
+
 def native_available() -> bool:
-	"""Return True if the native DLL is loaded and ready."""
-	return _get_dll() is not None
+	"""Return True if native acceleration is enabled and the DLL is loaded."""
+	return _native_enabled and _get_dll() is not None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -782,6 +804,7 @@ def native_scoped_search(
 
 _helper_instance = None
 _helper_lock = threading.Lock()
+_helper_starting = False
 
 
 def helper_available() -> bool:
@@ -791,45 +814,69 @@ def helper_available() -> bool:
 
 
 def get_helper():
-	"""Get or create the singleton HelperProcess instance.
+	"""Return the running helper, or None, without ever blocking the caller.
 
-	Uses double-check locking for thread safety.  The helper is
-	started lazily on first call.  Returns the running instance,
-	or None if unavailable.
+	Starting the helper involves a named-pipe handshake that can block, so
+	this never starts it inline. If the helper is not yet created, it kicks
+	off a background start and returns None immediately, so a caller on
+	NVDA's main thread (for example the search command) is never frozen by
+	helper startup. Once the background start completes, later calls return
+	the running instance.
 
-	If the helper exists but is not running (crashed and auto-restarting),
-	returns None so callers fall back gracefully.  The existing instance
-	handles its own restart via ``_maybe_restart()``.
+	Returns None while the helper is starting, unavailable, or restarting
+	after a crash, so every caller falls back gracefully.
 	"""
-	global _helper_instance
-	if _helper_instance is not None:
-		return _helper_instance if _helper_instance.is_running else None
+	if not _native_enabled:
+		return None
+	inst = _helper_instance
+	if inst is not None:
+		return inst if inst.is_running else None
+	_ensure_helper_starting()
+	return None
+
+
+def _ensure_helper_starting():
+	"""Kick off a one-shot background start of the helper if needed."""
+	global _helper_starting
+	if not _native_enabled:
+		return
 	with _helper_lock:
-		if _helper_instance is not None:
-			return _helper_instance if _helper_instance.is_running else None
-		try:
-			from native.helper_process import HelperProcess
-			helper = HelperProcess()
-			if helper.start():
+		if _helper_instance is not None or _helper_starting:
+			return
+		_helper_starting = True
+	threading.Thread(
+		target=_start_helper_worker, daemon=True, name="helper-start"
+	).start()
+
+
+def _start_helper_worker():
+	"""Background worker that performs the blocking helper start."""
+	global _helper_instance, _helper_starting
+	try:
+		from native.helper_process import HelperProcess
+		helper = HelperProcess()
+		if helper.start():
+			with _helper_lock:
 				_helper_instance = helper
-				return _helper_instance
-			return None
-		except Exception:
-			log.debug("Failed to start helper process", exc_info=True)
-			return None
+	except Exception:
+		log.debug("Failed to start helper process", exc_info=True)
+	finally:
+		with _helper_lock:
+			_helper_starting = False
 
 
 def start_helper_eagerly():
-	"""Start the helper process in the background so it's ready when needed.
+	"""Start the helper in the background so it's ready when first needed.
 
-	Called from ``GlobalPlugin.__init__()`` on a daemon thread so it
-	doesn't block addon startup.  If the helper fails to start, this is
-	not fatal — it will be retried on first use via :func:`get_helper`.
+	Called from ``GlobalPlugin.__init__()`` so the helper is starting well
+	before the first search. Never blocks: it only kicks off the background
+	start. If the helper fails to start, that is not fatal; ``get_helper``
+	retries on next use.
 	"""
 	try:
-		get_helper()
+		_ensure_helper_starting()
 	except Exception:
-		pass  # not fatal — will retry on first use
+		pass  # not fatal — will retry on next use
 
 
 def stop_helper():

@@ -1,16 +1,20 @@
 //! termaccess-helper: standalone helper process for Terminal Access for NVDA.
 //!
 //! Communicates with the NVDA addon over a named pipe using length-prefixed
-//! JSON messages. Runs UIA operations in its own COM STA apartment, freeing
+//! JSON messages. Runs UIA operations in its own COM MTA apartment, freeing
 //! the NVDA main thread from blocking wx.CallAfter round-trips.
 //!
 //! ## Thread model
 //!
-//! Single-threaded event loop using `PeekNamedPipe` for non-blocking reads:
+//! Single-threaded event loop using `PeekNamedPipe` for non-blocking reads.
+//! COM runs in the multi-threaded apartment (MTA): this process pumps no
+//! window messages, and an MTA (unlike an STA) does not need a message pump
+//! to service outbound cross-apartment UIA calls, so a large read cannot
+//! deadlock against the terminal's provider.
 //!
 //! ```text
-//! Main thread (STA):
-//!   CoInitializeEx(STA)
+//! Main thread (MTA):
+//!   CoInitializeEx(MTA)
 //!   CoCreateInstance(IUIAutomation)
 //!   Loop:
 //!     PeekNamedPipe → data available?
@@ -38,7 +42,7 @@ use std::process;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED};
+use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 
 use crate::pipe_server::PipeServer;
 use crate::protocol::{Notification, Request, Response};
@@ -86,11 +90,19 @@ fn parse_pipe_name() -> Option<String> {
 
 /// Main run loop: initialise COM, create pipe, handle requests.
 fn run(pipe_name: &str) -> io::Result<()> {
-    // Initialize COM in Single-Threaded Apartment mode.
-    // Required for UIA operations; ensures COM objects are accessed
-    // on the correct thread with proper lifetime management.
+    // Initialize COM in the Multi-Threaded Apartment (MTA).
+    //
+    // This process is a headless UIA client: it owns no windows and runs no
+    // message loop. An STA thread that makes outbound cross-apartment calls
+    // (such as UIA reads into Windows Terminal's provider) must pump window
+    // messages to service the reentrant marshaling callbacks the provider
+    // needs; this event loop does not pump messages, so under an STA a large
+    // UIA read (GetText) can deadlock and wedge the terminal's UI thread and
+    // every other UIA client on that window, including NVDA. The MTA does not
+    // require a message pump for cross-apartment calls, which is Microsoft's
+    // guidance for a UIA client that is not tied to a UI thread.
     unsafe {
-        CoInitializeEx(None, COINIT_APARTMENTTHREADED)
+        CoInitializeEx(None, COINIT_MULTITHREADED)
             .ok()
             .map_err(|e| {
                 io::Error::new(

@@ -153,6 +153,15 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		sHelper.addItem(profileGroup)
 		self._makeProfileControls(profileGroup, profileManager)
 
+		# === Advanced ===
+		# Translators: Label for advanced settings group
+		advancedGroup = guiHelper.BoxSizerHelper(self, sizer=wx.StaticBoxSizer(
+			wx.StaticBox(self, label=_("Advanced")),
+			wx.VERTICAL
+		))
+		sHelper.addItem(advancedGroup)
+		self._makeAdvancedNativeControls(advancedGroup)
+
 	# ------------------------------------------------------------------
 	# Basic controls
 	# ------------------------------------------------------------------
@@ -471,6 +480,27 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			"Shift all audio cue frequencies, from 50 to 200 percent. "
 			"Lower values help with high-frequency hearing loss, "
 			"higher values help with low-frequency hearing loss."
+		))
+
+	# ------------------------------------------------------------------
+	# Advanced controls
+	# ------------------------------------------------------------------
+
+	def _makeAdvancedNativeControls(self, group):
+		"""Populate the Advanced section with the native acceleration toggle."""
+		# Translators: Label for the native acceleration checkbox
+		self.useNativeAccelerationCheckBox = group.addItem(
+			wx.CheckBox(self, label=_("Use &native acceleration (recommended)"))
+		)
+		self.useNativeAccelerationCheckBox.SetValue(
+			config.conf["terminalAccess"].get("useNativeAcceleration", True)
+		)
+		# Translators: Tooltip for the native acceleration checkbox
+		self.useNativeAccelerationCheckBox.SetToolTip(_(
+			"Use the bundled native component and its helper process to read "
+			"terminal output faster. Turn this off to force the slower "
+			"in-process reader if you run into a freeze or a compatibility "
+			"problem with a terminal. Takes effect immediately."
 		))
 
 	# ------------------------------------------------------------------
@@ -811,6 +841,10 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			self.earconPitchSpinner.GetValue(), 50, 200, 100, "earconPitchShift"
 		)
 
+		# Save native acceleration toggle
+		config.conf["terminalAccess"]["useNativeAcceleration"] = \
+			self.useNativeAccelerationCheckBox.GetValue()
+
 		# Save gesture exclusions
 		unchecked = []
 		for i, (gesture, _script) in enumerate(self._gestureItems):
@@ -818,12 +852,13 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 				unchecked.append(gesture)
 		config.conf["terminalAccess"]["unboundGestures"] = ",".join(unchecked)
 
-		# Live-reload gesture bindings
+		# Live-reload gesture bindings and re-apply the native toggle
 		try:
 			from globalPlugins.terminalAccess import GlobalPlugin
 			for plugin in globalPluginHandler.runningPlugins:
 				if isinstance(plugin, GlobalPlugin):
 					plugin._reloadGestures()
+					plugin._applyNativeAccelerationSetting()
 					break
 		except (StopIteration, Exception):
 			pass
