@@ -808,6 +808,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._windowManager = WindowManager(self._configManager)
 		self._positionCalculator = PositionCalculator()
 
+		# Register with the terminal overlay so it can delegate terminal
+		# events (caret, text change, typed character) back to this plugin.
+		from lib import terminal_overlay
+		terminal_overlay.set_active_plugin(self)
+
 		# Apply the native acceleration toggle from config at startup.
 		self._applyNativeAccelerationSetting()
 
@@ -950,6 +955,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def terminate(self):
 		"""Clean up when the plugin is terminated."""
+		# Unregister from the terminal overlay so it stops delegating to a
+		# dead plugin instance after a reload.
+		try:
+			from lib import terminal_overlay
+			terminal_overlay.set_active_plugin(None)
+		except Exception:
+			pass
+
 		# Stop window monitoring if active
 		if self._windowMonitor and self._windowMonitor.is_monitoring():
 			self._windowMonitor.stop_monitoring()
@@ -1155,7 +1168,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._detectAndApplyProfile(obj)
 		self._announceProfileIfNew(obj, appName)
 		self._bindReviewCursor(obj)
-		self._wireOverlayConfig(obj)
 		self._announceHelpIfNeeded(appName)
 
 	def _startHelperIfNeeded(self):
@@ -1205,19 +1217,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				setattr(self, attr, cls(*args_fn(), **kwargs))
 			else:
 				current.update_terminal(obj)
-
-	def _wireOverlayConfig(self, obj):
-		"""Give the terminal overlay its config manager and a plugin reference.
-
-		The overlay is the entry point for terminal caret, text-change, and
-		typed-character events; it delegates the work back to this plugin,
-		whose state (position cache, cursor timer, profile config) the logic
-		depends on. See the event_* methods on TerminalAccessTerminal.
-		"""
-		from lib.terminal_overlay import TerminalAccessTerminal
-		if isinstance(obj, TerminalAccessTerminal):
-			obj._configManager = self._configManager
-			obj._plugin = self
 
 	def _detectAndApplyProfile(self, obj):
 		"""Detect and activate the appropriate application profile."""

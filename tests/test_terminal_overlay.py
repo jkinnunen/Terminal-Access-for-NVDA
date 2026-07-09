@@ -14,6 +14,10 @@ from unittest.mock import Mock, MagicMock, patch, call
 import pytest
 
 
+# The terminal overlay's module-level plugin registration is reset after
+# every test by the autouse ensure_mocks fixture in conftest.py.
+
+
 # --- Mock infrastructure for NVDAObject overlay testing ---
 
 class MockTextInfo:
@@ -178,13 +182,14 @@ class TestOverlayReportNewLines:
 
     def test_error_cues_disabled(self):
         """No beep when error audio cues are disabled."""
-        from lib.terminal_overlay import TerminalAccessTerminal
+        from lib.terminal_overlay import TerminalAccessTerminal, set_active_plugin
 
         obj = TerminalAccessTerminal()
-        obj._configManager = Mock()
-        obj._configManager.get = Mock(side_effect=lambda k, d=None: {
+        plugin = Mock()
+        plugin._configManager.get = Mock(side_effect=lambda k, d=None: {
             "errorAudioCues": False,
         }.get(k, d))
+        set_active_plugin(plugin)
 
         mock_tones = MagicMock()
         with patch("lib.audio_cues.tones", mock_tones):
@@ -248,21 +253,22 @@ class TestOverlayEventDelegation:
     monitor thread only when the plugin says to (normal mode)."""
 
     def _overlay(self, wake_return):
-        from lib.terminal_overlay import TerminalAccessTerminal
+        from lib.terminal_overlay import TerminalAccessTerminal, set_active_plugin
         obj = TerminalAccessTerminal()
         obj._event = Mock()
-        obj._plugin = Mock()
-        obj._plugin._handleTerminalTextChange = Mock(return_value=wake_return)
-        return obj
+        plugin = Mock()
+        plugin._handleTerminalTextChange = Mock(return_value=wake_return)
+        set_active_plugin(plugin)
+        return obj, plugin
 
     def test_text_change_wakes_monitor_when_plugin_returns_true(self):
-        obj = self._overlay(True)
+        obj, plugin = self._overlay(True)
         obj.event_textChange()
-        obj._plugin._handleTerminalTextChange.assert_called_once_with(obj)
+        plugin._handleTerminalTextChange.assert_called_once_with(obj)
         obj._event.set.assert_called_once()
 
     def test_text_change_does_not_wake_when_plugin_returns_false(self):
-        obj = self._overlay(False)
+        obj, plugin = self._overlay(False)
         obj.event_textChange()
         obj._event.set.assert_not_called()
 
@@ -270,24 +276,26 @@ class TestOverlayEventDelegation:
         from lib.terminal_overlay import TerminalAccessTerminal
         obj = TerminalAccessTerminal()
         obj._event = Mock()
-        # no _plugin set: fall back to NVDA's default (speak output)
+        # no active plugin: fall back to NVDA's default (speak output)
         obj.event_textChange()
         obj._event.set.assert_called_once()
 
     def test_caret_delegates_to_plugin(self):
-        from lib.terminal_overlay import TerminalAccessTerminal
+        from lib.terminal_overlay import TerminalAccessTerminal, set_active_plugin
         obj = TerminalAccessTerminal()
-        obj._plugin = Mock()
+        plugin = Mock()
+        set_active_plugin(plugin)
         obj.event_caret()
-        obj._plugin._handleTerminalCaret.assert_called_once_with(obj)
+        plugin._handleTerminalCaret.assert_called_once_with(obj)
 
     def test_typed_character_delegates_with_speak_default(self):
-        from lib.terminal_overlay import TerminalAccessTerminal
+        from lib.terminal_overlay import TerminalAccessTerminal, set_active_plugin
         obj = TerminalAccessTerminal()
-        obj._plugin = Mock()
+        plugin = Mock()
+        set_active_plugin(plugin)
         obj.event_typedCharacter("x")
-        obj._plugin._terminalTypedCharacter.assert_called_once()
-        args = obj._plugin._terminalTypedCharacter.call_args[0]
+        plugin._terminalTypedCharacter.assert_called_once()
+        args = plugin._terminalTypedCharacter.call_args[0]
         assert args[0] is obj
         assert args[1] == "x"
         assert callable(args[2])  # speak_default callback

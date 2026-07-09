@@ -43,6 +43,25 @@ def should_apply_overlay(app_name):
     return app_name in _SUPPORTED_TERMINALS
 
 
+# The running GlobalPlugin, registered once at plugin start via
+# set_active_plugin. The overlay delegates terminal events to it and reads
+# config through its config manager. This replaces the earlier pattern of
+# the plugin pushing _plugin/_configManager onto each overlay object on
+# focus, which could be unset before the first focus event.
+_active_plugin = None
+
+
+def set_active_plugin(plugin):
+    """Register (or clear, with None) the running GlobalPlugin."""
+    global _active_plugin
+    _active_plugin = plugin
+
+
+def get_active_plugin():
+    """Return the running GlobalPlugin, or None if not started."""
+    return _active_plugin
+
+
 class TerminalAccessTerminal:
     """NVDAObject overlay that replaces NVDA's LiveText output handling.
 
@@ -62,17 +81,11 @@ class TerminalAccessTerminal:
         (where initOverlayClass is also called).
         """
         self._errorDetector = ErrorLineDetector()
-        self._lastActivityToneTime = 0
-        self._lastTypedCharTime = 0
-        self._configManager = None  # Set by GlobalPlugin on gainFocus
 
     def initOverlayClass(self):
         """Called by NVDA after overlay class construction."""
         if not hasattr(self, "_errorDetector"):
             self._errorDetector = ErrorLineDetector()
-            self._lastActivityToneTime = 0
-            self._lastTypedCharTime = 0
-            self._configManager = None
 
     def _reportNewLines(self, lines):
         """Override LiveText._reportNewLines with coalescing and audio cues.
@@ -88,8 +101,9 @@ class TerminalAccessTerminal:
             return
 
         error_cues_enabled = True
-        if self._configManager:
-            error_cues_enabled = self._configManager.get("errorAudioCues", True)
+        plugin = self._get_plugin()
+        if plugin is not None and getattr(plugin, "_configManager", None) is not None:
+            error_cues_enabled = plugin._configManager.get("errorAudioCues", True)
 
         count = len(content_lines)
 
@@ -132,8 +146,8 @@ class TerminalAccessTerminal:
             play_cue(classification)
 
     def _get_plugin(self):
-        """Return the running GlobalPlugin, wired in on terminal focus."""
-        return getattr(self, "_plugin", None)
+        """Return the running GlobalPlugin (registered at plugin start)."""
+        return _active_plugin
 
     def _wake_monitor(self):
         """Wake the LiveText monitor thread so it speaks the new output.

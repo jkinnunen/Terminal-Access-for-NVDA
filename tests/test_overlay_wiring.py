@@ -99,13 +99,18 @@ class TestChooseNVDAObjectOverlayClasses:
         plugin.chooseNVDAObjectOverlayClasses(obj, clsList)
         assert clsList.count(TerminalAccessTerminal) == 1
 
-    def test_overlay_gets_config_manager_ref(self):
-        """After overlay is inserted, initOverlayClass should find _configManager."""
-        from lib.terminal_overlay import TerminalAccessTerminal
-        # Verify the overlay class has initOverlayClass
+    def test_overlay_resolves_active_plugin(self):
+        """The overlay finds the running plugin via the module registration,
+        not via a per-object reference pushed on focus."""
+        from lib.terminal_overlay import (
+            TerminalAccessTerminal, set_active_plugin, get_active_plugin,
+        )
         overlay = TerminalAccessTerminal()
         assert hasattr(overlay, 'initOverlayClass')
-        assert hasattr(overlay, '_configManager')
+        plugin = Mock()
+        set_active_plugin(plugin)
+        assert get_active_plugin() is plugin
+        assert overlay._get_plugin() is plugin
 
 
 # TestEventTextChangeDelegation and TestEventCaretWithOverlay were removed.

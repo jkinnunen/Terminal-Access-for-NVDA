@@ -307,6 +307,15 @@ def ensure_mocks():
 
     yield
 
+    # Clear the terminal overlay's module-level plugin registration.
+    # GlobalPlugin.__init__ registers itself there, so a plugin built in
+    # one test would otherwise leak into the next.
+    try:
+        from lib import terminal_overlay
+        terminal_overlay.set_active_plugin(None)
+    except Exception:
+        pass
+
 
 @pytest.fixture
 def make_focus():
