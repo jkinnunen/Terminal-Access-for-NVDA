@@ -1140,6 +1140,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except (AttributeError, TypeError):
 			return
 		self._boundTerminal = obj
+		wasSearchJump = self._searchJumpPending
 		jumpPending = self._handleSearchJumpSuppression(obj)
 		self._initializeManagers(obj)
 		self._positionCalculator.clear_cache()
@@ -1147,9 +1148,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._announceProfileIfNew(obj, appName)
 		# After a search or bookmark jump, leave the review cursor on the
 		# jumped-to line instead of snapping it back to the caret (the
-		# command prompt). Only rebind on an ordinary focus.
+		# command prompt). Only rebind on an ordinary focus. Skipping our
+		# rebind is not enough: NVDA core already rebound the review cursor
+		# to the caret during focus handling (before this handler ran), so
+		# the search jump is re-applied once the focus dust settles.
 		if not jumpPending:
 			self._bindReviewCursor(obj)
+		elif wasSearchJump and self._searchManager:
+			wx.CallAfter(self._searchManager._jump_to_current_match)
 		self._announceHelpIfNeeded(appName)
 
 	def _applyNativeAccelerationSetting(self):

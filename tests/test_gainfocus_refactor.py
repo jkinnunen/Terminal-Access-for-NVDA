@@ -37,6 +37,39 @@ class TestOnTerminalFocus:
 	# _startHelperIfNeeded: the helper process is retired from all read
 	# paths and is no longer started on terminal focus.
 
+	def test_search_jump_reapplied_after_focus_settles(self):
+		"""NVDA core rebinds the review cursor to the caret during focus
+		handling (before our event handler), so skipping our own rebind is
+		not enough: the jump must be re-applied after focus settles."""
+		import globalPlugins.terminalAccess as ta
+		plugin = self._make_plugin()
+		terminal = self._make_terminal()
+		plugin.isTerminalApp = MagicMock(return_value=True)
+		plugin._searchJumpPending = True
+		plugin._searchManager = MagicMock()
+
+		scheduled = []
+		with patch.object(ta.wx, "CallAfter",
+						  side_effect=lambda fn, *a: scheduled.append(fn)):
+			plugin._onTerminalFocus(terminal)
+
+		assert plugin._searchManager._jump_to_current_match in scheduled
+
+	def test_no_rejump_on_normal_focus(self):
+		import globalPlugins.terminalAccess as ta
+		plugin = self._make_plugin()
+		terminal = self._make_terminal()
+		plugin.isTerminalApp = MagicMock(return_value=True)
+		plugin._searchJumpPending = False
+		plugin._searchManager = MagicMock()
+
+		scheduled = []
+		with patch.object(ta.wx, "CallAfter",
+						  side_effect=lambda fn, *a: scheduled.append(fn)):
+			plugin._onTerminalFocus(terminal)
+
+		assert plugin._searchManager._jump_to_current_match not in scheduled
+
 	def test_bindReviewCursor_skipped_when_search_jump_pending(self):
 		"""A pending search jump must survive focus return: the caret rebind
 		is skipped so the review cursor stays on the matched line."""

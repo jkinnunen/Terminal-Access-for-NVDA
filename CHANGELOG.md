@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.9] - 2026-07-12
+
+### Fixed
+
+- **Search result activation now really keeps the review cursor on the matched line.** Two compounding bugs survived the beta.8 attempt. First, NVDA itself rebinds the review cursor to the caret while handling the focus return to the terminal, before the add-on's own focus handler runs, so skipping the add-on's rebind was not enough; the jump is now re-applied after focus handling settles. Second, returning focus to the same terminal wiped the stored search results (the rebind treated every focus as a terminal change), which also silently broke find next and find previous after closing the results dialog; results are now kept when focus returns to the same terminal window.
+
 ## [2.0.0-beta.8] - 2026-07-12
 
 ### Fixed

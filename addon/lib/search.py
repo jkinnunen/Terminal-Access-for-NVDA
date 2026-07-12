@@ -850,12 +850,23 @@ class OutputSearchManager:
 		Args:
 			terminal_obj: New terminal TextInfo object
 		"""
+		# NVDA creates a fresh NVDAObject for every focus event, so this is
+		# called with a new object even when the user returns to the SAME
+		# terminal window (for example when the search results dialog
+		# closes). Wiping the matches in that case breaks the dialog jump
+		# and findNext/findPrevious. Only clear when it is genuinely a
+		# different window (or the window cannot be identified).
+		old_hwnd = getattr(self._terminal, "windowHandle", None)
+		new_hwnd = getattr(terminal_obj, "windowHandle", None)
+		same_window = bool(old_hwnd) and old_hwnd == new_hwnd
+
 		self._terminal = terminal_obj
-		# A different terminal means a different buffer: drop the cache.
+		# Even for the same window, drop the buffer cache: content may have
+		# changed while focus was elsewhere.
 		self.note_content_changed()
 		self._cached_lines = None
-		# Clear search results when terminal changes
-		self.clear_search()
+		if not same_window:
+			self.clear_search()
 
 	def set_tab_manager(self, tab_manager):
 		"""

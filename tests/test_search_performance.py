@@ -70,6 +70,50 @@ class TestBufferCache:
         assert terminal.read_count == 2
 
 
+class TestUpdateTerminalPreservesMatches:
+    """update_terminal runs on every terminal focus (including the focus
+    return after the search results dialog closes). Rebinding to the SAME
+    terminal window must not wipe the matches, or the dialog jump and
+    findNext/findPrevious break the moment focus returns."""
+
+    def test_same_window_keeps_matches(self):
+        terminal = CountingTerminal("alpha\nerror here\nbeta")
+        terminal.windowHandle = 0x42
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("error") == 1
+
+        rebound = CountingTerminal("alpha\nerror here\nbeta")
+        rebound.windowHandle = 0x42  # same window, new NVDAObject
+        mgr.update_terminal(rebound)
+
+        assert mgr.get_match_count() == 1
+        assert mgr._terminal is rebound
+
+    def test_different_window_clears_matches(self):
+        terminal = CountingTerminal("error here")
+        terminal.windowHandle = 0x42
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("error") == 1
+
+        other = CountingTerminal("different buffer")
+        other.windowHandle = 0x99
+        mgr.update_terminal(other)
+
+        assert mgr.get_match_count() == 0
+
+    def test_unknown_window_clears_matches(self):
+        terminal = CountingTerminal("error here")
+        terminal.windowHandle = 0x42
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("error") == 1
+
+        no_hwnd = CountingTerminal("whatever")
+        no_hwnd.windowHandle = None
+        mgr.update_terminal(no_hwnd)
+
+        assert mgr.get_match_count() == 0
+
+
 # ---------------------------------------------------------------------------
 # #4 Skip ANSI strip when there is nothing to strip
 # ---------------------------------------------------------------------------
