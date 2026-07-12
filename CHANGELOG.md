@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.13] - 2026-07-12
+
+### Fixed
+
+- **The search-result review cursor re-apply now has something to jump to.** The beta.12 diagnostic showed the re-apply failing outright (`ok=False`): when focus returns to the terminal the search manager's match state is cleared, so re-running the jump found no match and never set the review position. The add-on now captures the matched line's text at activation time and re-applies the review position by resolving that text directly, independent of the (cleared) match state. (Diagnostic `TA rejump-diag` log line kept one more release to confirm the cursor now holds on the line.)
+
 ## [2.0.0-beta.12] - 2026-07-12
 
 ### Fixed

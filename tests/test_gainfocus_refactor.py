@@ -46,6 +46,7 @@ class TestOnTerminalFocus:
 		terminal = self._make_terminal()
 		plugin.isTerminalApp = MagicMock(return_value=True)
 		plugin._searchJumpPending = True
+		plugin._searchJumpTarget = ("Directory: C:\\Users", 49)
 		plugin._searchManager = MagicMock()
 
 		scheduled = []
@@ -54,11 +55,30 @@ class TestOnTerminalFocus:
 			plugin._onTerminalFocus(terminal)
 
 		# Re-apply is scheduled on a timer (after NVDA's focus transition),
-		# not immediately, and it re-runs the jump.
+		# not immediately, and it resolves from the captured line text rather
+		# than the (already-cleared) match state.
 		assert plugin._reapplySearchJump in scheduled
 		for fn in scheduled:
 			fn()
-		plugin._searchManager._jump_to_current_match.assert_called()
+		plugin._searchManager._resolve_line_by_content.assert_called_with(
+			"Directory: C:\\Users", 49)
+
+	def test_no_rejump_without_captured_target(self):
+		"""No re-apply is scheduled if no jump target was captured."""
+		import globalPlugins.terminalAccess as ta
+		plugin = self._make_plugin()
+		terminal = self._make_terminal()
+		plugin.isTerminalApp = MagicMock(return_value=True)
+		plugin._searchJumpPending = True
+		plugin._searchJumpTarget = None
+		plugin._searchManager = MagicMock()
+
+		scheduled = []
+		with patch.object(ta.wx, "CallLater",
+						  side_effect=lambda delay, fn, *a: scheduled.append(fn)):
+			plugin._onTerminalFocus(terminal)
+
+		assert plugin._reapplySearchJump not in scheduled
 
 	def test_no_rejump_on_normal_focus(self):
 		import globalPlugins.terminalAccess as ta

@@ -729,6 +729,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._boundTerminal = None
 		self._searchJumpPending = False
 		self._bookmarkJumpPending = False
+		# (line_text, line_num) of the last activated search match, captured
+		# while match state is intact so the review cursor can be re-applied
+		# after focus returns to the terminal (which clears match state).
+		self._searchJumpTarget = None
 		self._cursorTrackingTimer = None
 		self._lastCaretPosition = None
 		self._lastTypedChar = None
@@ -1154,7 +1158,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# the search jump is re-applied once the focus dust settles.
 		if not jumpPending:
 			self._bindReviewCursor(obj)
-		elif wasSearchJump and self._searchManager:
+		elif wasSearchJump and self._searchJumpTarget and self._searchManager:
 			self._scheduleSearchJumpReapply()
 		self._announceHelpIfNeeded(appName)
 
@@ -1173,16 +1177,31 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				pass
 
 	def _reapplySearchJump(self):
-		"""Re-apply the search jump and log the outcome (log TEMPORARY)."""
+		"""Re-apply the captured search jump target.
+
+		Resolves the review position from the line text captured at jump
+		time, so it does not depend on the search manager's match state
+		(which is cleared when focus returns to the terminal).
+		"""
 		try:
+			target = self._searchJumpTarget
 			mgr = self._searchManager
-			if mgr is None:
+			if not target or mgr is None:
 				return
-			ok = mgr._jump_to_current_match()
+			line_text, line_num = target
+			pos = mgr._resolve_line_by_content(line_text, line_num)
+			review = "<not found>"
+			if pos is not None:
+				try:
+					pos.expand(textInfos.UNIT_LINE)
+				except (RuntimeError, AttributeError, TypeError):
+					pass
+				api.setReviewPosition(pos)
+				review = getattr(api.getReviewPosition(), "text", "?")
 			import logHandler
-			review = getattr(api.getReviewPosition(), "text", "?")
 			logHandler.log.info(
-				"TA rejump-diag: ok=%s review=%r", ok, review[:70])
+				"TA rejump-diag: found=%s review=%r",
+				pos is not None, review[:70])
 		except Exception:
 			pass
 
@@ -4289,6 +4308,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 				def on_jump():
 					self._searchJumpPending = True
+					# Capture the activated line's text now, while the match
+					# state is intact. The re-apply after focus returns must
+					# not depend on the search manager's matches (they get
+					# cleared when focus returns to the terminal); it resolves
+					# the review position from this text directly.
+					try:
+						info = self._searchManager.get_current_match_info()
+						self._searchJumpTarget = (info[2], info[3]) if info else None
+					except Exception:
+						self._searchJumpTarget = None
 
 				try:
 					gui.mainFrame.prePopup()
