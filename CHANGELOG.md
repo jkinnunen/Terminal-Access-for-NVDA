@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.14] - 2026-07-12
+
+### Changed
+
+- Removed the temporary `TA jump-diag` / `TA rejump-diag` diagnostic logging now that the search-result review-cursor fix is confirmed working in the field. Activating a search result lands the review cursor on the matched line and holds it there across the focus return, so review-current-line reads the matched line. The fix has three parts that the diagnostics isolated in turn: resolve the line by its text (not by a line count that a terminal miscounts), capture that text at activation so the re-apply does not depend on the search state that a focus change clears, and re-apply the review position on a short timer after NVDA's focus transition finishes.
+
 ## [2.0.0-beta.13] - 2026-07-12
 
 ### Fixed

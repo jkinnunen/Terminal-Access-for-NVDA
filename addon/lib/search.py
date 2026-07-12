@@ -647,8 +647,6 @@ class OutputSearchManager:
 				except (RuntimeError, AttributeError):
 					pos = pos_info
 
-			jump_method = "bookmark" if pos is not None else (
-				"pos_info" if pos_info is not None else "?")
 			if pos is None and line_num is not None:
 				# Resolve by the matched line's text rather than by counting
 				# lines. The buffer was searched from POSITION_ALL.text split
@@ -658,14 +656,12 @@ class OutputSearchManager:
 				# row than "N lines down". Walking to the line that actually
 				# contains the text sidesteps the mismatch.
 				pos = self._resolve_line_by_content(line_text, line_num)
-				jump_method = "content"
 				if pos is None:
 					# Last-resort positional fallback (may drift).
 					try:
 						pos = self._terminal.makeTextInfo(textInfos.POSITION_FIRST)
 						if line_num > 1:
 							pos.move(textInfos.UNIT_LINE, line_num - 1)
-						jump_method = "positional"
 					except (RuntimeError, AttributeError, TypeError):
 						pos = None
 
@@ -681,7 +677,6 @@ class OutputSearchManager:
 					pass
 
 				_rt.api_module.setReviewPosition(pos)
-				self._log_jump_diag(jump_method, line_num, pos)
 				return True
 		except (RuntimeError, AttributeError, TypeError, IndexError):
 			pass
@@ -741,21 +736,6 @@ class OutputSearchManager:
 			info = nxt
 			index += 1
 		return best
-
-	def _log_jump_diag(self, method, line_num, pos):
-		"""TEMPORARY diagnostic: log the jump result and whether the review
-		position stuck. Removed once the search-jump review-cursor bug is
-		understood."""
-		try:
-			import logHandler
-			set_text = getattr(pos, "text", "?")
-			readback = getattr(_rt.api_module.getReviewPosition(), "text", "?")
-			logHandler.log.info(
-				"TA jump-diag: method=%s line_num=%s set=%r readback=%r",
-				method, line_num, set_text[:70], readback[:70],
-			)
-		except Exception:
-			pass
 
 	def get_match_count(self) -> int:
 		"""

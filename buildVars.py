@@ -23,10 +23,10 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Provides enhanced terminal accessibility for Windows Terminal and PowerShell, enabling screen reader users to efficiently navigate and interact with command-line interfaces. Inspired by TDSR (Terminal Data Structure Reader) and incorporates functionality from both TDSR and Speakup. Advanced features inspired by community suggestions and discussions."""),
 	# version
-	addon_version="2.0.0-beta.13",
+	addon_version="2.0.0-beta.14",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""v2.0.0-beta.13: another fix for the review cursor not staying on the matched search line. The search results were being cleared as focus returned to the terminal, so the re-apply had nothing to jump to. The add-on now remembers the matched line's text and re-applies the review position from that directly."""),
+	addon_changelog=_("""v2.0.0-beta.14: confirms the search-result cursor fix and removes the temporary diagnostic logging. Activating a search result lands the review cursor on the matched line and keeps it there, so review-current-line reads the match."""),
 	# Author(s)
 	addon_author="Pratik Patel",
 	# URL for the add-on documentation support

@@ -1190,18 +1190,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			line_text, line_num = target
 			pos = mgr._resolve_line_by_content(line_text, line_num)
-			review = "<not found>"
 			if pos is not None:
 				try:
 					pos.expand(textInfos.UNIT_LINE)
 				except (RuntimeError, AttributeError, TypeError):
 					pass
 				api.setReviewPosition(pos)
-				review = getattr(api.getReviewPosition(), "text", "?")
-			import logHandler
-			logHandler.log.info(
-				"TA rejump-diag: found=%s review=%r",
-				pos is not None, review[:70])
 		except Exception:
 			pass
 
