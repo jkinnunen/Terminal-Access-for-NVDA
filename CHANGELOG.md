@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.10] - 2026-07-12
+
+### Diagnostics
+
+- Temporary logging for the search-result review-cursor issue: on a search jump the add-on logs the resolved line, the text it set the review position to, and an immediate readback; and on the deferred re-apply after focus returns it logs the review position before and after. These `TA jump-diag` / `TA rejump-diag` lines pin down whether the jump lands on the wrong line or whether NVDA moves the review cursor back afterward. No behavior change; removed once the bug is fixed.
+
 ## [2.0.0-beta.9] - 2026-07-12
 
 ### Fixed

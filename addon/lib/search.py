@@ -667,11 +667,30 @@ class OutputSearchManager:
 					pass
 
 				_rt.api_module.setReviewPosition(pos)
+				self._log_jump_diag(bookmark, pos_info, line_num, pos)
 				return True
 		except (RuntimeError, AttributeError, TypeError, IndexError):
 			pass
 
 		return False
+
+	def _log_jump_diag(self, bookmark, pos_info, line_num, pos):
+		"""TEMPORARY diagnostic: log the jump result and whether the review
+		position stuck. Removed once the search-jump review-cursor bug is
+		understood."""
+		try:
+			import logHandler
+			source = ("bookmark" if bookmark is not None
+					  else "pos_info" if pos_info is not None
+					  else "line_num")
+			set_text = getattr(pos, "text", "?")
+			readback = getattr(_rt.api_module.getReviewPosition(), "text", "?")
+			logHandler.log.info(
+				"TA jump-diag: source=%s line_num=%s set=%r readback=%r",
+				source, line_num, set_text[:70], readback[:70],
+			)
+		except Exception:
+			pass
 
 	def get_match_count(self) -> int:
 		"""

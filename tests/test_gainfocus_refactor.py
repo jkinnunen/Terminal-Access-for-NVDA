@@ -53,7 +53,11 @@ class TestOnTerminalFocus:
 						  side_effect=lambda fn, *a: scheduled.append(fn)):
 			plugin._onTerminalFocus(terminal)
 
-		assert plugin._searchManager._jump_to_current_match in scheduled
+		assert plugin._reapplySearchJumpDiag in scheduled
+		# and the re-apply actually re-runs the jump
+		for fn in scheduled:
+			fn()
+		plugin._searchManager._jump_to_current_match.assert_called()
 
 	def test_no_rejump_on_normal_focus(self):
 		import globalPlugins.terminalAccess as ta
@@ -68,7 +72,7 @@ class TestOnTerminalFocus:
 						  side_effect=lambda fn, *a: scheduled.append(fn)):
 			plugin._onTerminalFocus(terminal)
 
-		assert plugin._searchManager._jump_to_current_match not in scheduled
+		assert plugin._reapplySearchJumpDiag not in scheduled
 
 	def test_bindReviewCursor_skipped_when_search_jump_pending(self):
 		"""A pending search jump must survive focus return: the caret rebind

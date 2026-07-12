@@ -23,10 +23,10 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Provides enhanced terminal accessibility for Windows Terminal and PowerShell, enabling screen reader users to efficiently navigate and interact with command-line interfaces. Inspired by TDSR (Terminal Data Structure Reader) and incorporates functionality from both TDSR and Speakup. Advanced features inspired by community suggestions and discussions."""),
 	# version
-	addon_version="2.0.0-beta.9",
+	addon_version="2.0.0-beta.10",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""v2.0.0-beta.9: search result activation now really keeps the review cursor on the matched line. NVDA itself rebinds the review cursor to the caret when focus returns to the terminal, so the add-on now re-applies the jump after focus settles. Also fixes search results being cleared the moment focus returned to the terminal, which broke find next and find previous after closing the results dialog."""),
+	addon_changelog=_("""v2.0.0-beta.10: diagnostic build for the search-result cursor issue. Adds temporary logging of where a search jump lands and whether the position holds, so the remaining bug can be pinned down from the NVDA log. No behavior change."""),
 	# Author(s)
 	addon_author="Pratik Patel",
 	# URL for the add-on documentation support

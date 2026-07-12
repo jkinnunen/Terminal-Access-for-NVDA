@@ -1155,8 +1155,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not jumpPending:
 			self._bindReviewCursor(obj)
 		elif wasSearchJump and self._searchManager:
-			wx.CallAfter(self._searchManager._jump_to_current_match)
+			wx.CallAfter(self._reapplySearchJumpDiag)
 		self._announceHelpIfNeeded(appName)
+
+	def _reapplySearchJumpDiag(self):
+		"""Re-apply the search jump after focus settles, logging before/after
+		review positions (TEMPORARY diagnostic)."""
+		try:
+			import logHandler
+			before = getattr(api.getReviewPosition(), "text", "?")
+			self._searchManager._jump_to_current_match()
+			after = getattr(api.getReviewPosition(), "text", "?")
+			logHandler.log.info(
+				"TA rejump-diag: before=%r after=%r", before[:70], after[:70])
+		except Exception:
+			pass
 
 	def _applyNativeAccelerationSetting(self):
 		"""Enable or disable native acceleration from the config setting.
