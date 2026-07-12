@@ -23,10 +23,10 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Provides enhanced terminal accessibility for Windows Terminal and PowerShell, enabling screen reader users to efficiently navigate and interact with command-line interfaces. Inspired by TDSR (Terminal Data Structure Reader) and incorporates functionality from both TDSR and Speakup. Advanced features inspired by community suggestions and discussions."""),
 	# version
-	addon_version="2.0.0-beta.5",
+	addon_version="2.0.0-beta.6",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""v2.0.0-beta.5: much faster search on large terminal buffers. The cleaned buffer is cached and reused until new output appears, so searching again is near-instant; color-code cleaning is skipped when there is none; and on a big buffer the matching runs off NVDA's main thread (it says "Searching" while it works) so the screen reader stays responsive."""),
+	addon_changelog=_("""v2.0.0-beta.6: adds search timing diagnostics. When a search takes longer than expected, a one-line breakdown is written to the NVDA log (read path, read time, cleaning time, match time) so a slow search can be diagnosed. No behavior change otherwise."""),
 	# Author(s)
 	addon_author="Pratik Patel",
 	# URL for the add-on documentation support

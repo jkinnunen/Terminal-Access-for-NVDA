@@ -185,6 +185,32 @@ class OutputSearchManager:
 	# lines: on a big buffer it is both costly and rarely useful.
 	FUZZY_MAX_LINES = 20000
 
+	# A search whose total exceeds this (milliseconds) logs a timing
+	# breakdown at INFO so a slow search is diagnosable from the NVDA log.
+	_TIMING_LOG_THRESHOLD_MS = 150
+
+	def _log_search_timing(self, total_ms, match_ms):
+		"""Log a one-line timing breakdown when a search is slow."""
+		if total_ms < self._TIMING_LOG_THRESHOLD_MS:
+			return
+		try:
+			import logHandler
+			logHandler.log.info(
+				"Terminal Access search timing: total=%.0fms read_path=%s "
+				"helper=%.0fms fallback=%.0fms strip=%.0fms match=%.0fms "
+				"chars=%d cache_hit=%s",
+				total_ms,
+				getattr(self, "_last_read_path", "?"),
+				getattr(self, "_last_helper_ms", 0.0),
+				getattr(self, "_last_fallback_ms", 0.0),
+				getattr(self, "_last_strip_ms", 0.0),
+				match_ms,
+				getattr(self, "_last_read_chars", 0),
+				getattr(self, "_last_cache_hit", False),
+			)
+		except Exception:
+			pass
+
 	def note_content_changed(self):
 		"""Signal that the terminal produced new output.
 
@@ -199,9 +225,12 @@ class OutputSearchManager:
 		Uses the helper's off-main-thread UIA read when native acceleration
 		is available and the helper is running; otherwise reads in-process
 		via makeTextInfo (which is main-thread-affine and must not run on a
-		worker thread).
+		worker thread). Records timing/path for the search-timing summary.
 		"""
+		import time as _time
 		all_text = None
+		path = "none"
+		helper_ms = 0.0
 		if _rt.native_available:
 			try:
 				helper = _rt.get_helper()
@@ -210,16 +239,29 @@ class OutputSearchManager:
 			if helper is not None and helper.is_running:
 				hwnd = getattr(self._terminal, "windowHandle", None)
 				if hwnd:
+					t0 = _time.perf_counter()
 					try:
 						all_text = helper.read_text(hwnd)
+						path = "helper"
 					except Exception:
 						all_text = None
+					helper_ms = (_time.perf_counter() - t0) * 1000.0
 		if all_text is None:
+			t0 = _time.perf_counter()
 			try:
 				info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
 				all_text = info.text
+				# Note when the helper was tried but yielded nothing (timed
+				# out / errored) and we fell back to the main-thread read.
+				path = "makeTextInfo(fallback)" if helper_ms else "makeTextInfo"
 			except Exception:
 				all_text = None
+			self._last_fallback_ms = (_time.perf_counter() - t0) * 1000.0
+		else:
+			self._last_fallback_ms = 0.0
+		self._last_read_path = path
+		self._last_helper_ms = helper_ms
+		self._last_read_chars = len(all_text) if all_text else 0
 		return all_text
 
 	def _get_buffer_lines(self, raw_text=None):
@@ -230,13 +272,26 @@ class OutputSearchManager:
 		main thread before handing matching to a worker), it is used directly
 		instead of reading the terminal.
 		"""
+		import time as _time
 		gen = self._content_generation
 		if (raw_text is None and self._cached_lines is not None
 				and self._cached_lines_gen == gen):
+			self._last_cache_hit = True
+			self._last_read_path = "cache"
+			self._last_read_chars = 0
+			self._last_helper_ms = 0.0
+			self._last_fallback_ms = 0.0
+			self._last_strip_ms = 0.0
 			return self._cached_lines
+		self._last_cache_hit = False
 
 		if raw_text is None:
 			raw_text = self._acquire_raw_text()
+		else:
+			self._last_read_path = "provided"
+			self._last_read_chars = len(raw_text)
+			self._last_helper_ms = 0.0
+			self._last_fallback_ms = 0.0
 		if not raw_text:
 			# Don't cache a transient empty/failed read; the next text change
 			# would not necessarily bump the generation to clear it.
@@ -244,8 +299,10 @@ class OutputSearchManager:
 
 		# Skip the ANSI strip entirely when there are no escape sequences:
 		# a full-buffer regex sub is wasted work on clean output.
+		t0 = _time.perf_counter()
 		if '\x1b' in raw_text:
 			raw_text = _rt.strip_ansi(raw_text)
+		self._last_strip_ms = (_time.perf_counter() - t0) * 1000.0
 
 		max_line = self.MAX_LINE_LENGTH
 		lines = [
@@ -283,6 +340,9 @@ class OutputSearchManager:
 				invalid regex.
 		"""
 		self._last_search_message = ""
+
+		import time as _time
+		search_t0 = _time.perf_counter()
 
 		if not self._terminal or not pattern:
 			return 0
@@ -347,7 +407,10 @@ class OutputSearchManager:
 			# Cached, ANSI-stripped, length-capped. The read uses the helper's
 			# off-main-thread path when available; matching runs in Python.
 			lines = self._get_buffer_lines(raw_text)
+			match_t0 = _time.perf_counter()
 			if not lines:
+				self._log_search_timing(
+					(_time.perf_counter() - search_t0) * 1000.0, 0.0)
 				return 0
 
 			# ─── Bound the scan to the most recent lines ───
@@ -448,6 +511,9 @@ class OutputSearchManager:
 
 			if not matching_indices:
 				self.add_to_history(pattern)
+				self._log_search_timing(
+					(_time.perf_counter() - search_t0) * 1000.0,
+					(_time.perf_counter() - match_t0) * 1000.0)
 				return 0
 
 			# ─── Store matches without TextInfo ───
@@ -480,6 +546,9 @@ class OutputSearchManager:
 				'use_regex': use_regex
 			})
 
+			self._log_search_timing(
+				(_time.perf_counter() - search_t0) * 1000.0,
+				(_time.perf_counter() - match_t0) * 1000.0)
 			return len(matches)
 
 		except Exception:

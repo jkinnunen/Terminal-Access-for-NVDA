@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.6] - 2026-07-09
+
+### Diagnostics
+
+- A search that takes longer than 150 ms now writes a one-line timing breakdown to the NVDA log at info level: which read path was used (native helper, main-thread fallback, cache, or a pre-read buffer), how long the buffer read took, how long the helper took before any fallback, cleaning and matching time, the buffer size, and whether the cache was hit. This makes a slow search diagnosable from the log without guesswork. No behavior change.
+
 ## [2.0.0-beta.5] - 2026-07-09
 
 ### Performance
