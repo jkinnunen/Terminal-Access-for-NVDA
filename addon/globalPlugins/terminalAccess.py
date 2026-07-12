@@ -1155,19 +1155,34 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not jumpPending:
 			self._bindReviewCursor(obj)
 		elif wasSearchJump and self._searchManager:
-			wx.CallAfter(self._reapplySearchJumpDiag)
+			self._scheduleSearchJumpReapply()
 		self._announceHelpIfNeeded(appName)
 
-	def _reapplySearchJumpDiag(self):
-		"""Re-apply the search jump after focus settles, logging before/after
-		review positions (TEMPORARY diagnostic)."""
+	# NVDA rebinds the review cursor to the caret while handling the focus
+	# return to the terminal. A setReviewPosition during that transition is
+	# overridden, so the search jump is re-applied on a short timer (after
+	# the transition), with one later retry as insurance.
+	_REVIEW_REAPPLY_DELAYS_MS = (120, 400)
+
+	def _scheduleSearchJumpReapply(self):
+		"""Re-apply the search jump after NVDA's focus transition settles."""
+		for delay in self._REVIEW_REAPPLY_DELAYS_MS:
+			try:
+				wx.CallLater(delay, self._reapplySearchJump)
+			except (RuntimeError, AttributeError):
+				pass
+
+	def _reapplySearchJump(self):
+		"""Re-apply the search jump and log the outcome (log TEMPORARY)."""
 		try:
+			mgr = self._searchManager
+			if mgr is None:
+				return
+			ok = mgr._jump_to_current_match()
 			import logHandler
-			before = getattr(api.getReviewPosition(), "text", "?")
-			self._searchManager._jump_to_current_match()
-			after = getattr(api.getReviewPosition(), "text", "?")
+			review = getattr(api.getReviewPosition(), "text", "?")
 			logHandler.log.info(
-				"TA rejump-diag: before=%r after=%r", before[:70], after[:70])
+				"TA rejump-diag: ok=%s review=%r", ok, review[:70])
 		except Exception:
 			pass
 

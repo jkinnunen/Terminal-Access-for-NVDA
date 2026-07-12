@@ -49,12 +49,13 @@ class TestOnTerminalFocus:
 		plugin._searchManager = MagicMock()
 
 		scheduled = []
-		with patch.object(ta.wx, "CallAfter",
-						  side_effect=lambda fn, *a: scheduled.append(fn)):
+		with patch.object(ta.wx, "CallLater",
+						  side_effect=lambda delay, fn, *a: scheduled.append(fn)):
 			plugin._onTerminalFocus(terminal)
 
-		assert plugin._reapplySearchJumpDiag in scheduled
-		# and the re-apply actually re-runs the jump
+		# Re-apply is scheduled on a timer (after NVDA's focus transition),
+		# not immediately, and it re-runs the jump.
+		assert plugin._reapplySearchJump in scheduled
 		for fn in scheduled:
 			fn()
 		plugin._searchManager._jump_to_current_match.assert_called()
@@ -68,11 +69,11 @@ class TestOnTerminalFocus:
 		plugin._searchManager = MagicMock()
 
 		scheduled = []
-		with patch.object(ta.wx, "CallAfter",
-						  side_effect=lambda fn, *a: scheduled.append(fn)):
+		with patch.object(ta.wx, "CallLater",
+						  side_effect=lambda delay, fn, *a: scheduled.append(fn)):
 			plugin._onTerminalFocus(terminal)
 
-		assert plugin._reapplySearchJumpDiag not in scheduled
+		assert plugin._reapplySearchJump not in scheduled
 
 	def test_bindReviewCursor_skipped_when_search_jump_pending(self):
 		"""A pending search jump must survive focus return: the caret rebind

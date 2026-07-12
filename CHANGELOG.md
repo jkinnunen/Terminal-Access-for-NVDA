@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.12] - 2026-07-12
+
+### Fixed
+
+- **The review cursor now stays on the matched search line after activating a result.** With the correct line resolved (beta.11), the remaining issue was timing: NVDA rebinds the review cursor to the caret while it processes the focus switch back to the terminal, and the add-on's re-apply was running in the middle of that switch, so its position was immediately overridden. The re-apply now runs on a short timer after the focus switch completes (with one later retry), so the review cursor holds on the matched line and review-current-line reads it. (The temporary `TA rejump-diag` log line remains one more release to confirm.)
+
 ## [2.0.0-beta.11] - 2026-07-12
 
 ### Fixed
