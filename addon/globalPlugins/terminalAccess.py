@@ -112,14 +112,17 @@ except (ImportError, AttributeError):
 	_braille_available = False
 
 # Native (Rust) acceleration — optional, falls back to pure Python.
+# The helper process is retired from all read paths (its pipe I/O hung for
+# seconds per read on some terminals); the remaining imports keep shutdown
+# and diagnostics working until the native layer is deleted entirely.
 try:
 	from native.termaccess_bridge import (
 		native_available as _native_available_fn,
 		NativeTextDiffer as _NativeTextDiffer,
 		NativePositionCache as _NativePositionCache,
 		get_helper as _get_helper,
+		helper_available as _helper_available,
 		stop_helper as _stop_helper,
-		start_helper_eagerly as _start_helper_eagerly,
 		set_native_enabled as _set_native_enabled,
 	)
 	_native_available = _native_available_fn()
@@ -129,9 +132,9 @@ except Exception:
 		return False
 	def _get_helper():
 		return None
+	def _helper_available():
+		return False
 	def _stop_helper():
-		pass
-	def _start_helper_eagerly():
 		pass
 	def _set_native_enabled(enabled):
 		pass
@@ -518,38 +521,17 @@ def _read_lines_on_main(terminal_obj, start_row: int, end_row: int, timeout: flo
 
 
 def _read_terminal_text(terminal_obj, position=None, timeout: float = 2.0):
-	"""Read terminal text, preferring the helper process over main-thread marshaling.
+	"""Read terminal text in-process (marshalled to the main thread).
 
-	Tries the native helper process first (bypasses wx.CallAfter entirely).
-	Falls back to ``_read_terminal_text_on_main()`` if the helper is unavailable.
+	The helper-process read was retired: in the field its pipe I/O hung
+	for seconds per read on some terminals, while the in-process COM read
+	is fast and cancellable by NVDA's watchdog.
 	"""
-	helper = _get_helper()
-	if helper is not None and hasattr(terminal_obj, 'windowHandle'):
-		try:
-			text = helper.read_text(terminal_obj.windowHandle)
-			if text is not None:
-				return text
-		except Exception:
-			pass
-	# Fallback: marshal to the main thread
 	return _read_terminal_text_on_main(terminal_obj, position, timeout)
 
 
 def _read_lines(terminal_obj, start_row: int, end_row: int, timeout: float = 5.0):
-	"""Read a range of terminal lines, preferring the helper process.
-
-	Tries the native helper process first (bypasses wx.CallAfter entirely).
-	Falls back to ``_read_lines_on_main()`` if the helper is unavailable.
-	"""
-	helper = _get_helper()
-	if helper is not None and hasattr(terminal_obj, 'windowHandle'):
-		try:
-			lines = helper.read_lines(terminal_obj.windowHandle, start_row, end_row)
-			if lines is not None:
-				return lines
-		except Exception:
-			pass
-	# Fallback: marshal to the main thread
+	"""Read a range of terminal lines in-process (marshalled to the main thread)."""
 	return _read_lines_on_main(terminal_obj, start_row, end_row, timeout)
 
 
@@ -861,12 +843,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Gesture conflict detection
 		self._conflictDetector = GestureConflictDetector()
 
-		# The native helper is started on first terminal focus (in
-		# _startHelperIfNeeded). get_helper() now kicks the start onto a
-		# daemon thread and returns immediately, so neither terminal focus
-		# nor the first search ever blocks NVDA's main thread on the
-		# subprocess spawn and named-pipe handshake. Until the helper is
-		# ready, callers fall back to the in-process read path.
+		# The native helper process is no longer started: all terminal
+		# reads run in-process (COM calls NVDA's watchdog can cancel).
+		# terminate() still stops a helper defensively should one exist.
 
 	def _initBindings(self):
 		"""Set up gesture bindings and settings panel registration."""
@@ -1161,7 +1140,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except (AttributeError, TypeError):
 			return
 		self._boundTerminal = obj
-		self._startHelperIfNeeded()
 		self._handleSearchJumpSuppression(obj)
 		self._initializeManagers(obj)
 		self._positionCalculator.clear_cache()
@@ -1169,13 +1147,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._announceProfileIfNew(obj, appName)
 		self._bindReviewCursor(obj)
 		self._announceHelpIfNeeded(appName)
-
-	def _startHelperIfNeeded(self):
-		"""Lazy-start the native helper process (no-op if already running)."""
-		try:
-			_get_helper()
-		except (OSError, RuntimeError):
-			pass
 
 	def _applyNativeAccelerationSetting(self):
 		"""Enable or disable native acceleration from the config setting.
@@ -3876,7 +3847,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 		context["native_available"] = bool(getattr(_rt, "native_available", False))
 		try:
-			context["helper_running"] = _get_helper() is not None
+			# helper_available() never spawns the helper, unlike get_helper()
+			# which kicks off a background start.
+			context["helper_running"] = _helper_available()
 		except Exception:
 			context["helper_running"] = False
 		context["verbosity_level"] = self._verbosityLevel()
@@ -4216,8 +4189,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		"""Read the terminal buffer, then match and deliver the count.
 
 		The buffer read happens on the main thread (makeTextInfo is
-		main-thread-affine; the native helper read is off-thread already).
-		For a large buffer the ANSI strip and matching run on a worker
+		main-thread-affine). For a large buffer the ANSI strip and matching run on a worker
 		thread, and the result is marshalled back with wx.CallAfter so
 		on_complete always runs on the main thread.
 		"""

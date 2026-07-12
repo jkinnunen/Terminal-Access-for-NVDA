@@ -8,24 +8,33 @@ from typing import Any
 
 import characterProcessing
 
-# Cache native and wcwidth availability at import time to avoid
-# per-character sys.modules lookups on the hot path.
-try:
-	from native.termaccess_bridge import (
-		native_char_width as _native_char_width,
-		native_text_width as _native_text_width,
-		native_extract_column_range as _native_extract_column_range,
-		native_find_column_position as _native_find_column_position,
-		native_available as _native_available_fn,
-	)
-	_HAS_NATIVE_WIDTH = _native_available_fn()
-except Exception:
-	_HAS_NATIVE_WIDTH = False
-
+# Cache wcwidth availability at import time to avoid per-character
+# sys.modules lookups on the hot path. When wcwidth is absent (NVDA's
+# bundled Python does not ship it), _stdlib_char_width below keeps CJK,
+# combining, and control widths correct using only the standard library.
 try:
 	import wcwidth as _wcwidth
 except ImportError:
 	_wcwidth = None
+
+import unicodedata as _unicodedata
+
+
+def _stdlib_char_width(char: str) -> int:
+	"""Terminal display width of *char* using only the standard library.
+
+	Wide and Fullwidth East Asian characters occupy 2 columns, combining
+	marks and control characters occupy 0, everything else 1. This is the
+	subset of wcwidth's model that terminal column math needs.
+	"""
+	code = ord(char)
+	if code < 32 or code == 0x7F:
+		return 0
+	if _unicodedata.combining(char):
+		return 0
+	if _unicodedata.east_asian_width(char) in ('W', 'F'):
+		return 2
+	return 1
 
 @functools.lru_cache(maxsize=512)
 def _get_symbol_description(locale: str, char: str) -> str:
@@ -425,12 +434,10 @@ class UnicodeWidthHelper:
 		Returns:
 			int: Display width (0, 1, or 2 columns)
 		"""
-		if _HAS_NATIVE_WIDTH:
-			return _native_char_width(char)
 		if _wcwidth is not None:
 			width = _wcwidth.wcwidth(char)
 			return max(0, width) if width is not None else 1
-		return 1
+		return _stdlib_char_width(char)
 
 	@staticmethod
 	def getTextWidth(text: str) -> int:
@@ -440,15 +447,13 @@ class UnicodeWidthHelper:
 		Returns:
 			int: Total display width in columns
 		"""
-		if _HAS_NATIVE_WIDTH:
-			return _native_text_width(text)
 		if _wcwidth is not None:
 			width = _wcwidth.wcswidth(text)
 			if width >= 0:
 				return width
 			# Control characters present — sum per-character
 			return sum(max(0, _wcwidth.wcwidth(c)) for c in text)
-		return len(text)
+		return sum(_stdlib_char_width(c) for c in text)
 
 	@staticmethod
 	def extractColumnRange(text: str, startCol: int, endCol: int) -> str:
@@ -465,8 +470,6 @@ class UnicodeWidthHelper:
 		"""
 		if not text:
 			return ""
-		if _HAS_NATIVE_WIDTH:
-			return _native_extract_column_range(text, startCol, endCol)
 
 		result = []
 		currentCol = 1
@@ -512,8 +515,6 @@ class UnicodeWidthHelper:
 		"""
 		if not text:
 			return 0
-		if _HAS_NATIVE_WIDTH:
-			return _native_find_column_position(text, targetCol)
 
 		currentCol = 1
 		for i, char in enumerate(text):

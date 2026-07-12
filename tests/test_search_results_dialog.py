@@ -263,6 +263,56 @@ class TestSearchResultsDialogData:
 		assert result is True
 		api.setReviewPosition.assert_called_once()
 
+	def test_jump_lands_at_line_start_like_bookmark(self):
+		"""Activating a search result lands the review cursor at the start of
+		the matched line (expand to UNIT_LINE), not on the search term."""
+		_setup_textinfos()
+		from lib.search import OutputSearchManager
+
+		calls = {"moves": [], "expanded": None}
+
+		class RecordingTextInfo:
+			text = ""
+
+			@property
+			def bookmark(self):
+				return None
+
+			def move(self, unit, count):
+				calls["moves"].append((unit, count))
+				return True
+
+			def expand(self, unit):
+				calls["expanded"] = unit
+
+			def copy(self):
+				return self
+
+		class RecordingTerminal:
+			def makeTextInfo(self, arg):
+				if arg == textInfos.POSITION_FIRST:
+					return RecordingTextInfo()
+				raise ValueError("only POSITION_FIRST supported")
+
+		api.setReviewPosition.reset_mock()
+		manager = OutputSearchManager(RecordingTerminal())
+		# Match on line 5 whose term begins at char offset 12.
+		manager._save_search_state({
+			"pattern": "dir",
+			"matches": [(None, "PS C:\\Users> dir", 5, None, 12)],
+			"current_match_index": 0,
+			"case_sensitive": False,
+			"use_regex": False,
+		})
+
+		assert manager._jump_to_current_match() is True
+		# Expanded to the line (lands at line start, reads the whole line)...
+		assert calls["expanded"] == textInfos.UNIT_LINE
+		# ...and did NOT advance into the line by the term's char offset.
+		char_moves = [m for m in calls["moves"] if m[0] == textInfos.UNIT_CHARACTER]
+		assert char_moves == []
+		api.setReviewPosition.assert_called_once()
+
 	def test_jump_sets_searchJumpPending(self):
 		"""Jumping from dialog should set _searchJumpPending = True on the plugin."""
 		_setup_textinfos()

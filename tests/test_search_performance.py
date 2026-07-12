@@ -108,6 +108,23 @@ class TestRawTextInjection:
         assert mgr._acquire_raw_text() == "hello world"
         assert terminal.read_count == 1
 
+    def test_acquire_never_uses_helper(self):
+        """The helper process is retired from the search read path: even
+        with native available and a live helper, reads go in-process."""
+        from lib import search as search_mod
+        terminal = CountingTerminal("in-process text")
+        terminal.windowHandle = 0x1234
+        mgr = OutputSearchManager(terminal)
+
+        helper = Mock()
+        helper.is_running = True
+        helper.read_text = Mock(return_value="HELPER TEXT (must not be used)")
+        with patch.object(search_mod._rt, "native_available", True), \
+                patch.object(search_mod._rt, "get_helper",
+                             Mock(return_value=helper), create=True):
+            assert mgr._acquire_raw_text() == "in-process text"
+        helper.read_text.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # #3 Bound the scan to the most recent lines (line numbers stay absolute)

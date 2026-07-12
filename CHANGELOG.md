@@ -6,6 +6,18 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.7] - 2026-07-12
+
+### Fixed
+
+- **Search no longer stalls for seconds per search.** Diagnostics from the field showed the native helper process's terminal read hanging on every search (the watchdog killed it after about 9 seconds, after which the in-process read returned results instantly). The helper is now retired from all read paths: terminal reads run in-process as COM calls that NVDA's own watchdog can cancel, and the helper process is no longer started. This is the first step toward removing the native layer entirely in 2.0.0.
+- Activating a search result now lands the review cursor at the beginning of the matched line and reads the whole line, matching bookmark behavior, instead of placing the cursor in the middle of the line on the search term.
+
+### Changed
+
+- Unicode width calculation (used by table mode's column math) no longer depends on the native component. A standard-library fallback now keeps East Asian fullwidth characters at 2 columns and combining marks at 0 even without the optional wcwidth package, so column extraction stays correct on every machine.
+- The optional native component now only accelerates internal text diffing and position caching (identical pure-Python fallbacks). The user guide's performance section was updated to match.
+
 ## [2.0.0-beta.6] - 2026-07-09
 
 ### Diagnostics

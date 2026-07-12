@@ -33,10 +33,9 @@ class TestOnTerminalFocus:
 		# Should not raise
 		plugin._onTerminalFocus(terminal)
 
-	def test_startHelperIfNeeded_does_not_raise(self):
-		plugin = self._make_plugin()
-		# _startHelperIfNeeded should swallow exceptions
-		plugin._startHelperIfNeeded()
+	# test_startHelperIfNeeded_does_not_raise was removed along with
+	# _startHelperIfNeeded: the helper process is retired from all read
+	# paths and is no longer started on terminal focus.
 
 	def test_handleSearchJumpSuppression_clears_flag(self):
 		plugin = self._make_plugin()

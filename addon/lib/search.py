@@ -222,45 +222,23 @@ class OutputSearchManager:
 	def _acquire_raw_text(self):
 		"""Read the full terminal buffer as a single string, or None.
 
-		Uses the helper's off-main-thread UIA read when native acceleration
-		is available and the helper is running; otherwise reads in-process
-		via makeTextInfo (which is main-thread-affine and must not run on a
-		worker thread). Records timing/path for the search-timing summary.
+		Reads in-process via makeTextInfo. This is a COM/UIA call that
+		NVDA's own watchdog can cancel, unlike the retired helper-process
+		read whose blocked pipe I/O could only be freed by killing the
+		helper (and in the field it hung for seconds on every search).
+		Main-thread-affine: must not run on a worker thread. Records
+		timing/path for the search-timing summary.
 		"""
 		import time as _time
-		all_text = None
-		path = "none"
-		helper_ms = 0.0
-		if _rt.native_available:
-			try:
-				helper = _rt.get_helper()
-			except Exception:
-				helper = None
-			if helper is not None and helper.is_running:
-				hwnd = getattr(self._terminal, "windowHandle", None)
-				if hwnd:
-					t0 = _time.perf_counter()
-					try:
-						all_text = helper.read_text(hwnd)
-						path = "helper"
-					except Exception:
-						all_text = None
-					helper_ms = (_time.perf_counter() - t0) * 1000.0
-		if all_text is None:
-			t0 = _time.perf_counter()
-			try:
-				info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
-				all_text = info.text
-				# Note when the helper was tried but yielded nothing (timed
-				# out / errored) and we fell back to the main-thread read.
-				path = "makeTextInfo(fallback)" if helper_ms else "makeTextInfo"
-			except Exception:
-				all_text = None
-			self._last_fallback_ms = (_time.perf_counter() - t0) * 1000.0
-		else:
-			self._last_fallback_ms = 0.0
-		self._last_read_path = path
-		self._last_helper_ms = helper_ms
+		self._last_helper_ms = 0.0
+		t0 = _time.perf_counter()
+		try:
+			info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
+			all_text = info.text
+		except Exception:
+			all_text = None
+		self._last_fallback_ms = (_time.perf_counter() - t0) * 1000.0
+		self._last_read_path = "makeTextInfo"
 		self._last_read_chars = len(all_text) if all_text else 0
 		return all_text
 
@@ -678,11 +656,15 @@ class OutputSearchManager:
 					pos = None
 
 			if pos:
-				if char_offset > 0:
-					try:
-						pos.move(textInfos.UNIT_CHARACTER, char_offset)
-					except (RuntimeError, AttributeError, TypeError):
-						pass
+				# Land at the beginning of the matched line, like a bookmark
+				# jump, rather than on the search term itself. Expanding to the
+				# line unit puts the review cursor at the line start and lets
+				# NVDA read the whole line. (char_offset is retained on the
+				# match tuple for display but no longer moves the cursor.)
+				try:
+					pos.expand(textInfos.UNIT_LINE)
+				except (RuntimeError, AttributeError, TypeError):
+					pass
 
 				_rt.api_module.setReviewPosition(pos)
 				return True
