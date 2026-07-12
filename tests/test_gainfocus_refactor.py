@@ -37,6 +37,43 @@ class TestOnTerminalFocus:
 	# _startHelperIfNeeded: the helper process is retired from all read
 	# paths and is no longer started on terminal focus.
 
+	def test_bindReviewCursor_skipped_when_search_jump_pending(self):
+		"""A pending search jump must survive focus return: the caret rebind
+		is skipped so the review cursor stays on the matched line."""
+		plugin = self._make_plugin()
+		terminal = self._make_terminal()
+		plugin.isTerminalApp = MagicMock(return_value=True)
+		plugin._bindReviewCursor = MagicMock()
+		plugin._searchJumpPending = True
+
+		plugin._onTerminalFocus(terminal)
+
+		plugin._bindReviewCursor.assert_not_called()
+		assert plugin._searchJumpPending is False
+
+	def test_bindReviewCursor_skipped_when_bookmark_jump_pending(self):
+		plugin = self._make_plugin()
+		terminal = self._make_terminal()
+		plugin.isTerminalApp = MagicMock(return_value=True)
+		plugin._bindReviewCursor = MagicMock()
+		plugin._bookmarkJumpPending = True
+
+		plugin._onTerminalFocus(terminal)
+
+		plugin._bindReviewCursor.assert_not_called()
+
+	def test_bindReviewCursor_called_on_normal_focus(self):
+		plugin = self._make_plugin()
+		terminal = self._make_terminal()
+		plugin.isTerminalApp = MagicMock(return_value=True)
+		plugin._bindReviewCursor = MagicMock()
+		plugin._searchJumpPending = False
+		plugin._bookmarkJumpPending = False
+
+		plugin._onTerminalFocus(terminal)
+
+		plugin._bindReviewCursor.assert_called_once_with(terminal)
+
 	def test_handleSearchJumpSuppression_clears_flag(self):
 		plugin = self._make_plugin()
 		terminal = self._make_terminal()

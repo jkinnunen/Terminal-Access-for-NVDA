@@ -1140,12 +1140,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except (AttributeError, TypeError):
 			return
 		self._boundTerminal = obj
-		self._handleSearchJumpSuppression(obj)
+		jumpPending = self._handleSearchJumpSuppression(obj)
 		self._initializeManagers(obj)
 		self._positionCalculator.clear_cache()
 		self._detectAndApplyProfile(obj)
 		self._announceProfileIfNew(obj, appName)
-		self._bindReviewCursor(obj)
+		# After a search or bookmark jump, leave the review cursor on the
+		# jumped-to line instead of snapping it back to the caret (the
+		# command prompt). Only rebind on an ordinary focus.
+		if not jumpPending:
+			self._bindReviewCursor(obj)
 		self._announceHelpIfNeeded(appName)
 
 	def _applyNativeAccelerationSetting(self):
@@ -1166,13 +1170,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			pass
 
 	def _handleSearchJumpSuppression(self, obj):
-		"""After a search or bookmark jump, skip navigator reset so review cursor stays on target."""
+		"""Suppress focus-driven cursor resets after a search or bookmark jump.
+
+		Returns True if a jump was pending (so the caller also skips the
+		caret rebind), False on an ordinary focus (navigator is reset to the
+		terminal as usual).
+		"""
 		if self._searchJumpPending:
 			self._searchJumpPending = False
+			return True
 		elif self._bookmarkJumpPending:
 			self._bookmarkJumpPending = False
+			return True
 		else:
 			api.setNavigatorObject(obj)
+			return False
 
 	def _initializeManagers(self, obj):
 		"""Initialize or update all feature managers for the terminal."""

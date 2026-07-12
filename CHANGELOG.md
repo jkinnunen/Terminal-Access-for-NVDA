@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.8] - 2026-07-12
+
+### Fixed
+
+- Activating a search result now keeps the review cursor on the matched line instead of snapping it back to the command prompt when focus returns to the terminal. You can now read the matched line with review-current-line (NVDA+numpad8, or NVDA+l in laptop layout). The review cursor was being rebound to the caret on focus return even though the jump was flagged to be preserved; the caret rebind is now skipped after a search, bookmark, or section jump, matching the intended behavior.
+
 ## [2.0.0-beta.7] - 2026-07-12
 
 ### Fixed
