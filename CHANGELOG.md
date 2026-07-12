@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.11] - 2026-07-12
+
+### Fixed
+
+- **Activating a search result now lands on the matched line instead of a blank line.** The real cause of the search-cursor problem (three earlier attempts targeted the wrong thing) was a line-counting mismatch: the buffer is searched from its full text split on newlines, but the review cursor navigates by terminal line units, and in a terminal those disagree because of wrapped rows and blank padding rows. "Line N of the split" therefore landed on a different, usually blank, row. The jump now locates the line by matching its text, so it lands on the line that actually contains the match. Bookmark and section jumps use the same resolution and get the same fix. (A temporary `TA jump-diag` log line remains for one release to confirm the fix in the field; it will be removed next.)
+
 ## [2.0.0-beta.10] - 2026-07-12
 
 ### Diagnostics

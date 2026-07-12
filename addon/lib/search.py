@@ -647,13 +647,27 @@ class OutputSearchManager:
 				except (RuntimeError, AttributeError):
 					pos = pos_info
 
+			jump_method = "bookmark" if pos is not None else (
+				"pos_info" if pos_info is not None else "?")
 			if pos is None and line_num is not None:
-				try:
-					pos = self._terminal.makeTextInfo(textInfos.POSITION_FIRST)
-					if line_num > 1:
-						pos.move(textInfos.UNIT_LINE, line_num - 1)
-				except (RuntimeError, AttributeError, TypeError):
-					pos = None
+				# Resolve by the matched line's text rather than by counting
+				# lines. The buffer was searched from POSITION_ALL.text split
+				# on newlines, but navigation counts UNIT_LINE, and in a
+				# terminal those disagree (wrapped rows, blank padding rows),
+				# so "line N of the split" lands on a different (often blank)
+				# row than "N lines down". Walking to the line that actually
+				# contains the text sidesteps the mismatch.
+				pos = self._resolve_line_by_content(line_text, line_num)
+				jump_method = "content"
+				if pos is None:
+					# Last-resort positional fallback (may drift).
+					try:
+						pos = self._terminal.makeTextInfo(textInfos.POSITION_FIRST)
+						if line_num > 1:
+							pos.move(textInfos.UNIT_LINE, line_num - 1)
+						jump_method = "positional"
+					except (RuntimeError, AttributeError, TypeError):
+						pos = None
 
 			if pos:
 				# Land at the beginning of the matched line, like a bookmark
@@ -667,27 +681,78 @@ class OutputSearchManager:
 					pass
 
 				_rt.api_module.setReviewPosition(pos)
-				self._log_jump_diag(bookmark, pos_info, line_num, pos)
+				self._log_jump_diag(jump_method, line_num, pos)
 				return True
 		except (RuntimeError, AttributeError, TypeError, IndexError):
 			pass
 
 		return False
 
-	def _log_jump_diag(self, bookmark, pos_info, line_num, pos):
+	def _resolve_line_by_content(self, line_text, line_hint):
+		"""Return a TextInfo on the buffer line whose text matches
+		*line_text*, or None.
+
+		Walks the live buffer one UNIT_LINE at a time so the result aligns
+		with UNIT_LINE navigation regardless of how the search counted lines
+		(POSITION_ALL text split on newlines can disagree with UNIT_LINE in
+		a terminal). When several lines share the text, the occurrence
+		nearest *line_hint* wins.
+		"""
+		target = _rt.strip_ansi(line_text or "").strip()
+		if not target:
+			return None
+		try:
+			info = self._terminal.makeTextInfo(textInfos.POSITION_FIRST)
+			info.expand(textInfos.UNIT_LINE)
+		except (RuntimeError, AttributeError, TypeError, NotImplementedError,
+				ValueError):
+			return None
+
+		best = None
+		best_delta = None
+		index = 0
+		while index < self.MAX_SEARCH_LINES:
+			try:
+				cur = _rt.strip_ansi(getattr(info, "text", "") or "").strip()
+			except Exception:
+				cur = ""
+			if cur and (cur == target or target in cur or cur in target):
+				delta = abs((index + 1) - (line_hint or (index + 1)))
+				if best is None or delta < best_delta:
+					try:
+						best = info.copy()
+					except (RuntimeError, AttributeError):
+						best = info
+					best_delta = delta
+					if delta == 0:
+						break
+			nxt = None
+			try:
+				nxt = info.copy()
+				moved = nxt.move(textInfos.UNIT_LINE, 1)
+			except (RuntimeError, AttributeError, TypeError):
+				break
+			if not moved:
+				break
+			try:
+				nxt.expand(textInfos.UNIT_LINE)
+			except (RuntimeError, AttributeError, TypeError):
+				break
+			info = nxt
+			index += 1
+		return best
+
+	def _log_jump_diag(self, method, line_num, pos):
 		"""TEMPORARY diagnostic: log the jump result and whether the review
 		position stuck. Removed once the search-jump review-cursor bug is
 		understood."""
 		try:
 			import logHandler
-			source = ("bookmark" if bookmark is not None
-					  else "pos_info" if pos_info is not None
-					  else "line_num")
 			set_text = getattr(pos, "text", "?")
 			readback = getattr(_rt.api_module.getReviewPosition(), "text", "?")
 			logHandler.log.info(
-				"TA jump-diag: source=%s line_num=%s set=%r readback=%r",
-				source, line_num, set_text[:70], readback[:70],
+				"TA jump-diag: method=%s line_num=%s set=%r readback=%r",
+				method, line_num, set_text[:70], readback[:70],
 			)
 		except Exception:
 			pass

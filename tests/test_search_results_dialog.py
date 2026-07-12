@@ -240,6 +240,93 @@ class TestSearchResultsDialogData:
 		assert matches[0]["line_num"] == 1
 		assert matches[1]["line_num"] == 3
 
+	def test_jump_lands_on_content_line_despite_drifted_line_num(self):
+		"""The stored line number can point at a blank padding row when the
+		buffer's newline split disagrees with UNIT_LINE navigation. The jump
+		must resolve by matching text, landing on the real match line."""
+		_setup_textinfos()
+		from lib.search import OutputSearchManager
+
+		# Live buffer as UNIT_LINE navigation sees it: content then blanks.
+		buffer_lines = [
+			"PS C:\\Users\\prati> dir",
+			"file1.txt",
+			"needle here",
+			"",
+			"",
+			"",
+		]
+
+		class WalkTextInfo:
+			def __init__(self, lines, idx=0):
+				self._lines = lines
+				self._idx = idx
+				self._expanded = False
+
+			@property
+			def text(self):
+				if self._expanded and 0 <= self._idx < len(self._lines):
+					return self._lines[self._idx]
+				return ""
+
+			def expand(self, unit):
+				self._expanded = True
+
+			def copy(self):
+				c = WalkTextInfo(self._lines, self._idx)
+				c._expanded = self._expanded
+				return c
+
+			def move(self, unit, count):
+				new = self._idx + count
+				if 0 <= new < len(self._lines):
+					self._idx = new
+					return count
+				return 0
+
+			@property
+			def bookmark(self):
+				return None
+
+		class WalkTerminal:
+			def makeTextInfo(self, pos):
+				if pos == textInfos.POSITION_FIRST:
+					return WalkTextInfo(buffer_lines, 0)
+				raise ValueError("only POSITION_FIRST")
+
+		api.setReviewPosition.reset_mock()
+		mgr = OutputSearchManager(WalkTerminal())
+		# The match text is on live line 3, but the stored line number is a
+		# drifted value (49) that would positionally land on a blank row.
+		mgr._save_search_state({
+			"pattern": "needle",
+			"matches": [(None, "needle here", 49, None, 0)],
+			"current_match_index": 0,
+			"case_sensitive": False,
+			"use_regex": False,
+		})
+
+		assert mgr._jump_to_current_match() is True
+		set_pos = api.setReviewPosition.call_args[0][0]
+		assert set_pos.text == "needle here"
+
+	def test_resolve_line_by_content_returns_none_when_absent(self):
+		_setup_textinfos()
+		from lib.search import OutputSearchManager
+
+		class Info:
+			text = "unrelated line"
+			def expand(self, unit): pass
+			def copy(self): return self
+			def move(self, unit, count): return 0
+
+		class Term:
+			def makeTextInfo(self, pos):
+				return Info()
+
+		mgr = OutputSearchManager(Term())
+		assert mgr._resolve_line_by_content("does not exist", 1) is None
+
 	def test_jump_sets_review_position(self):
 		"""When a match is selected and jumped to, setReviewPosition is called."""
 		_setup_textinfos()
