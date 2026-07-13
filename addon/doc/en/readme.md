@@ -147,6 +147,8 @@ While in the command layer, these keys are active:
 | **F3** | Next search match |
 | **Shift+F3** | Previous search match |
 
+Search opens a results dialog listing every matching line. Activating a result (Enter or the Activate button) closes the dialog and places the review cursor at the beginning of the matched line, the same way a bookmark jump does, so review-current-line reads the match. After the dialog closes, F3 and Shift+F3 continue through the remaining matches from that position. If a search finds nothing, close fuzzy matches (one typo away) are offered instead.
+
 #### Table Mode
 | Key | Action |
 |-----|--------|

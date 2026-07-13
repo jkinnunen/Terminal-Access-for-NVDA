@@ -6,6 +6,11 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+### Documentation
+
+- The user guide's search section now describes the results dialog: activating a result places the review cursor at the beginning of the matched line (like a bookmark jump), find next and previous continue from there, and fuzzy suggestions appear when nothing matches exactly.
+- The release verification protocol was brought up to date with the retired helper process: the native toggle now only affects internal caching, the helper-kill recovery scenario was replaced with an NVDA-restart check, and a search-result jump regression check was added alongside the freeze regression check.
+
 ## [2.0.0-beta.14] - 2026-07-12
 
 ### Changed
