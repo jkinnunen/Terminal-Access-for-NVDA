@@ -2,14 +2,82 @@
 
 All notable changes to Terminal Access for NVDA will be documented in this file.
 
-Version 2.0.0 is being developed and released through a series of pre-releases (2.0.0-beta, 2.0.0-beta.2, and so on). Each beta is a step toward the final 2.0.0 release. The entries below are grouped by pre-release and roll up into 2.0.0 when it ships.
+Version 2.0.0 was developed through fifteen pre-releases (2.0.0-beta through 2.0.0-beta.15). The consolidated 2.0.0 entry below is the release summary; the per-beta sections that follow it are the detailed history.
 
 ## [Unreleased]
 
-### Documentation
+## [2.0.0] - 2026-07-12
 
-- Documentation consolidated ahead of final 2.0.0: developer docs (architecture and API reference) brought fully in line with the pure-Python codebase, the 2.0.0 roadmap marked with the real completion status of each milestone, and a consolidated 2.0.0 release-notes draft added (`docs/plans/20260712-2.0.0-release-notes-draft.md`) that rolls the fifteen beta entries into the final release announcement.
-- Translation catalogs refreshed: the template was regenerated (400 strings) and all 17 languages merged, picking up the strings added and removed across the 2.0.0 betas.
+Terminal Access 2.0.0 is a reliability and capability release. It adds first-class support for AI command-line tools, semantic navigation of terminal output, table reading, and a much faster and more dependable search. It also removes the native (Rust) component entirely: the add-on is now pure Python, a quarter of its former download size, and runs on ARM64 versions of Windows.
+
+The release principle: for a screen-reader add-on, trust is set by the worst bug, not the longest feature list. Two serious bugs found during the betas (a machine freeze during find, and search results landing the cursor on the wrong line) are fixed, and the manual verification protocol that would have caught them is now part of every release.
+
+### Added
+
+#### AI CLI support
+- Turn detection and navigation for Claude, Aider, ChatGPT CLI, Copilot CLI, Gemini CLI, Codex CLI, and Ollama: jump between conversation turns with role announcements (NVDA+Alt+T / NVDA+Alt+Shift+T).
+- Code block navigation (NVDA+Alt+B / NVDA+Alt+Shift+B), announce language and line count (NVDA+Alt+L), copy block (NVDA+Alt+C), offline explanation (NVDA+Alt+E, gated by the privacy setting).
+- Streaming delta mode (NVDA+Shift+D): hear only what changed since the last check while a response streams.
+- AI-specific error and rate-limit detection with distinct tones.
+- Built-in profiles for the AI CLIs, activated automatically.
+
+#### Navigation and reading
+- Section tokenizer classifies output lines (prompt, command, error, warning, stack trace, progress, and more) and powers next/previous section, error, and prompt navigation plus a filterable section list dialog.
+- Table mode (NVDA+Alt+G): cell-by-cell reading of columnar output such as docker ps, kubectl get, and ls -l, with header announcements. Column detection is heuristic and marked experimental.
+- Progress milestone announcements at 25/50/75/100 percent.
+- Verbosity presets (quiet, normal, verbose) cycled with NVDA+Shift+V.
+
+#### Search
+- Search results dialog listing every match; activating a result places the review cursor at the start of the matched line, like a bookmark jump, and find next/previous continue from there.
+- Scoped search within the current section or AI turn.
+- Fuzzy fallback (one-typo matches) when an exact search finds nothing.
+- Search history (last 10 patterns).
+
+#### Tools and quality of life
+- Command finder (NVDA+Alt+H): searchable list of every command.
+- Transcript export (NVDA+Alt+X): save the buffer to a text file.
+- Issue report (Shift+I in the command layer): saves a diagnostic text file with versions, terminal, profile, and a buffer sample for actionable bug reports.
+- First-run tutorial, replayable with Shift+H in the command layer.
+- Profile editor and sound scheme settings (earcon volume and pitch).
+- Bookmarks: AI-aware auto-labeling, turn list dialog, rename.
+- Privacy guard: offline-only summarization and code explanation, off by default, with a spoken privacy status (NVDA+Shift+P).
+
+### Changed
+- **Pure Python.** The native library and helper process were removed after field testing showed the in-process Python reads are faster and more reliable. The download shrank from about 2.2 MB to about 0.6 MB, and the add-on runs on ARM64 Windows with no separate build. The "Use native acceleration" setting is gone; a leftover key in saved configuration is ignored.
+- Search is much faster on large buffers: the cleaned buffer is cached between searches, ANSI stripping is skipped when there are no color codes, matching is bounded on very long scrollback, and large-buffer matching runs off NVDA's main thread.
+- Terminal events are handled by an NVDA overlay class instead of global event handlers, taking the add-on out of the event chain for non-terminal apps.
+- The full user guide ships inside the add-on (NVDA+Shift+F1) and is the single source of documentation; a consistency test keeps its command reference in sync with the code.
+- Settings panel restructured into flat groups exposed correctly to NVDA.
+
+### Fixed
+- **Find could freeze the whole machine on Windows Terminal** (helper COM deadlock). Fixed in beta.3 by moving the helper to the multi-threaded apartment, and made structurally impossible in beta.15 by removing the helper.
+- **Activating a search result left the review cursor on the command prompt.** Three stacked causes fixed across betas 8 to 14: the jump resolved the wrong line (terminals count lines differently from plain text), the match state was cleared when focus returned, and NVDA rebinds the review cursor during the focus switch. Results now land on the matched line and stay there.
+- Search results are no longer cleared when focus returns to the same terminal, so find next/previous keep working after the results dialog closes.
+- Progress announcements read the terminal that produced the output, not whichever terminal was focused last.
+- ANSI stripping removes incomplete escape sequences split across reads.
+- Unicode width for table columns works without any native component or the wcwidth package (standard-library fallback keeps CJK at 2 columns).
+- Many smaller fixes recorded per beta below.
+
+### Security
+- Search and error-tone scanning are bounded against hostile terminal output (extremely long lines can no longer stall NVDA).
+- The issue report sanitizes fields a malicious program could influence.
+- URL opening uses one shared scheme check; file://, javascript:, and data: URLs are refused.
+- The offline privacy guarantee (no network imports, AST-verified) stands.
+
+### Removed
+- The Rust native layer (library, helper process, IPC, watchdog, setting).
+- Command history navigation (shells provide their own).
+- Highlight cursor tracking mode (modern terminals strip the ANSI it relied on).
+- Rectangular selection (linear copy covers the need).
+
+### Documentation
+- Developer docs (architecture and API reference) brought fully in line with the pure-Python codebase; the 2.0.0 roadmap carries per-milestone status.
+- Translation catalogs refreshed: template regenerated (400 strings) and all 17 languages merged.
+
+### Compatibility
+- NVDA 2025.1 or later; tested through 2026.1.
+- Windows 10 and 11, x64, x86, and ARM64.
+- Existing configuration is preserved; removed settings are ignored.
 
 ## [2.0.0-beta.15] - 2026-07-12
 

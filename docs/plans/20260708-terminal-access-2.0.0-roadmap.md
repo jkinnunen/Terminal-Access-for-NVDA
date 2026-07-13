@@ -8,7 +8,7 @@
 - **Milestone 4 (version/changelog story):** done; betas roll up under the 2.0.0 line. Consolidated release notes draft: `docs/plans/20260712-2.0.0-release-notes-draft.md`.
 - **Milestone 5 (stabilize):** done. Experimental labels, issue-report command (Shift+I), plus the beta.8 to beta.14 search-result cursor fix arc.
 - **Milestone 6 (community/store):** open. Beta cohort, Add-on Store submission, translation refresh.
-- **Remaining before final 2.0.0:** run the manual verification protocol on real hardware (Windows 10 + Windows Terminal at minimum), refresh translations, cut the release.
+- **Released:** 2.0.0 final was cut on 2026-07-12 after the owner verified beta.15 on real hardware. Remaining post-release work is Milestone 6 (beta cohort feedback channel, NVDA Add-on Store submission).
 
 The sections below are the original plan, kept as the record of intent; where reality diverged (Milestone 1), the status above wins.
 
