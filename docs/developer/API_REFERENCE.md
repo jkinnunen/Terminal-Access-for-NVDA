@@ -89,7 +89,7 @@ Remove all ANSI escape sequences from text.
 
 ### UnicodeWidthHelper (`lib/text_processing.py`)
 
-Calculates display width for Unicode text. Handles CJK characters (width 2) and combining characters (width 0). Each method tries Rust FFI first, then falls back to Python `wcwidth`.
+Calculates display width for Unicode text. Handles CJK characters (width 2) and combining characters (width 0). Pure Python: each method uses the `wcwidth` library when it is importable. When it is not (NVDA's bundled Python does not ship it), a standard library fallback (`_stdlib_char_width`, based on `unicodedata`) keeps CJK, combining, and control character widths correct.
 
 #### Methods (all static)
 
@@ -259,7 +259,7 @@ A `wx.Dialog` that shows all bookmarks in a two-column list (Number, Line Conten
 
 ### OutputSearchManager (`lib/search.py`)
 
-Searches terminal output with plain text or regex patterns. Uses three-tier acceleration: helper-side search, DLL search, then Python fallback.
+Searches terminal output with plain text or regex patterns. Runs entirely in Python: the buffer is read in-process with `makeTextInfo` (`_acquire_raw_text`), ANSI codes are stripped, and matching runs in a Python loop. Buffer lines are cached and invalidated by a content generation counter bumped on text changes.
 
 #### Key Methods
 
@@ -567,12 +567,13 @@ import lib._runtime as _rt
 # Available slots:
 _rt.strip_ansi          # text -> text (default: identity)
 _rt.make_text_differ    # TextDiffer class
-_rt.native_available    # bool (default: False)
-_rt.native_search_text  # Rust search function or None
-_rt.get_helper          # returns helper process or None
 _rt.read_terminal_text  # terminal buffer reader or None
 _rt.make_position_cache # PositionCache factory or None
+_rt.api_module          # NVDA api module (set at startup, None in tests)
+_rt.webbrowser_module   # Python webbrowser module (set at startup, None in tests)
 ```
+
+The module also defines `gesture_label(gesture, script_name)`, a shared helper that formats a gesture and script name into a human-readable label.
 
 ---
 

@@ -41,19 +41,17 @@ The codebase is split across a main plugin file and extracted library modules.
 | Module | Lines | What it does |
 |--------|------:|-------------|
 | `globalPlugins/terminalAccess.py` | ~3774 | GlobalPlugin class, command layer, event handlers, all script definitions |
-| `lib/_runtime.py` | ~25 | Runtime dependency registry. Holds references to native functions and helpers that lib modules need but cannot import directly (avoids circular imports). Populated by `terminalAccess.py` at startup. |
+| `lib/_runtime.py` | ~45 | Runtime dependency registry. Holds references to shared functions and modules that lib modules need but cannot import directly (avoids circular imports). Populated by `terminalAccess.py` at startup. |
 | `lib/config.py` | ~341 | Config constants (`CT_OFF`, `CT_STANDARD`, etc.), `confspec` dict, validation functions (`_validateInteger`, `_validateString`, `_validateSelectionSize`), `ConfigManager` class |
 | `lib/caching.py` | ~233 | `PositionCache` (bookmark-keyed LRU with TTL), `TextDiffer` (line-level change detection) |
 | `lib/navigation.py` | ~541 | `TabManager` (per-tab state isolation), `BookmarkManager` (named bookmarks with line content labels), `BookmarkListDialog` (list view with Number + Line Content columns) |
 | `lib/operations.py` | ~203 | `SelectionProgressDialog` (thread-safe progress with cancellation), `OperationQueue` |
 | `lib/profiles.py` | ~549 | `ApplicationProfile`, `WindowDefinition`, `ProfileManager` (detection + defaults for vim, tmux, htop, less, git, nano, irssi) |
-| `lib/search.py` | ~1149 | `OutputSearchManager` (incremental text search with native acceleration), `UrlExtractorManager` (URL detection and opening) |
+| `lib/search.py` | ~1149 | `OutputSearchManager` (incremental text search, pure Python), `UrlExtractorManager` (URL detection and opening) |
 | `lib/text_processing.py` | ~879 | `ANSIParser` (color/formatting detection), `UnicodeWidthHelper` (CJK display width), `PositionCalculator` (row/col from TextInfo), `ErrorLineDetector` (18 error + 5 warning regex patterns with word boundaries, `classify()` method) |
 | `lib/window_management.py` | ~805 | `WindowMonitor` (background text polling), `WindowManager` (rectangular screen region tracking), `PositionCalculator` |
 | `lib/settings_panel.py` | ~820 | `TerminalAccessSettingsPanel` with three flat sections: Speech and Tracking, NVDA Gesture Conflicts, Application Profiles |
 | `lib/ai_support.py` | ~450 | `AiTurnTokenizer` (conversation turn splitting for Claude, Aider, ChatGPT CLI, Copilot CLI, Gemini CLI, Codex CLI, Ollama), `CodeBlockDetector` (fenced code block detection), `StreamingDeltaTracker` (delta announcements during streaming), `PrivacyGuard` (gates privacy-sensitive features) |
-| `native/termaccess_bridge.py` | | ctypes FFI wrapper for `termaccess.dll` |
-| `native/helper_process.py` | | Named pipe IPC client for `termaccess-helper.exe` |
 
 ### Removed
 
@@ -66,7 +64,7 @@ The codebase is split across a main plugin file and extracted library modules.
 
 ## Dependency Flow
 
-`_runtime.py` acts as the hub between the main plugin and library modules. Library modules import `_runtime` to access native functions without importing `terminalAccess.py` directly.
+`_runtime.py` acts as the hub between the main plugin and library modules. Library modules import `_runtime` to access shared functions without importing `terminalAccess.py` directly.
 
 ```
 terminalAccess.py (main plugin)
@@ -76,13 +74,12 @@ terminalAccess.py (main plugin)
 lib/_runtime.py  ◄──────────── lib modules read from here
     │
     │  holds references to:
-    ├── strip_ansi          (native or Python fallback)
+    ├── strip_ansi          (ANSI escape removal, default: identity)
     ├── make_text_differ    (TextDiffer factory)
-    ├── native_available    (bool)
-    ├── native_search_text  (Rust search function)
-    ├── get_helper          (helper process accessor)
     ├── read_terminal_text  (terminal buffer reader)
-    └── make_position_cache (PositionCache factory)
+    ├── make_position_cache (PositionCache factory)
+    ├── api_module          (NVDA api module)
+    └── webbrowser_module   (Python webbrowser module)
 
 Dependency direction:
 
@@ -96,23 +93,20 @@ Dependency direction:
         ├── lib/text_processing.py
         ├── lib/window_management.py ──► lib/_runtime.py
         ├── lib/ai_support.py    ──► lib/config.py, lib/caching.py
-        ├── lib/settings_panel.py   (lazy-imports terminalAccess)
-        ├── native/termaccess_bridge.py
-        └── native/helper_process.py
+        └── lib/settings_panel.py   (lazy-imports terminalAccess)
 ```
 
 ## Event Handling Pipeline
 
 ### event_gainFocus breakdown
 
-`event_gainFocus` was refactored from a monolithic method into 8 focused helpers called by `_onTerminalFocus`:
+`event_gainFocus` was refactored from a monolithic method into focused helpers called by `_onTerminalFocus`:
 
 | Method | Purpose |
 |--------|---------|
 | `event_gainFocus` | Entry point. Calls `nextHandler()`, then checks terminal status. |
 | `_updateGestureBindingsForFocus(obj)` | Returns False if not a terminal. |
-| `_onTerminalFocus(obj)` | Orchestrates the 7 helpers below. |
-| `_startHelperIfNeeded()` | Lazy-starts the native helper process. |
+| `_onTerminalFocus(obj)` | Orchestrates the helpers below. |
 | `_handleSearchJumpSuppression()` | Preserves review cursor after a search jump. |
 | `_initializeManagers(obj)` | Creates or updates Tab, Bookmark, Search, and URL managers. |
 | `_detectAndApplyProfile(obj)` | Matches app name or window title to a profile. |
@@ -179,106 +173,11 @@ Settings were extracted from the main plugin into two modules:
   - **Application Profiles**: dropdown with Active/Default indicators, New/Edit/Delete/Import/Export buttons
 - Lazy-imports from `terminalAccess.py` to avoid circular dependencies
 
-## Native Acceleration Layer
+## History: Native Layer (Removed)
 
-The addon ships an optional Rust-based native layer. Every native feature has a Python fallback. The addon works without any native binaries.
+Early 2.0.0 betas shipped an optional Rust layer: a DLL loaded over ctypes and a helper process reached over a named pipe. It was removed before 2.0.0 final. The helper's pipe reads hung for seconds in the field on some terminals, and the FFI paths measured slower than the plain Python implementations they were meant to accelerate. Going pure Python also drops per-architecture binaries, which lets the same package run on ARM64. Terminal reads now run in-process through `makeTextInfo`, search and ANSI stripping are pure Python, and Unicode width uses wcwidth when importable with a standard library fallback.
 
-### Crate Layout
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Python Addon                         │
-│                                                         │
-│  termaccess_bridge.py    helper_process.py              │
-│  (ctypes FFI wrapper)    (named pipe IPC client)        │
-│         │                         │                     │
-└─────────┼─────────────────────────┼─────────────────────┘
-          │ cdylib (DLL)            │ named pipe (JSON)
-          ▼                         ▼
-┌──────────────────┐   ┌────────────────────────────────┐
-│ termaccess-ffi   │   │ termaccess-helper              │
-│ (termaccess.dll) │   │ (termaccess-helper.exe)        │
-│                  │   │                                │
-│ C ABI exports:   │   │ Runs in own process:           │
-│ - Text diffing   │   │ - UIA terminal reads           │
-│ - ANSI stripping │   │ - Console API fallback         │
-│ - Text search    │   │ - Subscription polling         │
-│ - Position cache │   │ - Diff + ANSI strip            │
-│ - Unicode width  │   │ - Server-side search           │
-└────────┬─────────┘   └────────────┬───────────────────┘
-         │                          │
-         ▼                          ▼
-┌──────────────────────────────────────────────────────┐
-│                   termaccess-core                     │
-│ Pure Rust algorithms (no platform dependencies):      │
-│ - text_differ   (line-level diff)                    │
-│ - ansi_strip    (regex-based ANSI removal)           │
-│ - search        (plain + regex text search)          │
-│ - position_cache (LRU + TTL cache)                   │
-│ - unicode_width (CJK/combining char column widths)   │
-└──────────────────────────────────────────────────────┘
-```
-
-| Crate | Type | What it does |
-|-------|------|-------------|
-| `termaccess-core` | lib | Pure algorithms, no platform deps |
-| `termaccess-ffi` | cdylib | C ABI exports for Python ctypes |
-| `termaccess-helper` | binary | Out-of-process UIA reader and search server |
-
-### FFI Interface
-
-Communication: Python ctypes loads `termaccess.dll`.
-Memory: Rust allocates output buffers; Python frees via `ta_free_string`.
-Strings: UTF-8 as `*const u8 + usize` pairs.
-Error codes: `0=OK, 1=NullPointer, 2=InvalidUTF8, 3=NotFound, 4=InvalidRegex`.
-
-Exported functions:
-
-| Function | Purpose |
-|----------|---------|
-| `ta_version` / `ta_version_len` | Version info |
-| `ta_free_string` | Memory management |
-| `ta_text_differ_new/free/update/reset/last_text` | Text diffing |
-| `ta_strip_ansi` | ANSI escape removal |
-| `ta_search_text` / `ta_search_results_free` | Pattern matching |
-| `ta_position_cache_new/free/get/set/clear/invalidate` | Position caching |
-| `ta_char_width` | Single character display width |
-| `ta_text_width` | String display width |
-| `ta_extract_column_range` | Column-aware substring extraction |
-| `ta_find_column_position` | Column to char index mapping |
-
-### Helper IPC Protocol
-
-Communication: Named pipe (`\\.\pipe\termaccess-{pid}-{uid}`).
-Wire format: `[4-byte LE u32 length][UTF-8 JSON payload]`.
-
-Request types: `ping`, `read_text`, `read_lines`, `subscribe`, `unsubscribe`, `search_text`, `shutdown`.
-
-Response types: `pong`, `text_result`, `lines_result`, `subscribe_ok`, `unsubscribe_ok`, `search_result`, `error`.
-
-Notifications (unsolicited): `helper_ready`, `text_changed`, `text_diff`.
-
-### Text Reading Fallback Chain
-
-The helper reads terminal text with a multi-tier fallback:
-
-| Tier | Method | Notes |
-|------|--------|-------|
-| 1 | **UIA TextPattern** | Works with Windows Terminal and modern consoles |
-| 2 | **Win32 Console API** | `AttachConsole` + `ReadConsoleOutputCharacterW`, for legacy conhost |
-| 3 | **Python main-thread** | `makeTextInfo(POSITION_ALL)`, the original approach |
-
-### Search Acceleration
-
-Three tiers, each falling back to the next:
-
-| Tier | Method | Notes |
-|------|--------|-------|
-| 1 | **Helper-side search** | Reads buffer and searches in one IPC round-trip |
-| 2 | **DLL search** | `native_search_text()` runs Rust search on a Python-read buffer |
-| 3 | **Python matching** | Character-by-character loop (original implementation) |
-
-### File Layout
+## File Layout
 
 ```
 addon/
@@ -295,24 +194,7 @@ addon/
 │   ├── search.py              # OutputSearchManager, UrlExtractorManager
 │   ├── text_processing.py     # ANSIParser, UnicodeWidthHelper, PositionCalculator, ErrorLineDetector
 │   ├── window_management.py   # WindowMonitor, WindowManager, PositionCalculator
-│   ├── settings_panel.py      # TerminalAccessSettingsPanel (Basic/Advanced)
-│   ├── x64/
-│   │   ├── termaccess.dll
-│   │   └── termaccess-helper.exe
-│   └── x86/
-│       ├── termaccess.dll
-│       └── termaccess-helper.exe
-├── native/
-│   ├── __init__.py
-│   ├── termaccess_bridge.py   # ctypes FFI wrapper
-│   └── helper_process.py      # Named pipe IPC client
-│
-native/                         # Rust workspace (not shipped in addon)
-├── Cargo.toml
-├── crates/
-│   ├── termaccess-core/        # Pure algorithms
-│   ├── termaccess-ffi/         # C ABI FFI layer (cdylib)
-│   └── termaccess-helper/      # Helper process (binary)
+│   └── settings_panel.py      # TerminalAccessSettingsPanel
 ```
 
 ## Data Flow
@@ -373,37 +255,24 @@ _announceProfileIfNew → speak profile name on terminal switch
 
 ### Test Suite
 
-768 tests pass, 67 skipped (native bridge tests, skipped when DLL absent).
+The suite is pure Python. Nothing is skipped for missing binaries because there are no native binaries.
 
-**Python tests** (`tests/`, ~41 test files):
+**Python tests** (`tests/`, ~80 test files):
 - pytest with `unittest.TestCase`
 - `conftest.py` mocks all NVDA internals (config, api, speech, ui, wx, etc.)
 - Covers validation, caching, config, selection, navigation, search, profiles, text processing, integration, performance
-
-**Rust tests** (`native/`):
-- `termaccess-core`: 66 tests (diff, ANSI strip, search, cache, unicode width)
-- `termaccess-helper`: 35 tests (protocol serde, pipe framing, security, subscriptions)
-- Run with `cargo test --all` (101 tests total)
 
 ### CI/CD
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `rust-build.yml` | Push/PR touching `native/` | Run Rust tests, clippy, build DLL+EXE for x86/x64 |
-| `release.yml` | Push to `main` | Build native, bundle addon, create GitHub release |
-| `nightly.yml` | Daily cron + manual | Build native, bundle nightly addon with version suffix |
+| `tests.yml` | Push/PR | Run the Python test suite on Windows (Python 3.11 and 3.13) |
+| `release.yml` | Push to `main` | Build the addon with SCons, create GitHub release |
 | `changelog-check.yml` | PR | Verify changelog entry exists |
 
 ## CI/CD Pipeline
 
-The release and nightly workflows produce these artifacts:
-
-| Artifact | Contents |
-|----------|----------|
-| `termaccess-dll-x64` / `termaccess-dll-x86` | `termaccess_ffi.dll` renamed to `termaccess.dll` |
-| `termaccess-helper-x64` / `termaccess-helper-x86` | `termaccess-helper.exe` |
-
-These are placed into `addon/lib/{arch}/` before the `.nvda-addon` zip is built.
+The release workflow builds the `.nvda-addon` zip with SCons and publishes it as a GitHub release. There are no native build steps or per-architecture artifacts; the same pure Python package runs on x86, x64, and ARM64.
 
 ## References
 
@@ -412,7 +281,6 @@ These are placed into `addon/lib/{arch}/` before the `.nvda-addon` zip is built.
 - [TextInfo API Documentation](https://www.nvaccess.org/files/nvda/documentation/developerGuide.html#textInfos)
 - [ANSI Escape Codes](https://en.wikipedia.org/wiki/ANSI_escape_code)
 - [wcwidth Library](https://pypi.org/project/wcwidth/)
-- [unicode-width Crate](https://crates.io/crates/unicode-width)
 - [Windows UI Automation](https://learn.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
 
 ---

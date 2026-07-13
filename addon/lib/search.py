@@ -197,12 +197,11 @@ class OutputSearchManager:
 			import logHandler
 			logHandler.log.info(
 				"Terminal Access search timing: total=%.0fms read_path=%s "
-				"helper=%.0fms fallback=%.0fms strip=%.0fms match=%.0fms "
+				"read=%.0fms strip=%.0fms match=%.0fms "
 				"chars=%d cache_hit=%s",
 				total_ms,
 				getattr(self, "_last_read_path", "?"),
-				getattr(self, "_last_helper_ms", 0.0),
-				getattr(self, "_last_fallback_ms", 0.0),
+				getattr(self, "_last_read_ms", 0.0),
 				getattr(self, "_last_strip_ms", 0.0),
 				match_ms,
 				getattr(self, "_last_read_chars", 0),
@@ -230,14 +229,13 @@ class OutputSearchManager:
 		timing/path for the search-timing summary.
 		"""
 		import time as _time
-		self._last_helper_ms = 0.0
 		t0 = _time.perf_counter()
 		try:
 			info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
 			all_text = info.text
 		except Exception:
 			all_text = None
-		self._last_fallback_ms = (_time.perf_counter() - t0) * 1000.0
+		self._last_read_ms = (_time.perf_counter() - t0) * 1000.0
 		self._last_read_path = "makeTextInfo"
 		self._last_read_chars = len(all_text) if all_text else 0
 		return all_text
@@ -257,8 +255,7 @@ class OutputSearchManager:
 			self._last_cache_hit = True
 			self._last_read_path = "cache"
 			self._last_read_chars = 0
-			self._last_helper_ms = 0.0
-			self._last_fallback_ms = 0.0
+			self._last_read_ms = 0.0
 			self._last_strip_ms = 0.0
 			return self._cached_lines
 		self._last_cache_hit = False
@@ -268,8 +265,7 @@ class OutputSearchManager:
 		else:
 			self._last_read_path = "provided"
 			self._last_read_chars = len(raw_text)
-			self._last_helper_ms = 0.0
-			self._last_fallback_ms = 0.0
+			self._last_read_ms = 0.0
 		if not raw_text:
 			# Don't cache a transient empty/failed read; the next text change
 			# would not necessarily bump the generation to clear it.
@@ -382,8 +378,8 @@ class OutputSearchManager:
 
 		try:
 			# ─── Acquire the buffer lines ───
-			# Cached, ANSI-stripped, length-capped. The read uses the helper's
-			# off-main-thread path when available; matching runs in Python.
+			# Cached, ANSI-stripped, length-capped. Reads in-process via
+			# makeTextInfo; matching runs in Python.
 			lines = self._get_buffer_lines(raw_text)
 			match_t0 = _time.perf_counter()
 			if not lines:

@@ -419,8 +419,9 @@ class UnicodeWidthHelper:
 		>>> print(text[index])  # 'l'
 
 	Fallback Behavior:
-		If wcwidth library is not available, assumes 1 column per character.
-		This provides graceful degradation on systems without wcwidth.
+		If the wcwidth library is not available, a standard-library
+		fallback (unicodedata east_asian_width) keeps CJK/fullwidth
+		characters at 2 columns and combining marks at 0.
 
 	Thread Safety:
 		All methods are static and thread-safe (no shared state).
