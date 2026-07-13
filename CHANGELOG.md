@@ -6,6 +6,11 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+### Documentation
+
+- Documentation consolidated ahead of final 2.0.0: developer docs (architecture and API reference) brought fully in line with the pure-Python codebase, the 2.0.0 roadmap marked with the real completion status of each milestone, and a consolidated 2.0.0 release-notes draft added (`docs/plans/20260712-2.0.0-release-notes-draft.md`) that rolls the fifteen beta entries into the final release announcement.
+- Translation catalogs refreshed: the template was regenerated (400 strings) and all 17 languages merged, picking up the strings added and removed across the 2.0.0 betas.
+
 ## [2.0.0-beta.15] - 2026-07-12
 
 ### Removed

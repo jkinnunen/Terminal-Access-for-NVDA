@@ -1,7 +1,7 @@
 # Terminal Access for NVDA - API Reference
 
-**Version:** 1.4.0
-**Last Updated:** 2026-03-22
+**Version:** 2.0.0-beta.15
+**Last Updated:** 2026-07-12
 
 ## Table of Contents
 
@@ -236,24 +236,26 @@ Detects and tracks terminal tabs. Isolates bookmarks, searches, and history per 
 
 ### BookmarkManager (`lib/navigation.py`)
 
-Manages numbered bookmarks at terminal positions. Each bookmark captures the line content at the time it was set, displayed as a label.
+Manages named bookmarks at terminal positions (typically the names "0" through "9"). Each bookmark stores the position, its line number for lazy jump resolution, and an auto-generated label taken from the line content, the nearby command prompt, or the AI turn.
 
 #### Methods
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `set_bookmark(number, textInfo)` | `None` | Store bookmark with line content label |
-| `get_bookmark(number)` | `textInfo` or `None` | Retrieve a bookmark |
-| `clear_bookmark(number)` | `None` | Remove a single bookmark |
-| `clear_all()` | `None` | Remove all bookmarks |
-| `list_bookmarks()` | `list` | Returns bookmarks with number and line content |
-| `show_list_dialog(parent)` | `None` | Opens `BookmarkListDialog` |
+| `set_bookmark(name)` | `bool` | Store a bookmark at the review position with an auto-generated label |
+| `jump_to_bookmark(name)` | `bool` | Move the review cursor to the bookmark; falls back to line-number navigation when the stored position cannot be recreated |
+| `remove_bookmark(name)` | `bool` | Remove a single bookmark |
+| `list_bookmarks()` | `list` | Bookmarks with name, label, and line number |
+| `has_bookmark(name)` | `bool` | Whether a bookmark exists |
+| `get_bookmark_label(name)` | `str` or `None` | The bookmark's label |
+| `rename_bookmark(name, new_label)` | `bool` | Override the auto-generated label |
+| `list_sections(buffer_lines, category=None)` | `list` | Detected sections, optionally filtered by category |
 
 ---
 
 ### BookmarkListDialog (`lib/navigation.py`)
 
-A `wx.Dialog` that shows all bookmarks in a two-column list (Number, Line Content). Supports jumping to a bookmark via Enter, deleting via the Delete key, and closing via Escape. Fully keyboard-navigable.
+A factory function that builds the bookmark list on top of `BrowsableListDialog` (`lib/list_dialogs.py`). Shows Number and Line Content rows read live from the bookmark manager. Enter or the Activate button jumps to the selected bookmark, the Delete key removes it, Escape closes. Returns a dialog ready for `ShowModal()`. Fully keyboard-navigable.
 
 ---
 
@@ -349,143 +351,145 @@ NVDA settings panel with three flat sections.
 
 ---
 
-### AiTurnTokenizer (`lib/ai_support.py`)
+### AITurnTokenizer (`lib/ai_turn_tokenizer.py`)
 
-Splits terminal buffer text into AI conversation turns by detecting role markers (user prompts and assistant responses). Each AI CLI profile provides its own marker patterns.
+Detects AI CLI conversation turns (user, assistant, tool, system) in terminal buffer lines and provides navigation between turns and code blocks. Handles ANSI color codes in role markers and streamed or partial output.
 
 #### Constructor
 
 ```python
-AiTurnTokenizer(profile_name='claude')
+AITurnTokenizer()
 ```
-
-- `profile_name`: Name of the AI CLI profile. Determines which marker patterns to use.
 
 #### Methods
 
-##### `tokenize(text: str) -> list[dict]`
+##### `tokenize(lines: list[str]) -> list[AITurn]`
 
-Parse the full buffer text and return a list of turn dicts. Each dict contains:
-- `role` (str): `'user'` or `'assistant'`
-- `start_line` (int): 0-based line index where the turn starts
-- `end_line` (int): 0-based line index where the turn ends (exclusive)
-- `text` (str): The full text of the turn
+Classify buffer lines into turns. Results are cached and reused while the buffer is unchanged (same line count, first line, and last line). `AITurn` is a namedtuple with fields `line_num`, `end_line`, `role`, and `has_code_block`. Returns an empty list when no AI turn markers are found.
 
-##### `get_turn_at_line(line: int) -> dict | None`
+##### `next_turn(current_line: int, role: str | None = None) -> AITurn | None`
 
-Return the turn containing the given line, or `None` if the line is outside any turn.
+Return the next turn after `current_line`. When `role` is given, only turns with that role match.
 
-##### `next_turn(current_line: int) -> dict | None`
+##### `prev_turn(current_line: int, role: str | None = None) -> AITurn | None`
 
-Return the next turn after the one containing `current_line`, or `None` if there are no more turns.
+Return the previous turn before `current_line`, optionally filtered by role.
 
-##### `previous_turn(current_line: int) -> dict | None`
+##### `get_code_blocks() -> list[CodeSpan]`
 
-Return the previous turn before the one containing `current_line`, or `None`.
+All code blocks found by the last `tokenize()` call. `CodeSpan` is a namedtuple with fields `line_num` and `end_line`.
 
-#### Profile Marker Patterns
+##### `next_code_block(current_line: int) -> CodeSpan | None`
 
-| Profile      | User Marker       | Assistant Marker   |
-|--------------|-------------------|--------------------|
-| claude       | `> ` (prompt)     | Non-prompt lines   |
-| aider        | `> ` (prompt)     | Non-prompt lines   |
-| chatgpt      | `You:` prefix     | `ChatGPT:` prefix  |
-| copilot      | `$ ` (shell)      | Suggestion lines   |
-| gemini       | `> ` (prompt)     | Non-prompt lines   |
-| codex        | `> ` (prompt)     | Non-prompt lines   |
-| ollama       | `>>> ` (prompt)   | Non-prompt lines   |
+##### `prev_code_block(current_line: int) -> CodeSpan | None`
+
+#### Module Function
+
+##### `classify_ai_line(clean_line: str) -> tuple[str, str] | None`
+
+Classify a single ANSI-stripped, whitespace-trimmed line. Returns a `(role, preview)` tuple where role is `'user'`, `'assistant'`, `'tool'`, `'system'`, or `'code'`, or `None` when the line is not a turn marker. Shared with `BookmarkManager` for AI-aware bookmark labels.
+
+#### Recognized Markers
+
+| Role | Markers |
+|------|---------|
+| user | `❯` prompt arrow, `You:`, `User:`, `> ` followed by text |
+| assistant | `Claude:`, `ChatGPT:`, `Assistant:`, `Copilot:`, `Gemini:`, `Codex:` |
+| tool | `Tool:`, `Function:` |
+| system | `Aider v...` banner, `Model:`, `System:` |
+| code | triple backtick fences |
 
 ---
 
-### CodeBlockDetector (`lib/ai_support.py`)
+### CodeBlockDetector and CodeBlock (`lib/code_block_reader.py`)
 
-Detects fenced code blocks (triple backtick delimiters) in terminal output. Tracks language tags, line ranges, and content for each block.
+Detects fenced code blocks (triple backtick delimiters) in terminal buffer lines and provides navigation, copy, and offline explanation helpers. ANSI codes are stripped before fence matching.
 
-#### Constructor
+#### CodeBlockDetector Methods
 
-```python
-CodeBlockDetector()
-```
+##### `detect(buffer: list[str]) -> list[CodeBlock]`
 
-#### Methods
+Scan buffer lines and return a list of `CodeBlock` objects. Handles multiple adjacent blocks. An opening fence without a closing fence is skipped.
 
-##### `detect(text: str) -> list[dict]`
+##### `find_block_at(line_idx: int, blocks: list[CodeBlock]) -> CodeBlock | None` (static)
 
-Scan text for fenced code blocks. Returns a list of block dicts, each containing:
-- `language` (str): Language tag from the opening fence (e.g., `'python'`, `'javascript'`), or `''` if none
-- `start_line` (int): 0-based line index of the opening fence
-- `end_line` (int): 0-based line index of the closing fence
-- `content` (str): The code inside the fences (excluding the fence lines)
+Return the block containing `line_idx`, or `None`.
 
-##### `get_block_at_line(line: int) -> dict | None`
+#### CodeBlock
 
-Return the code block containing the given line, or `None`.
+Represents one detected block. Attributes: `language` (fence tag or `None`), `start_line` and `end_line` (0-based indexes of the fence lines).
 
-##### `next_block(current_line: int) -> dict | None`
-
-Return the next code block after `current_line`, or `None`.
-
-##### `previous_block(current_line: int) -> dict | None`
-
-Return the previous code block before `current_line`, or `None`.
-
-##### `get_language(block: dict) -> str`
-
-Return the language tag for a block. Returns `'unknown'` if no language was specified.
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `line_count` (property) | `int` | Content lines between the fences |
+| `first_content_line` (property) | `int` | Index of the line after the opening fence |
+| `last_content_line` (property) | `int` | Index of the line before the closing fence |
+| `announce()` | `str` | Spoken summary, e.g. "Python block, 8 lines" |
+| `get_line(line_idx, buffer)` | `str` | ANSI-stripped line inside the block, empty string if out of range |
+| `next_line(current)` / `prev_line(current)` | `int` or `None` | Adjacent content line index, `None` at the block boundary |
+| `copy_text(buffer)` | `(str, bool)` | Content text and a truncated flag (capped at 5000 characters) |
+| `explain(buffer)` | `str` | One-sentence offline heuristic explanation (imports, function defs, classes, loops, conditionals, error handling). Callers should check `PrivacyGuard` first. |
 
 ---
 
-### StreamingDeltaTracker (`lib/ai_support.py`)
+### StreamingDeltaTracker (`lib/streaming_delta.py`)
 
-Monitors the terminal buffer for new content during AI streaming. Stores a snapshot and diffs it against the current buffer to determine what text is new.
+Tracks changes between terminal buffer snapshots. Stores the last snapshot, computes a structured `Delta` (a namedtuple with `kind`, `count`, `after_line`, `lines`, `added`, `changed_count`, `new_content`), debounces rapid changes, and formats verbosity-aware output.
 
 #### Constructor
 
 ```python
-StreamingDeltaTracker()
+StreamingDeltaTracker(debounce_ms=500, verbosity=1)
 ```
+
+- `debounce_ms`: Minimum interval between reported deltas in milliseconds. Changes inside the interval return `None`.
+- `verbosity`: 0 (quiet, no delta speech), 1 (count only, "3 new lines"), 2 (count plus last new line content).
 
 #### Methods
 
-##### `snapshot(text: str) -> None`
+##### `has_previous` (property)
 
-Store the current buffer text as the baseline for delta comparison.
+`True` once at least one snapshot has been taken.
 
-##### `get_delta(current_text: str) -> str | None`
+##### `set_verbosity(level) -> None`
 
-Compare `current_text` against the stored snapshot. Returns the new text that was added, or `None` if nothing changed. After returning a delta, the snapshot is updated to `current_text`.
+Update the verbosity level (0, 1, or 2).
 
-##### `reset() -> None`
+##### `take_snapshot(current_lines: list[str]) -> str | None`
 
-Clear the stored snapshot.
+Store a new snapshot and return a human-readable delta string. Returns `None` on the first snapshot, when nothing changed, when the debounce interval has not elapsed, or when verbosity is 0.
+
+##### `get_braille_delta() -> str | None`
+
+Short braille form of the last delta: `+N` for new lines, `~LN` for a single changed line, `~N` for several changed lines, `-N` for removed lines. `None` if there was no change.
 
 ---
 
-### PrivacyGuard (`lib/ai_support.py`)
+### PrivacyGuard (`lib/privacy.py`)
 
-Gates AI CLI features that send terminal content to an external service. Checks privacy settings before allowing code explain or summarization operations.
+Central gatekeeper for privacy-sensitive opt-in features. The addon is fully offline and makes no network calls anywhere; the guard gates features behind config flags and documents that design.
 
 #### Constructor
 
 ```python
-PrivacyGuard(config_manager)
+PrivacyGuard()
 ```
 
-- `config_manager`: A `ConfigManager` instance for reading privacy settings.
+Stateless; config is passed to each check.
 
 #### Methods
 
-##### `can_explain_code() -> bool`
+##### `check_feature(feature_name: str, config_manager) -> tuple[bool, str]`
 
-Return `True` if the "Allow Code Explain" setting is enabled.
+Return `(allowed, message)`. Known feature names and their config keys: `'summarize'` (`summarizationEnabled`), `'explain_code'` (`codeBlockExplain`), `'ai_turn_parse'` (`aiTurnParseEnabled`). Unknown or empty names are blocked. When blocked, the message explains how to enable the feature, unless `privacyAnnounce` is `False`, in which case it is empty.
 
-##### `can_summarize() -> bool`
+##### `is_offline_only() -> bool` (static)
 
-Return `True` if the "Allow Summarization" setting is enabled.
+Always returns `True`. A static assertion that the addon never makes network calls.
 
-##### `check_or_warn(feature: str) -> bool`
+##### `format_privacy_status(config_manager) -> str`
 
-Check if the given feature is allowed. If not, speak a warning message and return `False`. Valid feature names: `'code_explain'`, `'summarize'`.
+Human-readable privacy status, e.g. "Privacy: all features offline. Summarization: on. Code explain: off."
 
 ---
 
@@ -497,10 +501,10 @@ Check if the given feature is allowed. If not, speak a warning message and retur
 | `BookmarkListDialog` | `lib/navigation.py` | Dialog showing bookmarks with line content labels |
 | `TerminalAccessSettingsPanel` | `lib/settings_panel.py` | Extracted settings panel with three flat sections |
 | `lib/_runtime.py` | `lib/_runtime.py` | Centralized dependency registry replacing scattered DI stubs |
-| `AiTurnTokenizer` | `lib/ai_support.py` | Splits terminal buffer into AI conversation turns |
-| `CodeBlockDetector` | `lib/ai_support.py` | Detects fenced code blocks with language tags |
-| `StreamingDeltaTracker` | `lib/ai_support.py` | Tracks new content during AI streaming responses |
-| `PrivacyGuard` | `lib/ai_support.py` | Gates privacy-sensitive AI features behind settings |
+| `AITurnTokenizer` | `lib/ai_turn_tokenizer.py` | Detects AI conversation turns and navigates between them |
+| `CodeBlockDetector` | `lib/code_block_reader.py` | Detects fenced code blocks with language tags |
+| `StreamingDeltaTracker` | `lib/streaming_delta.py` | Tracks new content during AI streaming responses |
+| `PrivacyGuard` | `lib/privacy.py` | Gates privacy-sensitive opt-in features behind settings |
 
 ## Removed
 
@@ -548,6 +552,19 @@ config.conf["terminalAccess"]["cursorDelay"] = 50
 | `outputActivityTones` | bool | False | | Ascending two-tone on new program output |
 | `outputActivityDebounce` | int | 1000 | 100-10000 | Milliseconds between activity tone repeats |
 | `unboundGestures` | str | `""` | | Comma-separated disabled gestures |
+| `announceIndentation` | bool | False | | Announce indentation when reading lines |
+| `verbosityLevel` | int | 1 | 0-2 | Quiet / Normal / Verbose |
+| `urlOpenWarning` | bool | True | | Confirmation before opening URLs from output |
+| `summarizationEnabled` | bool | False | | Offline summarization (opt-in, privacy gated) |
+| `codeBlockExplain` | bool | False | | Offline code block explanation (opt-in, privacy gated) |
+| `aiTurnParseEnabled` | bool | False | | AI turn detection and navigation (opt-in) |
+| `privacyAnnounce` | bool | True | | Spoken message when a gated feature is blocked |
+| `streamingSuppression` | bool | True | | Suppress character speech during rapid output |
+| `tutorialShown` | bool | False | | First-run tutorial already played |
+| `progressMilestones` | bool | True | | Announce progress percentages at milestones |
+| `earconVolume` | int | 100 | 10-100 | Earcon volume percent |
+| `earconPitchShift` | int | 100 | 50-200 | Earcon pitch shift percent |
+| `processSymbols` | bool | False | | Deprecated; kept for pre-v1.0.10 config migration |
 
 ### Validation Helpers
 
@@ -611,19 +628,21 @@ self._profileManager.addProfile(profile)
 
 ### event_gainFocus(obj, nextHandler)
 
-Fires when a terminal gains focus. Detects the terminal app, activates a profile, binds the review cursor, and clears the position cache.
+Fires when a terminal gains focus. Detects the terminal app, activates a profile, binds the review cursor, and clears the position cache. This is the only terminal event still handled at the GlobalPlugin level.
 
-### event_typedCharacter(obj, nextHandler, ch)
+### Terminal Event Delegation (overlay)
 
-Fires on each typed character. Handles key echo, symbol processing, and repeated symbol detection.
+Terminal `event_caret`, `event_textChange`, and `event_typedCharacter` are handled by the `TerminalAccessTerminal` overlay (`lib/terminal_overlay.py`), inserted via `chooseNVDAObjectOverlayClasses` for supported terminals. There are no global plugin handlers for these events. The overlay finds the running plugin through a module-level registration (`terminal_overlay.set_active_plugin`, called in `GlobalPlugin.__init__` and cleared in `terminate()`) and delegates:
 
-### event_caret(obj, nextHandler)
+| Overlay event | Plugin delegate | Behavior |
+|---------------|-----------------|----------|
+| `event_caret` | `_handleTerminalCaret(obj)` | Debounced cursor tracking, blank suppression, error cues. NVDA's native caret speech is suppressed. |
+| `event_textChange` | `_handleTerminalTextChange(obj)` | Activity tones, progress milestones, quiet-mode error cues. Returns whether to wake the LiveText monitor thread that speaks new output. |
+| `event_typedCharacter` | `_terminalTypedCharacter(obj, ch, speak_default)` | Key echo decisions and quiet-mode suppression. `speak_default` runs NVDA's own character echo. |
 
-Fires on caret movement. Starts a delay timer, then announces the cursor position based on the active tracking mode.
+### _checkErrorAudioCue()
 
-### _checkErrorAudioCue(obj)
-
-Called from `event_caret`. When `errorAudioCuesInQuietMode` is enabled and quiet mode is active, reads the current line and calls `ErrorLineDetector.classify()`. Plays a tone if the line is an error or warning.
+Called from `_handleTerminalCaret` and `_handleTerminalTextChange`. When `errorAudioCuesInQuietMode` is enabled and quiet mode is active, reads the current line and calls `ErrorLineDetector.classify()`. Plays a tone if the line is an error or warning.
 
 ### _checkOutputActivityTone()
 
@@ -681,4 +700,4 @@ MAX_REPEATED_SYMBOLS_LENGTH = 50
 
 ---
 
-**Last Updated**: 2026-03-22
+**Last Updated**: 2026-07-12

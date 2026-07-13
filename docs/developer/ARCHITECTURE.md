@@ -1,7 +1,7 @@
 # Terminal Access for NVDA - Architecture Overview
 
-**Version:** 1.4.0
-**Last Updated:** 2026-03-22
+**Version:** 2.0.0-beta.15
+**Last Updated:** 2026-07-12
 
 ## Table of Contents
 
@@ -38,20 +38,35 @@ Terminal Access for NVDA is an NVDA global plugin that makes Windows terminals m
 
 The codebase is split across a main plugin file and extracted library modules.
 
-| Module | Lines | What it does |
-|--------|------:|-------------|
-| `globalPlugins/terminalAccess.py` | ~3774 | GlobalPlugin class, command layer, event handlers, all script definitions |
-| `lib/_runtime.py` | ~45 | Runtime dependency registry. Holds references to shared functions and modules that lib modules need but cannot import directly (avoids circular imports). Populated by `terminalAccess.py` at startup. |
-| `lib/config.py` | ~341 | Config constants (`CT_OFF`, `CT_STANDARD`, etc.), `confspec` dict, validation functions (`_validateInteger`, `_validateString`, `_validateSelectionSize`), `ConfigManager` class |
-| `lib/caching.py` | ~233 | `PositionCache` (bookmark-keyed LRU with TTL), `TextDiffer` (line-level change detection) |
-| `lib/navigation.py` | ~541 | `TabManager` (per-tab state isolation), `BookmarkManager` (named bookmarks with line content labels), `BookmarkListDialog` (list view with Number + Line Content columns) |
-| `lib/operations.py` | ~203 | `SelectionProgressDialog` (thread-safe progress with cancellation), `OperationQueue` |
-| `lib/profiles.py` | ~549 | `ApplicationProfile`, `WindowDefinition`, `ProfileManager` (detection + defaults for vim, tmux, htop, less, git, nano, irssi) |
-| `lib/search.py` | ~1149 | `OutputSearchManager` (incremental text search, pure Python), `UrlExtractorManager` (URL detection and opening) |
-| `lib/text_processing.py` | ~879 | `ANSIParser` (color/formatting detection), `UnicodeWidthHelper` (CJK display width), `PositionCalculator` (row/col from TextInfo), `ErrorLineDetector` (18 error + 5 warning regex patterns with word boundaries, `classify()` method) |
-| `lib/window_management.py` | ~805 | `WindowMonitor` (background text polling), `WindowManager` (rectangular screen region tracking), `PositionCalculator` |
-| `lib/settings_panel.py` | ~820 | `TerminalAccessSettingsPanel` with three flat sections: Speech and Tracking, NVDA Gesture Conflicts, Application Profiles |
-| `lib/ai_support.py` | ~450 | `AiTurnTokenizer` (conversation turn splitting for Claude, Aider, ChatGPT CLI, Copilot CLI, Gemini CLI, Codex CLI, Ollama), `CodeBlockDetector` (fenced code block detection), `StreamingDeltaTracker` (delta announcements during streaming), `PrivacyGuard` (gates privacy-sensitive features) |
+Line counts are omitted on purpose; they rot faster than descriptions.
+
+| Module | What it does |
+|--------|-------------|
+| `globalPlugins/terminalAccess.py` | GlobalPlugin class, command layer, overlay class selection, terminal event delegate handlers, all script definitions |
+| `lib/_runtime.py` | Runtime dependency registry. Holds references to shared functions and modules that lib modules need but cannot import directly (avoids circular imports). Populated by `terminalAccess.py` at startup. |
+| `lib/config.py` | Config constants (`CT_OFF`, `CT_STANDARD`, etc.), `confspec` dict, validation functions (`_validateInteger`, `_validateString`, `_validateSelectionSize`), `ConfigManager` class |
+| `lib/caching.py` | `PositionCache` (bookmark-keyed LRU with TTL), `TextDiffer` (line-level change detection) |
+| `lib/navigation.py` | `TabManager` (per-tab state isolation), `BookmarkManager` (named bookmarks with line content labels), `BookmarkListDialog` (factory that builds the bookmark list on top of `BrowsableListDialog`) |
+| `lib/operations.py` | `SelectionProgressDialog` (thread-safe progress with cancellation), `OperationQueue` |
+| `lib/profiles.py` | `ApplicationProfile`, `WindowDefinition`, `ProfileManager` (detection + defaults for vim, tmux, htop, less, git, nano, irssi), `ProfileSelectionDialog` |
+| `lib/search.py` | `OutputSearchManager` (incremental text search, pure Python), `UrlExtractorManager` (URL detection and opening), `UrlListDialog` |
+| `lib/text_processing.py` | `ANSIParser` (color/formatting detection), `UnicodeWidthHelper` (CJK display width), `BidiHelper`, `EmojiHelper`, `ErrorLineDetector` (error/warning line classification with word-boundary regex patterns) |
+| `lib/window_management.py` | `WindowMonitor` (background text polling), `WindowManager` (rectangular screen region tracking), `PositionCalculator` |
+| `lib/settings_panel.py` | `TerminalAccessSettingsPanel` with three flat sections: Speech and Tracking, NVDA Gesture Conflicts, Application Profiles |
+| `lib/terminal_overlay.py` | `TerminalAccessTerminal` NVDAObject overlay: replaces NVDA's LiveText output handling (coalescing, blank suppression, audio cues) and delegates terminal events to the plugin |
+| `lib/ai_turn_tokenizer.py` | `AITurnTokenizer` and `classify_ai_line()`: detect AI CLI conversation turns (user, assistant, tool, system) and navigate between turns and code spans |
+| `lib/code_block_reader.py` | `CodeBlock`, `CodeBlockDetector`: fenced code block detection with navigation, copy, and offline explanation helpers |
+| `lib/streaming_delta.py` | `StreamingDeltaTracker`, `Delta`: buffer snapshot diffing with debounce and verbosity-aware speech and braille output |
+| `lib/privacy.py` | `PrivacyGuard`: gates opt-in features (summarization, code explain, AI turn parsing) behind config flags; the addon is offline only |
+| `lib/gesture_conflicts.py` | `GestureConflictDetector`: detects gesture conflicts with other NVDA add-ons |
+| `lib/audio_cues.py` | Tone definitions, `play_cue()`, braille message formatting, verbosity logic, buffer change descriptions |
+| `lib/table_reader.py` | `TableDetector`, `TableNavigator`: column-aware table reading for docker ps, kubectl, ls -l, psql, and markdown pipe tables |
+| `lib/tutorial.py` | First-run tutorial: short spoken walkthrough of the essential gestures, replayable from the command layer |
+| `lib/summarizer.py` | `OutputSummarizer`: offline extractive summary, scores lines by heuristics and returns the top N in original order |
+| `lib/section_tokenizer.py` | `SectionTokenizer`: classifies buffer lines into semantic sections (prompt, error, warning, stack trace, progress, timestamp, heading, output) with navigation |
+| `lib/list_dialogs.py` | `BrowsableListDialog` plus pure data-prep helpers shared by the bookmark, section, AI turn, search result, and command finder dialogs |
+| `lib/diagnostics.py` | Diagnostic report builder: plain-text environment and buffer sample a user can attach to a bug report |
+| `lib/progress_milestones.py` | `ProgressMilestoneTracker`: extracts percentages from output lines and announces only when a milestone threshold is crossed |
 
 ### Removed
 
@@ -92,11 +107,29 @@ Dependency direction:
         ├── lib/search.py        ──► lib/_runtime.py
         ├── lib/text_processing.py
         ├── lib/window_management.py ──► lib/_runtime.py
-        ├── lib/ai_support.py    ──► lib/config.py, lib/caching.py
+        ├── lib/terminal_overlay.py  ──► lib/text_processing.py, lib/profiles.py
+        ├── lib/ai_turn_tokenizer.py ──► lib/text_processing.py
+        ├── lib/code_block_reader.py ──► lib/text_processing.py
+        ├── lib/streaming_delta.py
+        ├── lib/privacy.py
         └── lib/settings_panel.py   (lazy-imports terminalAccess)
 ```
 
 ## Event Handling Pipeline
+
+### Terminal Overlay Delegation
+
+`GlobalPlugin.chooseNVDAObjectOverlayClasses` inserts the `TerminalAccessTerminal` overlay (`lib/terminal_overlay.py`) at the front of the class list for supported terminals. The overlay replaces NVDA's LiveText output handling and is the entry point for terminal events. The GlobalPlugin has no global `event_caret`, `event_textChange`, or `event_typedCharacter` handlers, so the addon stays out of NVDA's event chain for non-terminal windows.
+
+The overlay resolves the running plugin through a module-level registration: `GlobalPlugin.__init__` calls `terminal_overlay.set_active_plugin(self)` and `terminate()` clears it. Each overlay event delegates to a plugin method that owns the shared state (position cache, cursor timer, repeated-symbol state):
+
+| Overlay event | Plugin delegate | Behavior |
+|---------------|-----------------|----------|
+| `event_caret` | `_handleTerminalCaret(obj)` | Debounced cursor tracking, blank suppression, error cues. NVDA's native caret speech is suppressed. |
+| `event_textChange` | `_handleTerminalTextChange(obj)` | Activity tones, progress milestones, quiet-mode error cues. The return value decides whether the LiveText monitor thread is woken to speak new output (not woken in quiet mode). |
+| `event_typedCharacter` | `_terminalTypedCharacter(obj, ch, speak_default)` | Key echo decisions and quiet-mode suppression. `speak_default` runs NVDA's own character echo. |
+
+`_reportNewLines` lives in the overlay itself and coalesces output: blank lines are always suppressed, small output (up to 3 lines) is spoken fully, moderate output (4 to 20 lines) plays an activity tone and speaks the last 3 lines, and bulk output (21 or more lines) announces only a line count. Error and warning lines get audio cues via `ErrorLineDetector`.
 
 ### event_gainFocus breakdown
 
@@ -136,7 +169,9 @@ All gestures stay in `_gestureMap` so they appear in NVDA's Input Gestures dialo
 ### Cursor Tracking
 
 ```
-event_caret(obj)
+TerminalAccessTerminal.event_caret (overlay)
+    ↓
+_handleTerminalCaret(obj)
     ↓
 Start timer (configurable delay, 0-1000 ms)
     ↓
@@ -149,7 +184,7 @@ Check tracking mode:
 
 ### Audio Feedback
 
-`_checkErrorAudioCue(obj)`: called from `event_caret` in quiet mode. Reads the current line, calls `ErrorLineDetector.classify()`, and plays a tone for error or warning lines. Controlled by `errorAudioCuesInQuietMode`.
+`_checkErrorAudioCue()`: called from `_handleTerminalCaret` and `_handleTerminalTextChange` when quiet mode is active and `errorAudioCuesInQuietMode` is enabled. Reads the current line, calls `ErrorLineDetector.classify()`, and plays a tone for error or warning lines.
 
 `_checkOutputActivityTone()`: plays two ascending tones (600 + 800 Hz) when new program output appears. Controlled by `outputActivityTones`. Repeated tones suppressed for the duration set by `outputActivityDebounce`.
 
@@ -182,19 +217,33 @@ Early 2.0.0 betas shipped an optional Rust layer: a DLL loaded over ctypes and a
 ```
 addon/
 ├── globalPlugins/
-│   └── terminalAccess.py      # Main plugin (~3774 lines)
+│   └── terminalAccess.py      # Main plugin
 ├── lib/
 │   ├── __init__.py
 │   ├── _runtime.py            # Runtime dependency registry
-│   ├── config.py              # Config constants, confspec, validation
+│   ├── ai_turn_tokenizer.py   # AITurnTokenizer, classify_ai_line
+│   ├── audio_cues.py          # Tone map, play_cue, braille formatting
 │   ├── caching.py             # PositionCache, TextDiffer
+│   ├── code_block_reader.py   # CodeBlock, CodeBlockDetector
+│   ├── config.py              # Config constants, confspec, validation
+│   ├── diagnostics.py         # Diagnostic report builder
+│   ├── gesture_conflicts.py   # GestureConflictDetector
+│   ├── list_dialogs.py        # BrowsableListDialog, data-prep helpers
 │   ├── navigation.py          # TabManager, BookmarkManager, BookmarkListDialog
 │   ├── operations.py          # SelectionProgressDialog, OperationQueue
-│   ├── profiles.py            # ApplicationProfile, WindowDefinition, ProfileManager
-│   ├── search.py              # OutputSearchManager, UrlExtractorManager
-│   ├── text_processing.py     # ANSIParser, UnicodeWidthHelper, PositionCalculator, ErrorLineDetector
-│   ├── window_management.py   # WindowMonitor, WindowManager, PositionCalculator
-│   └── settings_panel.py      # TerminalAccessSettingsPanel
+│   ├── privacy.py             # PrivacyGuard
+│   ├── profiles.py            # ApplicationProfile, WindowDefinition, ProfileManager, ProfileSelectionDialog
+│   ├── progress_milestones.py # ProgressMilestoneTracker
+│   ├── search.py              # OutputSearchManager, UrlExtractorManager, UrlListDialog
+│   ├── section_tokenizer.py   # SectionTokenizer
+│   ├── settings_panel.py      # TerminalAccessSettingsPanel
+│   ├── streaming_delta.py     # StreamingDeltaTracker, Delta
+│   ├── summarizer.py          # OutputSummarizer
+│   ├── table_reader.py        # TableDetector, TableNavigator
+│   ├── terminal_overlay.py    # TerminalAccessTerminal overlay
+│   ├── text_processing.py     # ANSIParser, UnicodeWidthHelper, BidiHelper, EmojiHelper, ErrorLineDetector
+│   ├── tutorial.py            # First-run tutorial steps
+│   └── window_management.py   # WindowManager, WindowMonitor, PositionCalculator
 ```
 
 ## Data Flow
@@ -285,5 +334,5 @@ The release workflow builds the `.nvda-addon` zip with SCons and publishes it as
 
 ---
 
-**Last Review**: 2026-03-22
+**Last Review**: 2026-07-12
 **Next Review**: After major architectural changes

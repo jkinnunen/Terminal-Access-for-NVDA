@@ -1,5 +1,17 @@
 # Roadmap to Terminal Access 2.0.0 Final
 
+## Status as of 2026-07-12 (beta.15)
+
+- **Milestone 1 (native/helper):** resolved beyond the plan. Hardening (beta.3) was not enough; field diagnostics showed the helper itself was the liability, so the entire native layer was removed. The add-on is pure Python as of beta.15 (reads in-process, stdlib Unicode width fallback, no toggle, no binaries, ARM64 capable).
+- **Milestone 2 (claim-vs-reality):** done. Doc-vs-code gesture test, release verification protocol (updated for the pure-Python architecture and the search-jump regression), guide corrections.
+- **Milestone 3 (overlay migration):** done, phases A through E shipped; the overlay delegates terminal events to the plugin.
+- **Milestone 4 (version/changelog story):** done; betas roll up under the 2.0.0 line. Consolidated release notes draft: `docs/plans/20260712-2.0.0-release-notes-draft.md`.
+- **Milestone 5 (stabilize):** done. Experimental labels, issue-report command (Shift+I), plus the beta.8 to beta.14 search-result cursor fix arc.
+- **Milestone 6 (community/store):** open. Beta cohort, Add-on Store submission, translation refresh.
+- **Remaining before final 2.0.0:** run the manual verification protocol on real hardware (Windows 10 + Windows Terminal at minimum), refresh translations, cut the release.
+
+The sections below are the original plan, kept as the record of intent; where reality diverged (Milestone 1), the status above wins.
+
 ## Overview
 
 2.0.0 is the destination. The `2.0.0-beta`, `-beta.2`, `-beta.3` pre-releases are milestones on the way there, not separate products. This plan turns the six post-freeze-fix recommendations into ordered milestones and marks what is being implemented now versus planned for later betas.

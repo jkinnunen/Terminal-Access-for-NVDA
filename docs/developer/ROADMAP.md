@@ -1,9 +1,16 @@
-# Terminal Access for NVDA - Roadmap and Specifications
+# Terminal Access for NVDA - Roadmap and Specifications (historical, 1.4.0 era)
+
+> **Historical document.** This is the original requirements and roadmap
+> specification, frozen at version 1.4.0. It is kept as the record of the
+> project's initial scope. For the current state, see
+> `docs/developer/ARCHITECTURE.md` (current architecture, pure Python as of
+> 2.0.0), `docs/plans/20260708-terminal-access-2.0.0-roadmap.md` (the 2.0.0
+> roadmap with milestone status), and `CHANGELOG.md`.
 
 ## Project Overview
 
 **Project Name:** Terminal Access for NVDA
-**Version:** 1.4.0
+**Version:** 1.4.0 (frozen; see note above)
 **Purpose:** Make Windows terminal applications accessible to NVDA users
 **Target Audience:** Blind and visually impaired developers, system administrators, and power users who use command-line interfaces
 
