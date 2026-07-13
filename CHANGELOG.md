@@ -6,6 +6,12 @@ Version 2.0.0 is being developed and released through a series of pre-releases (
 
 ## [Unreleased]
 
+## [2.0.0-beta.15] - 2026-07-12
+
+### Removed
+
+- **The Rust native layer is gone; the add-on is now pure Python.** The native library and helper process were introduced to speed up terminal reads, but field testing across the 2.0.0 betas showed the opposite: the helper's reads hung for seconds on some terminals (and once froze a whole machine), while the in-process Python reads are fast and recoverable by NVDA's own watchdog, and the remaining native code paths (text diffing, position caching, Unicode width) had equal or faster pure-Python implementations. Removed: the bundled `termaccess.dll` and `termaccess-helper.exe` (about 2 MB), the Rust source tree, the named-pipe IPC layer and its watchdog, and the "Use native acceleration" setting (a leftover key in saved configuration is ignored). The download is much smaller, and the add-on now also runs on ARM64 versions of Windows with no separate build.
+
 ### Documentation
 
 - The user guide's search section now describes the results dialog: activating a result places the review cursor at the beginning of the matched line (like a bookmark jump), find next and previous continue from there, and fuzzy suggestions appear when nothing matches exactly.

@@ -10,10 +10,11 @@
 3. [Dependency Flow](#dependency-flow)
 4. [Event Handling Pipeline](#event-handling-pipeline)
 5. [Settings Architecture](#settings-architecture)
-6. [Native Acceleration Layer](#native-acceleration-layer)
-7. [Data Flow](#data-flow)
-8. [Testing Strategy](#testing-strategy)
-9. [CI/CD Pipeline](#cicd-pipeline)
+6. [History: Native Layer (Removed)](#history-native-layer-removed)
+7. [File Layout](#file-layout)
+8. [Data Flow](#data-flow)
+9. [Testing Strategy](#testing-strategy)
+10. [CI/CD Pipeline](#cicd-pipeline)
 
 ## System Overview
 
@@ -22,18 +23,16 @@ Terminal Access for NVDA is an NVDA global plugin that makes Windows terminals m
 ### Design Principles
 
 - **Non-intrusive**: Works alongside NVDA's built-in terminal support
-- **Fast**: Caches expensive operations, offloads work to background threads and a Rust helper process
+- **Fast**: Caches expensive operations and offloads blocking work to background threads
 - **Extensible**: Application profiles customize behavior per terminal app
 - **Accessible-first**: Every feature is designed for screen reader users
 
 ### Technology Stack
 
-- **Language**: Python 3.11+ (addon), Rust (native acceleration)
+- **Language**: Python 3.11+, pure Python (no native binaries)
 - **Framework**: NVDA Global Plugin API
 - **UI**: wxPython (via NVDA's GUI helpers)
-- **Native**: Rust workspace with 3 crates (core, FFI, helper)
-- **IPC**: Named pipe with length-prefixed JSON (helper process)
-- **Dependencies**: wcwidth (Python fallback for Unicode), unicode-width (Rust)
+- **Dependencies**: wcwidth for Unicode display width when importable, with a standard library fallback based on unicodedata
 
 ## Module Structure
 

@@ -464,7 +464,7 @@ Terminal Access includes optimizations for large terminal buffers.
 - **Position caching**: Position calculations are cached for up to 100 positions with a 1-second timeout, and invalidated on content changes, resize, or terminal switch. A calculation that is O(n) on first access becomes O(1) when cached.
 - **Incremental tracking**: Small cursor movements (within 10 positions) are 10 to 20 times faster than a full calculation, with automatic fallback for large jumps.
 - **Background processing**: Selections over 100 rows run in a background thread with a progress dialog and cancellation support.
-- **Native acceleration**: All terminal reading, searching, ANSI stripping, and Unicode width calculation run in Python. The background helper process that previously read terminal buffers is retired: on some terminals its reads hung for seconds per search, while the in-process read is fast and recoverable by NVDA's own watchdog. The optional native component (`termaccess.dll`) now only accelerates internal text diffing and position caching, with identical pure-Python fallbacks, and can be turned off with the "Use native acceleration" setting.
+- **Pure Python**: The add-on contains no compiled components. Earlier 2.0.0 betas bundled a native library and helper process for terminal reads; both were removed after field testing showed the in-process Python reads are faster and more reliable (the helper's reads hung for seconds on some terminals, and NVDA's own watchdog can recover a slow in-process read). Being pure Python, the add-on also runs on ARM64 versions of Windows without a separate build.
 
 ---
 

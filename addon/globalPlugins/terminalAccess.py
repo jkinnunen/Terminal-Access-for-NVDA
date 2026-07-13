@@ -111,33 +111,10 @@ try:
 except (ImportError, AttributeError):
 	_braille_available = False
 
-# Native (Rust) acceleration — optional, falls back to pure Python.
-# The helper process is retired from all read paths (its pipe I/O hung for
-# seconds per read on some terminals); the remaining imports keep shutdown
-# and diagnostics working until the native layer is deleted entirely.
-try:
-	from native.termaccess_bridge import (
-		native_available as _native_available_fn,
-		NativeTextDiffer as _NativeTextDiffer,
-		NativePositionCache as _NativePositionCache,
-		get_helper as _get_helper,
-		helper_available as _helper_available,
-		stop_helper as _stop_helper,
-		set_native_enabled as _set_native_enabled,
-	)
-	_native_available = _native_available_fn()
-except Exception:
-	_native_available = False
-	def _native_available_fn():
-		return False
-	def _get_helper():
-		return None
-	def _helper_available():
-		return False
-	def _stop_helper():
-		pass
-	def _set_native_enabled(enabled):
-		pass
+# The Rust native layer was removed in 2.0.0: its helper-process reads hung
+# on some terminals (the beta.3 machine freeze and a per-search stall), the
+# FFI text paths measured slower than Python, and the remaining pieces had
+# identical pure-Python implementations. Everything runs in Python.
 
 try:
 	addonHandler.initTranslation()
@@ -547,39 +524,23 @@ from lib.text_processing import (
 from lib.caching import PositionCache, TextDiffer
 
 def _make_text_differ() -> TextDiffer:
-	"""Create a TextDiffer, using the native Rust implementation if available."""
-	if _native_available:
-		try:
-			return _NativeTextDiffer()
-		except Exception:
-			pass
+	"""Create a TextDiffer."""
 	return TextDiffer()
 
 
 def _make_position_cache() -> PositionCache:
-	"""Create a PositionCache, using the native Rust implementation if available."""
-	if _native_available:
-		try:
-			return _NativePositionCache()
-		except Exception:
-			pass
+	"""Create a PositionCache."""
 	return PositionCache()
 
 
 def _strip_ansi(text: str) -> str:
-	"""Strip ANSI escape sequences.
-
-	Always the Python implementation: the native FFI strip path was
-	measured about 10x slower (FFI marshaling dominates), so it was dropped.
-	"""
+	"""Strip ANSI escape sequences."""
 	return ANSIParser.stripANSI(text)
 
 # Populate runtime dependency registry (must be after _strip_ansi is defined)
 import lib._runtime as _rt
 _rt.strip_ansi = _strip_ansi
-_rt.get_helper = _get_helper
 _rt.read_terminal_text = _read_terminal_text
-_rt.native_available = _native_available
 _rt.make_text_differ = _make_text_differ
 _rt.make_position_cache = _make_position_cache
 _rt.api_module = api
@@ -799,9 +760,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		from lib import terminal_overlay
 		terminal_overlay.set_active_plugin(self)
 
-		# Apply the native acceleration toggle from config at startup.
-		self._applyNativeAccelerationSetting()
-
 		# Background calculation thread for long operations
 		self._backgroundCalculationThread = None
 
@@ -949,16 +907,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Stop window monitoring if active
 		if self._windowMonitor and self._windowMonitor.is_monitoring():
 			self._windowMonitor.stop_monitoring()
-
-		# Stop the native helper process on a background thread to avoid
-		# blocking NVDA shutdown. The helper's stop() method waits up to
-		# 7 seconds for the process to exit, which freezes NVDA's restart.
-		def _stop_helper_background():
-			try:
-				_stop_helper()
-			except (OSError, RuntimeError):
-				pass
-		threading.Thread(target=_stop_helper_background, daemon=True).start()
 
 		try:
 			gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(_get_settings_panel_class())
@@ -1196,23 +1144,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				except (RuntimeError, AttributeError, TypeError):
 					pass
 				api.setReviewPosition(pos)
-		except Exception:
-			pass
-
-	def _applyNativeAccelerationSetting(self):
-		"""Enable or disable native acceleration from the config setting.
-
-		Off forces the in-process Python path (the pre-2.0 behavior) and
-		stops any running helper. Keeps the runtime flag the search path
-		reads in sync so the change takes effect without an NVDA restart.
-		"""
-		try:
-			enabled = bool(self._configManager.get("useNativeAcceleration", True))
-		except Exception:
-			enabled = True
-		_set_native_enabled(enabled)
-		try:
-			_rt.native_available = _native_available_fn()
 		except Exception:
 			pass
 
@@ -3904,13 +3835,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		context["profile"] = (
 			self._currentProfile.displayName if self._currentProfile else "none"
 		)
-		context["native_available"] = bool(getattr(_rt, "native_available", False))
-		try:
-			# helper_available() never spawns the helper, unlike get_helper()
-			# which kicks off a background start.
-			context["helper_running"] = _helper_available()
-		except Exception:
-			context["helper_running"] = False
 		context["verbosity_level"] = self._verbosityLevel()
 		context["review_line"] = self._getCurrentLineNumber()
 		return context

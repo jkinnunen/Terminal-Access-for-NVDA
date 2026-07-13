@@ -14,8 +14,6 @@ class TestBuildIssueReport:
             "terminal_app": "windowsterminal",
             "window_title": "Windows Terminal",
             "profile": "Vim/Neovim",
-            "native_available": True,
-            "helper_running": True,
             "verbosity_level": 1,
             "review_line": 12,
         }
@@ -30,15 +28,10 @@ class TestBuildIssueReport:
         ):
             assert expected in report
 
-    def test_native_on_helper_running(self):
+    def test_no_native_line_in_report(self):
+        """The native/helper report line was removed with the native layer."""
         report = build_issue_report(self._context(), [])
-        assert "Native acceleration: on (helper running)" in report
-
-    def test_native_off_helper_not_running(self):
-        report = build_issue_report(
-            self._context(native_available=False, helper_running=False), []
-        )
-        assert "Native acceleration: off (helper not running)" in report
+        assert "Native acceleration" not in report
 
     def test_missing_fields_show_unknown(self):
         report = build_issue_report({}, [])
@@ -82,9 +75,10 @@ class TestCollectDiagnosticContext:
         assert ctx["window_title"] == "Command Prompt"
         assert ctx["review_line"] == 42
         assert ctx["profile"] == "none"
-        assert "native_available" in ctx
-        assert "helper_running" in ctx
         assert ctx["verbosity_level"] == 1
+        # Native/helper fields were removed with the native layer.
+        assert "native_available" not in ctx
+        assert "helper_running" not in ctx
 
     def test_report_from_collected_context_is_buildable(self):
         plugin = self._plugin()

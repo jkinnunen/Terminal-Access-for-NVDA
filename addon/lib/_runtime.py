@@ -1,8 +1,8 @@
 """Runtime dependency registry for Terminal Access.
 
-Holds references to native acceleration functions and helpers that
-lib modules need but cannot import directly (to avoid circular imports).
-Populated by terminalAccess.py during module initialization.
+Holds references to shared functions that lib modules need but cannot
+import directly (to avoid circular imports). Populated by
+terminalAccess.py during module initialization.
 """
 
 import re
@@ -33,12 +33,6 @@ def gesture_label(gesture: str, script_name: str) -> str:
 # Text processing
 strip_ansi = lambda text: text
 make_text_differ = TextDiffer
-
-# Native acceleration
-native_available = False
-
-# Helper process
-get_helper = lambda: None
 
 # Terminal text reading
 read_terminal_text = None

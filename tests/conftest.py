@@ -223,48 +223,8 @@ def reset_config():
     yield
 
 
-@pytest.fixture(autouse=True, scope="session")
-def _prevent_helper_spawn():
-    """Prevent tests from spawning a real helper process.
-
-    The ``_get_helper()`` wrapper in ``terminalAccess.py`` would otherwise
-    find the built EXE and spawn it, leaving a zombie process that blocks
-    pytest from exiting.
-
-    We patch at both levels:
-    - ``native.termaccess_bridge.get_helper`` (new calls)
-    - ``globalPlugins.terminalAccess._get_helper`` (already-imported reference)
-    """
-    originals = {}
-    try:
-        from native import termaccess_bridge
-        originals["bridge_get"] = termaccess_bridge.get_helper
-        originals["bridge_stop"] = termaccess_bridge.stop_helper
-        termaccess_bridge.get_helper = lambda: None
-        termaccess_bridge.stop_helper = lambda: None
-    except ImportError:
-        pass
-
-    try:
-        from globalPlugins import terminalAccess
-        originals["plugin_get"] = terminalAccess._get_helper
-        originals["plugin_stop"] = terminalAccess._stop_helper
-        terminalAccess._get_helper = lambda: None
-        terminalAccess._stop_helper = lambda: None
-    except (ImportError, AttributeError):
-        pass
-
-    yield
-
-    # Restore originals
-    if "bridge_get" in originals:
-        from native import termaccess_bridge
-        termaccess_bridge.get_helper = originals["bridge_get"]
-        termaccess_bridge.stop_helper = originals["bridge_stop"]
-    if "plugin_get" in originals:
-        from globalPlugins import terminalAccess
-        terminalAccess._get_helper = originals["plugin_get"]
-        terminalAccess._stop_helper = originals["plugin_stop"]
+# The _prevent_helper_spawn fixture was removed along with the native
+# layer: there is no helper process to spawn anymore.
 
 
 # Snapshot of sys.modules after initial mock setup — used by ensure_mocks

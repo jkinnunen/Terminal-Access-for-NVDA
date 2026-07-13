@@ -37,9 +37,8 @@ def build_issue_report(context, lines, max_buffer_lines=1000):
 
     Args:
         context: Dict of environment fields (addon_version, nvda_version,
-            terminal_app, window_title, profile, native_available,
-            helper_running, verbosity_level, review_line). Missing values
-            are shown as "unknown".
+            terminal_app, window_title, profile, verbosity_level,
+            review_line). Missing values are shown as "unknown".
         lines: Terminal buffer lines, already ANSI-stripped by the caller.
         max_buffer_lines: Keep only the last this-many buffer lines so the
             report stays a manageable size.
@@ -55,9 +54,6 @@ def build_issue_report(context, lines, max_buffer_lines=1000):
             value = _sanitize_single_line(value)
         return value
 
-    native = "on" if context.get("native_available") else "off"
-    helper = "running" if context.get("helper_running") else "not running"
-
     header = [
         "Terminal Access for NVDA - issue report",
         "",
@@ -66,7 +62,6 @@ def build_issue_report(context, lines, max_buffer_lines=1000):
         f"Terminal: {field('terminal_app')}",
         f"Window title: {field('window_title', '')}",
         f"Active profile: {field('profile', 'none')}",
-        f"Native acceleration: {native} (helper {helper})",
         f"Verbosity level: {field('verbosity_level')}",
         f"Review line: {field('review_line')}",
         "",

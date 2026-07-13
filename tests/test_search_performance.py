@@ -152,22 +152,18 @@ class TestRawTextInjection:
         assert mgr._acquire_raw_text() == "hello world"
         assert terminal.read_count == 1
 
-    def test_acquire_never_uses_helper(self):
-        """The helper process is retired from the search read path: even
-        with native available and a live helper, reads go in-process."""
-        from lib import search as search_mod
+    def test_acquire_uses_only_maketextinfo(self):
+        """The native helper was deleted: the read path is makeTextInfo,
+        and the runtime registry no longer exposes helper hooks."""
+        from lib import _runtime as rt
+        assert not hasattr(rt, "get_helper")
+        assert not hasattr(rt, "native_available")
+
         terminal = CountingTerminal("in-process text")
         terminal.windowHandle = 0x1234
         mgr = OutputSearchManager(terminal)
-
-        helper = Mock()
-        helper.is_running = True
-        helper.read_text = Mock(return_value="HELPER TEXT (must not be used)")
-        with patch.object(search_mod._rt, "native_available", True), \
-                patch.object(search_mod._rt, "get_helper",
-                             Mock(return_value=helper), create=True):
-            assert mgr._acquire_raw_text() == "in-process text"
-        helper.read_text.assert_not_called()
+        assert mgr._acquire_raw_text() == "in-process text"
+        assert terminal.read_count == 1
 
 
 # ---------------------------------------------------------------------------

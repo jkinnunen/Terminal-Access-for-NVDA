@@ -9,70 +9,9 @@ permissions:
   contents: write
 
 jobs:
-  # ── Build native Rust DLLs (x86 + x64) ─────────────────────
-  build-native:
-    name: Build Native DLL (${{ matrix.arch }})
-    runs-on: windows-latest
-
-    strategy:
-      matrix:
-        include:
-          - arch: x64
-            target: x86_64-pc-windows-msvc
-          - arch: x86
-            target: i686-pc-windows-msvc
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Cache Cargo
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            native/target/
-          key: ${{ runner.os }}-cargo-release-${{ matrix.arch }}-${{ hashFiles('native/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-release-${{ matrix.arch }}-
-
-      - name: Run Rust tests
-        working-directory: native
-        run: cargo test --all
-
-      - name: Build release DLL
-        working-directory: native
-        run: cargo build --release --target ${{ matrix.target }} -p termaccess-ffi
-
-      - name: Build release helper EXE
-        working-directory: native
-        run: cargo build --release --target ${{ matrix.target }} -p termaccess-helper
-
-      - name: Upload DLL artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: termaccess-dll-${{ matrix.arch }}
-          path: native/target/${{ matrix.target }}/release/termaccess_ffi.dll
-          if-no-files-found: error
-
-      - name: Upload helper EXE artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: termaccess-helper-${{ matrix.arch }}
-          path: native/target/${{ matrix.target }}/release/termaccess-helper.exe
-          if-no-files-found: error
-
-  # ── Build and release the NVDA addon ────────────────────────
+  # ── Build and release the NVDA addon (pure Python) ──────────
   build-and-release:
     runs-on: ubuntu-latest
-    needs: build-native
 
     steps:
       - name: Checkout code
@@ -133,23 +72,6 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "Tag v${{ steps.version.outputs.version }} does not exist"
           fi
-
-      - name: Download native artifacts
-        if: steps.check_tag.outputs.exists == 'false'
-        uses: actions/download-artifact@v8
-        with:
-          pattern: termaccess-*
-
-      - name: Place native binaries in addon
-        if: steps.check_tag.outputs.exists == 'false'
-        run: |
-          mkdir -p addon/lib/x64 addon/lib/x86
-          cp termaccess-dll-x64/termaccess_ffi.dll addon/lib/x64/termaccess.dll
-          cp termaccess-dll-x86/termaccess_ffi.dll addon/lib/x86/termaccess.dll
-          cp termaccess-helper-x64/termaccess-helper.exe addon/lib/x64/termaccess-helper.exe
-          cp termaccess-helper-x86/termaccess-helper.exe addon/lib/x86/termaccess-helper.exe
-          echo "Native binaries placed:"
-          ls -lh addon/lib/x64/ addon/lib/x86/
 
       - name: Build add-on
         if: steps.check_tag.outputs.exists == 'false'

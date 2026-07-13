@@ -35,36 +35,8 @@ jobs:
 
       # Do NOT install wxPython here: tests/conftest.py mocks wx via
       # sys.modules, and a real wx install would break those mocks.
-      # The native DLL is also absent in CI; tests skip/fallback for that.
       - name: Install test dependencies
         run: pip install pytest pytest-cov pytest-timeout hypothesis polib wcwidth
 
       - name: Run tests
         run: python -m pytest tests/ -q --no-cov --timeout=120
-
-  rust-tests:
-    name: Rust Tests
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            native/target/
-          key: ${{ runner.os }}-cargo-tests-${{ hashFiles('native/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-tests-
-
-      - name: Run tests
-        working-directory: native
-        run: cargo test --workspace

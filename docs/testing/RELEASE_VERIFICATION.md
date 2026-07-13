@@ -11,7 +11,7 @@ Run the checklist on both, because UIA provider behavior differs by OS version:
 
 Then spot-check at least two more terminals from different families: a console host (cmd or PowerShell in conhost), and one third-party emulator (for example mintty/Git Bash or PuTTY).
 
-All terminal reads run in-process (the helper process is retired); the **Use native acceleration** setting now only affects internal text diffing and position caching, which have identical Python fallbacks. One pass with the setting at its default is sufficient.
+The add-on is pure Python (the native library and helper process were removed in 2.0.0); all terminal reads run in-process. One pass per environment is sufficient.
 
 ## Checklist
 
