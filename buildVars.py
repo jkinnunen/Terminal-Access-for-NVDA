@@ -23,10 +23,10 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Provides enhanced terminal accessibility for Windows Terminal and PowerShell, enabling screen reader users to efficiently navigate and interact with command-line interfaces. Inspired by TDSR (Terminal Data Structure Reader) and incorporates functionality from both TDSR and Speakup. Advanced features inspired by community suggestions and discussions."""),
 	# version
-	addon_version="2.0.0",
+	addon_version="2.0.1",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""v2.0.0: major release. Adds AI CLI support (conversation turn and code block navigation, streaming deltas, AI error tones), semantic section navigation, table mode for columnar output, a search results dialog with fuzzy matching, command finder, transcript export, issue reporting, first-run tutorial, profile editor, and sound settings. Now pure Python: faster, a much smaller download, and ARM64 support. Fixes a machine freeze during find and the search cursor landing on the wrong line."""),
+	addon_changelog=_("""v2.0.1: fixes the 2.0.0 package missing the user guide (NVDA+Shift+F1 did nothing) and all translations. Install this over 2.0.0. Everything else is 2.0.0: AI CLI support, semantic navigation, table mode, faster and more reliable search, and a pure Python add-on with ARM64 support."""),
 	# Author(s)
 	addon_author="Pratik Patel",
 	# URL for the add-on documentation support

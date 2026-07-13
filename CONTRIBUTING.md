@@ -116,14 +116,7 @@ Feature requests are welcome. Include:
 
 4. **Build the add-on**:
    ```bash
-   # Using scons (preferred)
    scons
-
-   # Or using build.py
-   python build.py
-
-   # Non-interactive build (CI)
-   python build.py --non-interactive
    ```
 
 5. **Install and test**:

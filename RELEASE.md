@@ -20,7 +20,7 @@ The release workflow automatically runs when:
    - Checks if a release with this version already exists
 
 2. **Build Process** (skipped if version already released)
-   - Builds the `.nvda-addon` package using `build.py`
+   - Builds the `.nvda-addon` package with SCons (HTML guide, compiled translations, manifests) and verifies the package is complete
    - Extracts relevant changelog from `CHANGELOG.md`
 
 3. **Release Creation**
@@ -133,7 +133,7 @@ If you accidentally push the same version number twice:
 
 If the build fails:
 1. Check the workflow logs in the Actions tab
-2. Test the build locally with `python build.py --non-interactive`
+2. Test the build locally with `scons` (needs msgfmt from gettext on PATH)
 3. Check that all required files exist in the repository
 4. Verify Python syntax with `python validate.py`
 

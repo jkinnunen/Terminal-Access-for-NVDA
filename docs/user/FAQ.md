@@ -383,7 +383,7 @@ Without these libraries, Terminal Access provides basic Unicode support but not 
 **Solutions**:
 1. **Python version**: You need Python 3.11 or later
 2. **Dependencies**: Run `pip install -r requirements-dev.txt` for development
-3. **Build command**: Use `python build.py` or `scons` from project root
+3. **Build command**: Use `scons` from the project root (needs the markdown package and msgfmt from gettext)
 4. **NVDA restart**: Always restart NVDA after installing/updating add-on
 5. **Check logs**: View NVDA log (NVDA+F1) for detailed error messages
 

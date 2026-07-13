@@ -25,7 +25,10 @@ jobs:
           python-version: '3.x'
 
       - name: Install build dependencies
-        run: pip install scons markdown
+        run: |
+          pip install scons markdown
+          # msgfmt (gettext) compiles the 17 translation catalogs to .mo
+          sudo apt-get update -qq && sudo apt-get install -y -qq gettext
 
       - name: Extract version from buildVars.py
         id: version
@@ -76,8 +79,31 @@ jobs:
       - name: Build add-on
         if: steps.check_tag.outputs.exists == 'false'
         run: |
-          python3 build.py --non-interactive
+          # The real SCons build: converts the guide to HTML, compiles the
+          # .po catalogs to .mo, generates manifests, and packages. The old
+          # build.py zipper shipped packages without the HTML guide or any
+          # compiled translations (broke NVDA+Shift+F1 in 2.0.0).
+          scons
           ls -lh *.nvda-addon
+
+      - name: Verify package completeness
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG="terminalAccess-$VERSION.nvda-addon"
+          python3 - "$PKG" <<'EOF'
+          import sys, zipfile
+          names = set(zipfile.ZipFile(sys.argv[1]).namelist())
+          required = ["manifest.ini", "doc/en/readme.html", "doc/en/readme.md"]
+          missing = [r for r in required if r not in names]
+          mo_count = sum(1 for n in names if n.endswith(".mo"))
+          if mo_count < 17:
+              missing.append(f"compiled translations: {mo_count}/17 .mo files")
+          if missing:
+              print("PACKAGE INCOMPLETE:", ", ".join(missing))
+              sys.exit(1)
+          print(f"Package OK: {len(names)} files, {mo_count} translations, HTML guide present")
+          EOF
 
       - name: Generate changelog for release
         if: steps.check_tag.outputs.exists == 'false'

@@ -6,6 +6,12 @@ Version 2.0.0 was developed through fifteen pre-releases (2.0.0-beta through 2.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-07-12
+
+### Fixed
+
+- **The user guide opens again with NVDA+Shift+F1, and all 17 translations are back.** The released 2.0.0 package (and the CI-built betas before it) was missing the HTML user guide and every compiled translation catalog: the release pipeline used a plain zip script that skipped the real build's guide conversion and catalog compilation, and the gap never showed locally because those files already existed on the development machine. The pipeline now runs the full SCons build and then fails hard if the package is missing the guide or any of the 17 translations, so an incomplete package can never be released again. The zip script was removed. No code changes; installing 2.0.1 over 2.0.0 restores the guide and localized speech.
+
 ## [2.0.0] - 2026-07-12
 
 Terminal Access 2.0.0 is a reliability and capability release. It adds first-class support for AI command-line tools, semantic navigation of terminal output, table reading, and a much faster and more dependable search. It also removes the native (Rust) component entirely: the add-on is now pure Python, a quarter of its former download size, and runs on ARM64 versions of Windows.
