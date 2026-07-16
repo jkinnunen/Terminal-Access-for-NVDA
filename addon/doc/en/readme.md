@@ -549,7 +549,7 @@ Open settings from NVDA menu > Preferences > Settings > Terminal Settings.
 
 | Setting | Description |
 |---------|-------------|
-| **Key Echo** | Hear characters as you type. |
+| **Key Echo** | Hear characters as you type in terminals, spoken at your punctuation level and with repeated symbols condensed ("dash 4 times"). See the note below on how this relates to NVDA's own typed-character echo. |
 | **Cursor Tracking** | Announce cursor movements. |
 | **Punctuation Level** | Control symbol verbosity (None, Some, Most, All). |
 | **Indentation** | Announce indentation for code automatically. |
@@ -559,6 +559,15 @@ Open settings from NVDA menu > Preferences > Settings > Terminal Settings.
 | **Output Activity Debounce** | Minimum interval between activity tones in milliseconds (100 to 10000, default 1000). |
 
 The settings panel also has a "NVDA Gesture Conflicts" section for disabling conflicting gestures and an "Application Profiles" section for managing profiles.
+
+### Key Echo and NVDA's Speak Typed Characters
+
+Terminal Access's key echo and NVDA's own "speak typed characters" setting (NVDA menu > Preferences > Settings > Keyboard) both announce typing, but they are not the same feature, and only one speaks at a time:
+
+- **When NVDA's speak typed characters is off** (recommended for terminal work), Terminal Access does the echo inside terminals. You get symbol names at your chosen punctuation level, repeated symbols condensed ("dash 4 times"), and per-application profile control: profiles for single-key programs such as less, lazygit, btop, and Claude turn echo off automatically so shortcuts do not chatter.
+- **When NVDA's speak typed characters is on**, NVDA does the echo everywhere and Terminal Access steps aside to avoid speaking every character twice. The add-on's Key Echo setting and any per-profile echo overrides then have no effect, and you lose symbol condensing and the automatic per-application behavior.
+
+In short: for the full terminal experience, leave NVDA's speak typed characters off and use Terminal Access's Key Echo; keep NVDA's setting on only if you want identical echo in every application.
 
 ---
 

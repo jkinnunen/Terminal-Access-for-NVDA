@@ -179,7 +179,11 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		self.keyEchoCheckBox.SetValue(config.conf["terminalAccess"]["keyEcho"])
 		# Translators: Tooltip for key echo
 		self.keyEchoCheckBox.SetToolTip(_(
-			"Announce characters as you type in the terminal"
+			"Announce characters as you type in the terminal, using your "
+			"punctuation level and condensing repeated symbols. Active only "
+			"while NVDA's own \"speak typed characters\" setting is off; when "
+			"that is on, NVDA does the echo and this setting and per-profile "
+			"echo overrides have no effect."
 		))
 
 		# Quiet mode checkbox

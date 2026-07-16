@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Terminal Access for NVDA\n"
 "Report-Msgid-Bugs-To: nvda-translations@groups.io\n"
-"POT-Creation-Date: 2026-07-12 23:03-0400\n"
+"POT-Creation-Date: 2026-07-16 18:55-0400\n"
 "PO-Revision-Date: 2026-03-12 01:43-0400\n"
 "Last-Translator: DeepL auto-translation\n"
 "Language-Team: it\n"
@@ -654,7 +654,7 @@ msgstr "Nessuno (utilizzando le impostazioni globali)"
 # Message when no default profile is set
 #. Translators: Punctuation level option
 #: addon\globalPlugins\terminalAccess.py:2925 addon\lib\profiles.py:933
-#: addon\lib\settings_panel.py:203
+#: addon\lib\settings_panel.py:207
 msgid "None"
 msgstr "Nessuno"
 
@@ -1526,7 +1526,7 @@ msgstr "&Filtro:"
 #. Translators: Filter dropdown entry that shows every row
 #. Translators: Punctuation level option
 #: addon\lib\list_dialogs.py:334 addon\lib\profiles.py:939
-#: addon\lib\settings_panel.py:209
+#: addon\lib\settings_panel.py:213
 msgid "All"
 msgstr "Tutto"
 
@@ -1646,7 +1646,7 @@ msgstr ""
 #. Translators: Choice option that turns a profile setting off
 #. Translators: Cursor tracking mode option
 #: addon\lib\profiles.py:919 addon\lib\profiles.py:946
-#: addon\lib\settings_panel.py:234
+#: addon\lib\settings_panel.py:238
 msgid "Off"
 msgstr "Off"
 
@@ -1662,7 +1662,7 @@ msgid "&Display name:"
 msgstr ""
 
 #. Translators: Label for the punctuation level choice in the profile editor
-#: addon\lib\profiles.py:930 addon\lib\settings_panel.py:199
+#: addon\lib\profiles.py:930 addon\lib\settings_panel.py:203
 msgid "&Punctuation level:"
 msgstr "&Livello di punteggiatura:"
 
@@ -1677,19 +1677,19 @@ msgid "Most"
 msgstr ""
 
 #. Translators: Label for the cursor tracking mode choice in the profile editor
-#: addon\lib\profiles.py:943 addon\lib\settings_panel.py:230
+#: addon\lib\profiles.py:943 addon\lib\settings_panel.py:234
 msgid "Cursor tracking &mode:"
 msgstr "Tracciamento cursore e modalità:"
 
 # Cursor tracking mode option
 #. Translators: Cursor tracking mode option
-#: addon\lib\profiles.py:948 addon\lib\settings_panel.py:236
+#: addon\lib\profiles.py:948 addon\lib\settings_panel.py:240
 msgid "Standard"
 msgstr "Standard"
 
 # Cursor tracking mode option
 #. Translators: Cursor tracking mode option
-#: addon\lib\profiles.py:950 addon\lib\settings_panel.py:238
+#: addon\lib\profiles.py:950 addon\lib\settings_panel.py:242
 msgid "Window"
 msgstr "Finestra"
 
@@ -1719,7 +1719,7 @@ msgid "Condense &repeated symbols:"
 msgstr "Simboli condensati e ripetuti"
 
 #. Translators: Label for the repeated symbols characters field in the profile editor
-#: addon\lib\profiles.py:966 addon\lib\settings_panel.py:312
+#: addon\lib\profiles.py:966 addon\lib\settings_panel.py:316
 msgid "Repeated symbols to condense:"
 msgstr "Simboli ripetuti da condensare:"
 
@@ -1839,17 +1839,20 @@ msgstr ""
 msgid "Enable &key echo"
 msgstr "Abilita &key echo"
 
-# Tooltip for key echo
 #: addon\lib\settings_panel.py:182
-msgid "Announce characters as you type in the terminal"
-msgstr "Annuncia i caratteri mentre digiti nel terminale"
+msgid ""
+"Announce characters as you type in the terminal, using your punctuation "
+"level and condensing repeated symbols. Active only while NVDA's own \"speak "
+"typed characters\" setting is off; when that is on, NVDA does the echo and "
+"this setting and per-profile echo overrides have no effect."
+msgstr ""
 
-#: addon\lib\settings_panel.py:188
+#: addon\lib\settings_panel.py:192
 msgid "&Quiet mode"
 msgstr "&Modalità silenziosa"
 
 # Tooltip for quiet mode
-#: addon\lib\settings_panel.py:193
+#: addon\lib\settings_panel.py:197
 msgid ""
 "Suppress most Terminal Access announcements. Use NVDA+Shift+Q to toggle "
 "quickly."
@@ -1859,19 +1862,19 @@ msgstr ""
 
 # Punctuation level option
 #. Translators: Punctuation level option
-#: addon\lib\settings_panel.py:205
+#: addon\lib\settings_panel.py:209
 msgid "Some (.,?!;:)"
 msgstr "Alcuni (.,?!;:)"
 
 # Punctuation level option
 #. Translators: Punctuation level option
-#: addon\lib\settings_panel.py:207
+#: addon\lib\settings_panel.py:211
 #, fuzzy
 msgid "Most (adds @#$%^&*()_+=[]{}\\|<>/)"
 msgstr "La maggior parte (aggiunge @#$%^&*()_+=[]{}\\\\|<>/)"
 
 # Tooltip for punctuation level
-#: addon\lib\settings_panel.py:215
+#: addon\lib\settings_panel.py:219
 #, fuzzy
 msgid ""
 "Controls which punctuation symbols are announced. Higher levels announce "
@@ -1881,7 +1884,7 @@ msgstr ""
 "alti annunciano più simboli. Usa NVDA+[ e ] per regolare rapidamente."
 
 # Tooltip for cursor tracking mode
-#: addon\lib\settings_panel.py:244
+#: addon\lib\settings_panel.py:248
 #, fuzzy
 msgid ""
 "Standard: announce line/column changes, Window: only announce within defined "
@@ -1891,12 +1894,12 @@ msgstr ""
 "testo evidenziato, Finestra: annuncia solo all'interno della finestra "
 "definita"
 
-#: addon\lib\settings_panel.py:251
+#: addon\lib\settings_panel.py:255
 msgid "Cursor delay (milliseconds):"
 msgstr "Ritardo cursore (millisecondi):"
 
 # Tooltip for cursor delay
-#: addon\lib\settings_panel.py:259
+#: addon\lib\settings_panel.py:263
 msgid ""
 "Delay before announcing cursor position (0-1000ms). Higher values reduce "
 "announcement frequency."
@@ -1904,23 +1907,23 @@ msgstr ""
 "Ritardo prima dell'annuncio della posizione del cursore (0-1000 ms). Valori "
 "più alti riducono la frequenza degli annunci."
 
-#: addon\lib\settings_panel.py:266
+#: addon\lib\settings_panel.py:270
 msgid "Pause at &newlines"
 msgstr "Pausa a &newlines"
 
 # Tooltip for line pause
-#: addon\lib\settings_panel.py:271
+#: addon\lib\settings_panel.py:275
 msgid "Brief pause when speaking line content to improve clarity"
 msgstr ""
 "Breve pausa durante la pronuncia del contenuto della battuta per migliorare "
 "la chiarezza"
 
-#: addon\lib\settings_panel.py:277
+#: addon\lib\settings_panel.py:281
 msgid "&Verbose mode (detailed feedback)"
 msgstr "&Modalità verbosa (feedback dettagliato)"
 
 # Tooltip for verbose mode
-#: addon\lib\settings_panel.py:282
+#: addon\lib\settings_panel.py:286
 msgid ""
 "Include position and context information with announcements. Useful for "
 "debugging and understanding terminal layout."
@@ -1928,12 +1931,12 @@ msgstr ""
 "Includi informazioni sulla posizione e sul contesto negli annunci. Utile per "
 "il debug e la comprensione del layout del terminale."
 
-#: addon\lib\settings_panel.py:289
+#: addon\lib\settings_panel.py:293
 msgid "Announce &indentation when reading lines"
 msgstr "Annuncia e indenta durante la lettura delle righe"
 
 # Tooltip for indentation announcement
-#: addon\lib\settings_panel.py:294
+#: addon\lib\settings_panel.py:298
 msgid ""
 "Automatically announce indentation level when reading lines. Use NVDA+F5 to "
 "toggle quickly. NVDA+I pressed twice still reads indentation."
@@ -1942,19 +1945,19 @@ msgstr ""
 "righe. Usa NVDA+F5 per attivare/disattivare rapidamente questa funzione. "
 "Premendo due volte NVDA+I viene comunque letta l'indentazione."
 
-#: addon\lib\settings_panel.py:301
+#: addon\lib\settings_panel.py:305
 msgid "Condense &repeated symbols"
 msgstr "Simboli condensati e ripetuti"
 
 # Tooltip for repeated symbols
-#: addon\lib\settings_panel.py:306
+#: addon\lib\settings_panel.py:310
 msgid "Condense runs of repeated symbols (e.g., '====' becomes '4 equals')"
 msgstr ""
 "Condensa le sequenze di simboli ripetuti (ad esempio, \"====\" diventa \"4 "
 "uguali\")"
 
 # Tooltip for repeated symbols values
-#: addon\lib\settings_panel.py:318
+#: addon\lib\settings_panel.py:322
 msgid ""
 "Characters that will be condensed when repeated. Example: -_=! (max 50 "
 "characters)"
@@ -1965,16 +1968,16 @@ msgstr ""
 # Label for default profile choice
 #. Default profile dropdown
 #. Translators: Label for default profile choice
-#: addon\lib\settings_panel.py:324
+#: addon\lib\settings_panel.py:328
 msgid "None (use global settings)"
 msgstr "Nessuna (usa impostazioni globali)"
 
-#: addon\lib\settings_panel.py:326
+#: addon\lib\settings_panel.py:330
 msgid "&Default profile:"
 msgstr "&Profilo predefinito:"
 
 # Tooltip for default profile
-#: addon\lib\settings_panel.py:341
+#: addon\lib\settings_panel.py:345
 msgid ""
 "Profile to use when no application-specific profile is detected. Use "
 "NVDA+F10 to check which profile is active."
@@ -1982,53 +1985,53 @@ msgstr ""
 "Profilo da utilizzare quando non viene rilevato alcun profilo specifico "
 "dell'applicazione. Utilizzare NVDA+F10 per verificare quale profilo è attivo."
 
-#: addon\lib\settings_panel.py:348
+#: addon\lib\settings_panel.py:352
 msgid "&Reset to Defaults"
 msgstr "&Ripristina impostazioni predefinite"
 
 # Tooltip for reset button
-#: addon\lib\settings_panel.py:352
+#: addon\lib\settings_panel.py:356
 msgid "Reset all Terminal Access settings to their default values"
 msgstr ""
 "Ripristina tutte le impostazioni di accesso al terminale ai valori "
 "predefiniti"
 
-#: addon\lib\settings_panel.py:366
+#: addon\lib\settings_panel.py:370
 msgid "Error and &warning audio cues"
 msgstr ""
 
-#: addon\lib\settings_panel.py:371
+#: addon\lib\settings_panel.py:375
 msgid ""
 "Play a low tone on error lines and a higher tone on warning lines during "
 "navigation."
 msgstr ""
 
-#: addon\lib\settings_panel.py:377
+#: addon\lib\settings_panel.py:381
 msgid "Error audio cues in &quiet mode"
 msgstr ""
 
-#: addon\lib\settings_panel.py:382
+#: addon\lib\settings_panel.py:386
 msgid ""
 "Play error and warning tones on caret events while quiet mode is active. "
 "Lets you hear errors during fast output without speech."
 msgstr ""
 
-#: addon\lib\settings_panel.py:389
+#: addon\lib\settings_panel.py:393
 msgid "Output &activity tones"
 msgstr ""
 
-#: addon\lib\settings_panel.py:394
+#: addon\lib\settings_panel.py:398
 msgid ""
 "Play two ascending tones when new program output appears on screen. Does not "
 "play for characters you type."
 msgstr ""
 
-#: addon\lib\settings_panel.py:401
+#: addon\lib\settings_panel.py:405
 msgid "Activity tone &debounce (ms):"
 msgstr ""
 
 # Tooltip for coalesce delay
-#: addon\lib\settings_panel.py:409
+#: addon\lib\settings_panel.py:413
 #, fuzzy
 msgid ""
 "Milliseconds between activity tone repeats. Higher values mean fewer tones "
@@ -2037,98 +2040,98 @@ msgstr ""
 "Millisecondi di attesa prima di annunciare la nuova output accumulata. "
 "Valori più elevati riducono le interruzioni durante l'output veloce."
 
-#: addon\lib\settings_panel.py:416
+#: addon\lib\settings_panel.py:420
 msgid "Suppress speech during &streaming output"
 msgstr ""
 
-#: addon\lib\settings_panel.py:421
+#: addon\lib\settings_panel.py:425
 msgid ""
 "Automatically suppress per-character announcements when the terminal is "
 "rapidly producing output (AI CLI responses, build output, etc.). Prevents a "
 "flood of extraneous speech during streaming."
 msgstr ""
 
-#: addon\lib\settings_panel.py:429
+#: addon\lib\settings_panel.py:433
 msgid "Announce progress &milestones"
 msgstr ""
 
-#: addon\lib\settings_panel.py:434
+#: addon\lib\settings_panel.py:438
 msgid ""
 "Announce progress percentages at 25, 50, 75, and 100 percent during long "
 "operations such as downloads and builds. Gives progress feedback while "
 "streaming output is suppressed."
 msgstr ""
 
-#: addon\lib\settings_panel.py:449
+#: addon\lib\settings_panel.py:453
 msgid "Earcon &volume (percent):"
 msgstr ""
 
-#: addon\lib\settings_panel.py:457
+#: addon\lib\settings_panel.py:461
 msgid "Loudness of Terminal Access audio cues, from 10 to 100 percent."
 msgstr ""
 
-#: addon\lib\settings_panel.py:463
+#: addon\lib\settings_panel.py:467
 msgid "Earcon &pitch (percent):"
 msgstr ""
 
-#: addon\lib\settings_panel.py:471
+#: addon\lib\settings_panel.py:475
 msgid ""
 "Shift all audio cue frequencies, from 50 to 200 percent. Lower values help "
 "with high-frequency hearing loss, higher values help with low-frequency "
 "hearing loss."
 msgstr ""
 
-#: addon\lib\settings_panel.py:486
+#: addon\lib\settings_panel.py:490
 msgid ""
 "These features process terminal text locally on your machine.\n"
 "No data is sent to any server. Enable only the ones you need."
 msgstr ""
 
-#: addon\lib\settings_panel.py:494
+#: addon\lib\settings_panel.py:498
 msgid "Enable &summarization"
 msgstr ""
 
-#: addon\lib\settings_panel.py:499
+#: addon\lib\settings_panel.py:503
 msgid ""
 "Allow offline extractive summarization of terminal output. Use NVDA+' then Z "
 "to summarize recent output."
 msgstr ""
 
-#: addon\lib\settings_panel.py:506
+#: addon\lib\settings_panel.py:510
 msgid "Enable code block e&xplanation"
 msgstr ""
 
-#: addon\lib\settings_panel.py:511
+#: addon\lib\settings_panel.py:515
 msgid ""
 "Allow offline heuristic explanation of fenced code blocks. Assign a gesture "
 "to the explain command in NVDA's Input Gestures dialog."
 msgstr ""
 
-#: addon\lib\settings_panel.py:518
+#: addon\lib\settings_panel.py:522
 msgid "Enable &AI conversation parsing"
 msgstr ""
 
-#: addon\lib\settings_panel.py:523
+#: addon\lib\settings_panel.py:527
 msgid ""
 "Allow detection of AI CLI turns (user, assistant, system) for navigation and "
 "labeling in Claude CLI, Aider, ChatGPT, etc."
 msgstr ""
 
-#: addon\lib\settings_panel.py:530
+#: addon\lib\settings_panel.py:534
 msgid "Announce when a feature is &blocked"
 msgstr ""
 
-#: addon\lib\settings_panel.py:535
+#: addon\lib\settings_panel.py:539
 msgid ""
 "Speak a message when a disabled feature is invoked, explaining how to enable "
 "it. Uncheck for silent blocking."
 msgstr ""
 
-#: addon\lib\settings_panel.py:561
+#: addon\lib\settings_panel.py:565
 msgid "&Gestures that override NVDA defaults:"
 msgstr ""
 
-#: addon\lib\settings_panel.py:579
+#: addon\lib\settings_panel.py:583
 msgid ""
 "Checked gestures override the NVDA default inside terminals.\n"
 "Unchecked gestures restore the NVDA default. You can still\n"
@@ -2136,12 +2139,12 @@ msgid ""
 "To customize other gestures, use NVDA Preferences > Input Gestures."
 msgstr ""
 
-#: addon\lib\settings_panel.py:596
+#: addon\lib\settings_panel.py:600
 msgid "Installed &profiles:"
 msgstr "Profili installati:"
 
 # Tooltip for profile list
-#: addon\lib\settings_panel.py:604
+#: addon\lib\settings_panel.py:608
 msgid ""
 "Select an application profile to view or edit. Profiles customize Terminal "
 "Access behavior for specific applications. Active and default profiles are "
@@ -2153,34 +2156,34 @@ msgstr ""
 
 # Label for new profile button
 #. Translators: Label for new profile button
-#: addon\lib\settings_panel.py:613
+#: addon\lib\settings_panel.py:617
 msgid "&New Profile..."
 msgstr "&Nuovo profilo..."
 
 # Tooltip for new profile button
-#: addon\lib\settings_panel.py:617
+#: addon\lib\settings_panel.py:621
 msgid "Create a new application profile with custom settings"
 msgstr "Crea un nuovo profilo applicazione con impostazioni personalizzate"
 
 # Label for edit profile button
 #. Translators: Label for edit profile button
-#: addon\lib\settings_panel.py:622
+#: addon\lib\settings_panel.py:626
 msgid "&Edit Profile..."
 msgstr "&Modifica profilo..."
 
 # Tooltip for edit profile button
-#: addon\lib\settings_panel.py:626
+#: addon\lib\settings_panel.py:630
 msgid "Edit the selected application profile"
 msgstr "Modifica il profilo dell'applicazione selezionato"
 
 # Label for delete profile button
 #. Translators: Label for delete profile button
-#: addon\lib\settings_panel.py:631
+#: addon\lib\settings_panel.py:635
 msgid "&Delete Profile"
 msgstr "&Elimina profilo"
 
 # Tooltip for delete profile button
-#: addon\lib\settings_panel.py:635
+#: addon\lib\settings_panel.py:639
 msgid "Delete the selected custom profile (default profiles cannot be deleted)"
 msgstr ""
 "Elimina il profilo personalizzato selezionato (i profili predefiniti non "
@@ -2188,27 +2191,27 @@ msgstr ""
 
 # Label for import profile button
 #. Translators: Label for import profile button
-#: addon\lib\settings_panel.py:645
+#: addon\lib\settings_panel.py:649
 msgid "&Import..."
 msgstr "&Importa..."
 
 # Tooltip for import profile button
-#: addon\lib\settings_panel.py:649
+#: addon\lib\settings_panel.py:653
 msgid "Import a profile from a JSON file"
 msgstr "Importa un profilo da un file JSON"
 
 # Label for export profile button
 #. Translators: Label for export profile button
-#: addon\lib\settings_panel.py:654
+#: addon\lib\settings_panel.py:658
 msgid "E&xport..."
 msgstr "Esportazione..."
 
 # Tooltip for export profile button
-#: addon\lib\settings_panel.py:658
+#: addon\lib\settings_panel.py:662
 msgid "Export the selected profile to a JSON file"
 msgstr "Esporta il profilo selezionato in un file JSON"
 
-#: addon\lib\settings_panel.py:676
+#: addon\lib\settings_panel.py:680
 msgid ""
 "Are you sure you want to reset all Terminal Access settings to their default "
 "values?"
@@ -2216,111 +2219,111 @@ msgstr ""
 "Sei sicuro di voler ripristinare tutte le impostazioni di accesso al "
 "terminale ai valori predefiniti?"
 
-#: addon\lib\settings_panel.py:677
+#: addon\lib\settings_panel.py:681
 msgid "Confirm Reset"
 msgstr "Conferma reimpostazione"
 
-#: addon\lib\settings_panel.py:739
+#: addon\lib\settings_panel.py:743
 msgid "All settings have been reset to their default values."
 msgstr "Tutte le impostazioni sono state ripristinate ai valori predefiniti."
 
-#: addon\lib\settings_panel.py:740
+#: addon\lib\settings_panel.py:744
 msgid "Settings Reset"
 msgstr "Ripristino impostazioni"
 
 # Indicator for currently active profile
 #. Translators: Indicator for currently active profile
-#: addon\lib\settings_panel.py:872
+#: addon\lib\settings_panel.py:876
 msgid "Active"
 msgstr "Attivo"
 
 # Indicator for default profile
 #. Translators: Indicator for default profile
-#: addon\lib\settings_panel.py:875
+#: addon\lib\settings_panel.py:879
 msgid "Default"
 msgstr "Impostazione predefinita"
 
 #. Translators: Title of the error shown when profile editor values are invalid
-#: addon\lib\settings_panel.py:930
+#: addon\lib\settings_panel.py:934
 #, fuzzy
 msgid "Invalid Profile"
 msgstr "Profili installati:"
 
-#: addon\lib\settings_panel.py:995
+#: addon\lib\settings_panel.py:999
 #, python-brace-format
 msgid "Are you sure you want to delete the profile '{name}'?"
 msgstr "Sei sicuro di voler eliminare il profilo \"{name}\"?"
 
-#: addon\lib\settings_panel.py:996
+#: addon\lib\settings_panel.py:1000
 msgid "Confirm Delete"
 msgstr "Conferma eliminazione"
 
-#: addon\lib\settings_panel.py:1013
+#: addon\lib\settings_panel.py:1017
 #, python-brace-format
 msgid "Profile '{name}' has been deleted."
 msgstr "Il profilo \"{name}\" è stato eliminato."
 
-#: addon\lib\settings_panel.py:1014
+#: addon\lib\settings_panel.py:1018
 msgid "Profile Deleted"
 msgstr "Profilo cancellato"
 
-#: addon\lib\settings_panel.py:1023
+#: addon\lib\settings_panel.py:1027
 msgid "Failed to delete profile. See NVDA log for details."
 msgstr ""
 "Impossibile eliminare il profilo. Per ulteriori dettagli, consultare il "
 "registro NVDA."
 
-#: addon\lib\settings_panel.py:1024
+#: addon\lib\settings_panel.py:1028
 msgid "Error"
 msgstr "Errore"
 
-#: addon\lib\settings_panel.py:1033
+#: addon\lib\settings_panel.py:1037
 msgid "Import Profile"
 msgstr "Importa profilo"
 
-#: addon\lib\settings_panel.py:1035 addon\lib\settings_panel.py:1097
+#: addon\lib\settings_panel.py:1039 addon\lib\settings_panel.py:1101
 msgid "JSON files (*.json)|*.json"
 msgstr "File JSON (*.json)|*.json"
 
-#: addon\lib\settings_panel.py:1059
+#: addon\lib\settings_panel.py:1063
 #, python-brace-format
 msgid "Profile '{name}' has been imported successfully."
 msgstr "Il profilo \"{name}\" è stato importato correttamente."
 
-#: addon\lib\settings_panel.py:1062
+#: addon\lib\settings_panel.py:1066
 msgid "Profile Imported"
 msgstr "Profilo importato"
 
-#: addon\lib\settings_panel.py:1071
+#: addon\lib\settings_panel.py:1075
 msgid "Failed to import profile. The file may be invalid or corrupted."
 msgstr ""
 "Impossibile importare il profilo. Il file potrebbe non essere valido o "
 "essere danneggiato."
 
-#: addon\lib\settings_panel.py:1072
+#: addon\lib\settings_panel.py:1076
 msgid "Import Error"
 msgstr "Errore di importazione"
 
-#: addon\lib\settings_panel.py:1094
+#: addon\lib\settings_panel.py:1098
 msgid "Export Profile"
 msgstr "Profilo di esportazione"
 
-#: addon\lib\settings_panel.py:1110
+#: addon\lib\settings_panel.py:1114
 #, python-brace-format
 msgid "Profile '{name}' has been exported successfully."
 msgstr "Il profilo \"{name}\" è stato esportato correttamente."
 
-#: addon\lib\settings_panel.py:1111
+#: addon\lib\settings_panel.py:1115
 msgid "Profile Exported"
 msgstr "Profilo esportato"
 
-#: addon\lib\settings_panel.py:1120
+#: addon\lib\settings_panel.py:1124
 msgid "Failed to export profile. See NVDA log for details."
 msgstr ""
 "Impossibile esportare il profilo. Per ulteriori dettagli, consultare il "
 "registro NVDA."
 
-#: addon\lib\settings_panel.py:1121
+#: addon\lib\settings_panel.py:1125
 msgid "Export Error"
 msgstr "Errore di esportazione"
 
@@ -2407,11 +2410,15 @@ msgstr ""
 #. Translators: what's new content for the add-on version to be shown in the add-on store
 #: buildVars.py:29
 msgid ""
-"v2.0.0-beta.15: the add-on is now pure Python. The native library and helper "
-"process were removed after field testing showed the Python reads are faster "
-"and more reliable, making the download much smaller and adding ARM64 "
-"support. The \"Use native acceleration\" setting is gone. No feature changes."
+"v2.0.1: fixes the 2.0.0 package missing the user guide (NVDA+Shift+F1 did "
+"nothing) and all translations. Install this over 2.0.0. Everything else is "
+"2.0.0: AI CLI support, semantic navigation, table mode, faster and more "
+"reliable search, and a pure Python add-on with ARM64 support."
 msgstr ""
+
+# Tooltip for key echo
+#~ msgid "Announce characters as you type in the terminal"
+#~ msgstr "Annuncia i caratteri mentre digiti nel terminale"
 
 # Label for delete profile button
 #, fuzzy

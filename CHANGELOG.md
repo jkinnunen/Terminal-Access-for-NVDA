@@ -6,6 +6,10 @@ Version 2.0.0 was developed through fifteen pre-releases (2.0.0-beta through 2.0
 
 ## [Unreleased]
 
+### Documentation
+
+- The user guide and the Key Echo setting's tooltip now explain how Terminal Access's key echo relates to NVDA's own "speak typed characters" setting: the add-on's echo (punctuation-aware, repeated symbols condensed, per-profile overrides) is active only while NVDA's setting is off, and when NVDA's echo is on the add-on steps aside, which also disables the per-profile echo behavior. The guide recommends leaving NVDA's setting off for terminal work. This answers a reasonable "are these settings duplicated?" question: they are not, but the relationship was previously undocumented.
+
 ## [2.0.1] - 2026-07-12
 
 ### Fixed
