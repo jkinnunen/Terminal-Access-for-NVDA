@@ -1335,16 +1335,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		"""Check if the addon should perform its own key echo.
 
 		Returns False when the addon's key echo is disabled, quiet mode is on,
-		or NVDA's native speak-typed-characters setting is already enabled
-		(to avoid duplicate announcements).
+		or NVDA is already echoing typing itself (to avoid duplicate or
+		conflicting announcements).
 		"""
 		if not self._getEffective("keyEcho"):
 			return False
 		if self._getEffective("quietMode"):
 			return False
-		# When NVDA's own character echo is on, let NVDA handle it
-		# to avoid speaking every character twice.
-		if config.conf["keyboard"]["speakTypedCharacters"]:
+		# When NVDA is already echoing typing, defer to it. This covers both
+		# speak-typed-characters and speak-typed-words (each is 0=off, 1=edit
+		# controls, 2=always; a terminal is an editable control, so any
+		# nonzero value echoes here). Our per-character echo would otherwise
+		# trample NVDA's word echo, which relies on NVDA seeing every typed
+		# character. Reads default to 0 so a missing key means "off".
+		keyboard = config.conf["keyboard"]
+		if keyboard.get("speakTypedCharacters", 0):
+			return False
+		if keyboard.get("speakTypedWords", 0):
 			return False
 		return True
 

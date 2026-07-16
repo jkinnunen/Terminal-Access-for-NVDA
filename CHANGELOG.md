@@ -6,9 +6,15 @@ Version 2.0.0 was developed through fifteen pre-releases (2.0.0-beta through 2.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-07-13
+
+### Fixed
+
+- **Key Echo no longer talks over NVDA's "Speak typed words".** With the add-on's Key Echo on and NVDA's Speak typed words on (Keyboard settings), the add-on spoke each character as you typed, trampling the word echo you had chosen. NVDA builds each spoken word from the individual keystrokes it observes in a terminal, so the add-on's per-character echo has to stand down for word echo to work. The add-on now defers to NVDA whenever either Speak typed characters or Speak typed words is on; previously it only checked Speak typed characters. Per-application profiles that turn Key Echo off are unaffected.
+
 ### Documentation
 
-- The user guide and the Key Echo setting's tooltip now explain how Terminal Access's key echo relates to NVDA's own "speak typed characters" setting: the add-on's echo (punctuation-aware, repeated symbols condensed, per-profile overrides) is active only while NVDA's setting is off, and when NVDA's echo is on the add-on steps aside, which also disables the per-profile echo behavior. The guide recommends leaving NVDA's setting off for terminal work. This answers a reasonable "are these settings duplicated?" question: they are not, but the relationship was previously undocumented.
+- The user guide and the Key Echo tooltip now describe both of NVDA's typing-echo settings (Speak typed characters and Speak typed words) and state that the add-on's Key Echo is active only while both are off. (A previous note mentioned only Speak typed characters, which was incomplete.) This also answers the reasonable "are these settings duplicated?" question: they are complementary, not duplicated.
 
 ## [2.0.1] - 2026-07-12
 

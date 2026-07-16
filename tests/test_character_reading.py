@@ -359,6 +359,35 @@ class TestCharacterReading(unittest.TestCase):
 		plugin._currentProfile = None
 		self.assertTrue(plugin._isKeyEchoActive())
 
+	def test_isKeyEchoActive_defers_to_nvda_speak_typed_characters(self):
+		"""When NVDA's speak-typed-characters is on, the add-on defers."""
+		import config
+		from globalPlugins.terminalAccess import GlobalPlugin
+
+		plugin = GlobalPlugin()
+		plugin._currentProfile = None
+		config.conf["keyboard"]["speakTypedCharacters"] = 2
+		try:
+			self.assertFalse(plugin._isKeyEchoActive())
+		finally:
+			config.conf["keyboard"]["speakTypedCharacters"] = 0
+
+	def test_isKeyEchoActive_defers_to_nvda_speak_typed_words(self):
+		"""When NVDA's speak-typed-words is on (and speak-typed-characters is
+		off), the add-on must still defer, or its per-character echo tramples
+		NVDA's word echo in the terminal."""
+		import config
+		from globalPlugins.terminalAccess import GlobalPlugin
+
+		plugin = GlobalPlugin()
+		plugin._currentProfile = None
+		config.conf["keyboard"]["speakTypedCharacters"] = 0
+		config.conf["keyboard"]["speakTypedWords"] = 2
+		try:
+			self.assertFalse(plugin._isKeyEchoActive())
+		finally:
+			config.conf["keyboard"]["speakTypedWords"] = 0
+
 	@patch('globalPlugins.terminalAccess.ui')
 	def test_event_typedCharacter_suppressed_by_profile(self, mock_ui):
 		"""Typing in a TUI app with keyEcho=False profile should produce no echo."""

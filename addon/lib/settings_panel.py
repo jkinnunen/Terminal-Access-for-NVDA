@@ -181,9 +181,10 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		self.keyEchoCheckBox.SetToolTip(_(
 			"Announce characters as you type in the terminal, using your "
 			"punctuation level and condensing repeated symbols. Active only "
-			"while NVDA's own \"speak typed characters\" setting is off; when "
-			"that is on, NVDA does the echo and this setting and per-profile "
-			"echo overrides have no effect."
+			"while both of NVDA's own typing-echo settings (\"speak typed "
+			"characters\" and \"speak typed words\", in the Keyboard category) "
+			"are off. If either is on, NVDA echoes typing and this setting "
+			"and per-profile echo overrides have no effect."
 		))
 
 		# Quiet mode checkbox

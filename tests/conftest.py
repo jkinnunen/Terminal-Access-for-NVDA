@@ -174,7 +174,10 @@ def _default_conf_dict():
             "codeBlockExplain": False,
         },
         "keyboard": {
-            "speakTypedCharacters": False,
+            # NVDA typing-echo settings are integers: 0=off, 1=edit
+            # controls only, 2=always.
+            "speakTypedCharacters": 0,
+            "speakTypedWords": 0,
         },
     }
 

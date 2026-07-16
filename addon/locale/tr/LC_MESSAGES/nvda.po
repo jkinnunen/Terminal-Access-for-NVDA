@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Terminal Access for NVDA\n"
 "Report-Msgid-Bugs-To: nvda-translations@groups.io\n"
-"POT-Creation-Date: 2026-07-16 18:55-0400\n"
+"POT-Creation-Date: 2026-07-16 19:09-0400\n"
 "PO-Revision-Date: 2026-03-12 01:43-0400\n"
 "Last-Translator: DeepL auto-translation\n"
 "Language-Team: tr\n"
@@ -39,7 +39,7 @@ msgstr "Noktalama seviyesi tümü"
 #. calculate() returns 1-based values; do not add 1 again
 #. Translators: Message announcing row and column position
 #: addon\globalPlugins\terminalAccess.py:1031
-#: addon\globalPlugins\terminalAccess.py:2895
+#: addon\globalPlugins\terminalAccess.py:2902
 #, python-brace-format
 msgid "Row {row}, column {col}"
 msgstr "Satır{row}, sütun{col}"
@@ -119,7 +119,7 @@ msgstr ""
 
 # Message format for repeated symbols, e.g. "3 dash"
 #. Translators: Message format for repeated symbols, e.g. "3 dash"
-#: addon\globalPlugins\terminalAccess.py:1447
+#: addon\globalPlugins\terminalAccess.py:1454
 #, python-brace-format
 msgid "{count} {symbol}"
 msgstr "{count} {symbol}"
@@ -127,85 +127,85 @@ msgstr "{count} {symbol}"
 # Message for space indentation
 #. Translators: Spoken when terminal output reaches a progress
 #. milestone, for example 25, 50, 75, or 100 percent.
-#: addon\globalPlugins\terminalAccess.py:1559
+#: addon\globalPlugins\terminalAccess.py:1566
 #, fuzzy, python-brace-format
 msgid "{percent} percent"
 msgstr "{count} uzay"
 
 # Description for the show help gesture
 #. Translators: Description for the show help gesture
-#: addon\globalPlugins\terminalAccess.py:1814
+#: addon\globalPlugins\terminalAccess.py:1821
 msgid "Opens the Terminal Access user guide"
 msgstr "Terminal Erişimi kullanım kılavuzunu açar"
 
 # Error message when add-on is not properly installed
-#: addon\globalPlugins\terminalAccess.py:1822
+#: addon\globalPlugins\terminalAccess.py:1829
 msgid "Terminal Access add-on not properly installed."
 msgstr "Terminal Erişimi eklentisi düzgün yüklenmemiş."
 
 # Error message when help file is not found
-#: addon\globalPlugins\terminalAccess.py:1839
+#: addon\globalPlugins\terminalAccess.py:1846
 msgid "Help file not found. Please reinstall the add-on."
 msgstr "Yardım dosyası bulunamadı. Eklentiyi yeniden yükleyin."
 
 # Description for the show help gesture
 #. Translators: Description for replaying the first-run tutorial
-#: addon\globalPlugins\terminalAccess.py:1845
+#: addon\globalPlugins\terminalAccess.py:1852
 #, fuzzy
 msgid "Replay the Terminal Access spoken tutorial"
 msgstr "Terminal Erişimi kullanım kılavuzunu açar"
 
 # Description for reading the previous line
 #. Translators: Description for reading the previous line
-#: addon\globalPlugins\terminalAccess.py:1858
+#: addon\globalPlugins\terminalAccess.py:1865
 msgid "Read previous line in terminal"
 msgstr "Terminalde önceki satırı oku"
 
 # Description for reading the current line
 #. Translators: Description for reading the current line
-#: addon\globalPlugins\terminalAccess.py:1872
+#: addon\globalPlugins\terminalAccess.py:1879
 msgid "Read current line in terminal. Press twice for indentation level."
 msgstr "Terminalde mevcut satırı okuyun. Girinti seviyesi için iki kez basın."
 
 # Description for reading the next line
 #. Translators: Description for reading the next line
-#: addon\globalPlugins\terminalAccess.py:1891
+#: addon\globalPlugins\terminalAccess.py:1898
 msgid "Read next line in terminal"
 msgstr "Terminalde sonraki satırı oku"
 
 # Description for reading the previous word
 #. Translators: Description for reading the previous word
-#: addon\globalPlugins\terminalAccess.py:1905
+#: addon\globalPlugins\terminalAccess.py:1912
 msgid "Read previous word in terminal"
 msgstr "Terminalde önceki kelimeyi oku"
 
 # Description for reading the current word
 #. Translators: Description for reading the current word
-#: addon\globalPlugins\terminalAccess.py:1919
+#: addon\globalPlugins\terminalAccess.py:1926
 msgid "Read current word in terminal"
 msgstr "Terminalde mevcut kelimeyi oku"
 
 # Description for spelling the current word
 #. Translators: Description for spelling the current word
-#: addon\globalPlugins\terminalAccess.py:1933
+#: addon\globalPlugins\terminalAccess.py:1940
 msgid "Spell current word in terminal"
 msgstr "Terminalde mevcut kelimeyi hecele"
 
 # Description for reading the next word
 #. Translators: Description for reading the next word
-#: addon\globalPlugins\terminalAccess.py:1947
+#: addon\globalPlugins\terminalAccess.py:1954
 msgid "Read next word in terminal"
 msgstr "Terminalde sonraki kelimeyi oku"
 
 # Description for reading the previous character
 #. Translators: Description for reading the previous character
-#: addon\globalPlugins\terminalAccess.py:1961
+#: addon\globalPlugins\terminalAccess.py:1968
 msgid "Read previous character in terminal"
 msgstr "Terminalde önceki karakteri oku"
 
 # Description for reading the current character
 #. Translators: Description for reading the current character
-#: addon\globalPlugins\terminalAccess.py:1975
+#: addon\globalPlugins\terminalAccess.py:1982
 msgid ""
 "Read current character in terminal. Press twice for phonetic. Press three "
 "times for character code."
@@ -215,55 +215,55 @@ msgstr ""
 
 # Description for reading the next character
 #. Translators: Description for reading the next character
-#: addon\globalPlugins\terminalAccess.py:1999
+#: addon\globalPlugins\terminalAccess.py:2006
 msgid "Read next character in terminal"
 msgstr "Terminalde sonraki karakteri oku"
 
 # Description for toggling quiet mode
 #. Translators: Description for toggling quiet mode
-#: addon\globalPlugins\terminalAccess.py:2013
+#: addon\globalPlugins\terminalAccess.py:2020
 msgid "Toggle quiet mode in terminal"
 msgstr "Terminalde sessiz modu aç/kapat"
 
 # Message when quiet mode is enabled
 #. Translators: Message when quiet mode is enabled
-#: addon\globalPlugins\terminalAccess.py:2033
+#: addon\globalPlugins\terminalAccess.py:2040
 msgid "Quiet mode on"
 msgstr "Sessiz mod açık"
 
 # Message when quiet mode is disabled
 #. Translators: Message when quiet mode is disabled
-#: addon\globalPlugins\terminalAccess.py:2036
+#: addon\globalPlugins\terminalAccess.py:2043
 msgid "Quiet mode off"
 msgstr "Sessiz mod kapalı"
 
 # Description for toggling indentation announcement
 #. Translators: Description for toggling indentation announcement
-#: addon\globalPlugins\terminalAccess.py:2040
+#: addon\globalPlugins\terminalAccess.py:2047
 msgid "Toggle indentation announcement on line read in terminal"
 msgstr "Terminalde okunan satırda girinti duyurusunu aç/kapat"
 
 # Message when indentation announcement is enabled
 #. Translators: Message when indentation announcement is enabled
-#: addon\globalPlugins\terminalAccess.py:2058
+#: addon\globalPlugins\terminalAccess.py:2065
 msgid "Indentation announcement on"
 msgstr "Girinti duyurusu"
 
 # Message when indentation announcement is disabled
 #. Translators: Message when indentation announcement is disabled
-#: addon\globalPlugins\terminalAccess.py:2061
+#: addon\globalPlugins\terminalAccess.py:2068
 msgid "Indentation announcement off"
 msgstr "Girinti duyurusu kapalı"
 
 # Description for copy mode
 #. Translators: Description for copy mode
-#: addon\globalPlugins\terminalAccess.py:2065
+#: addon\globalPlugins\terminalAccess.py:2072
 msgid "Enter copy mode in terminal"
 msgstr "Terminalde kopyalama moduna girin"
 
 # Message entering copy mode
 #. Translators: Message entering copy mode
-#: addon\globalPlugins\terminalAccess.py:2082
+#: addon\globalPlugins\terminalAccess.py:2089
 msgid "Copy mode. Press L to copy line, S to copy screen, or Escape to cancel."
 msgstr ""
 "Kopyalama modu. L tuşuna basarak satırı, S tuşuna basarak ekranı kopyalayın "
@@ -271,64 +271,64 @@ msgstr ""
 
 # Description for copying line
 #. Translators: Description for copying line
-#: addon\globalPlugins\terminalAccess.py:2086
+#: addon\globalPlugins\terminalAccess.py:2093
 msgid "Copy line in copy mode"
 msgstr "Kopyalama modunda satırı kopyala"
 
 #. Translators: Announced when copying a code block fails
-#: addon\globalPlugins\terminalAccess.py:2098
 #: addon\globalPlugins\terminalAccess.py:2105
-#: addon\globalPlugins\terminalAccess.py:2123
-#: addon\globalPlugins\terminalAccess.py:2129
-#: addon\globalPlugins\terminalAccess.py:3453
-#: addon\globalPlugins\terminalAccess.py:3469
-#: addon\globalPlugins\terminalAccess.py:4331
-#: addon\globalPlugins\terminalAccess.py:4336
-#: addon\globalPlugins\terminalAccess.py:4892
+#: addon\globalPlugins\terminalAccess.py:2112
+#: addon\globalPlugins\terminalAccess.py:2130
+#: addon\globalPlugins\terminalAccess.py:2136
+#: addon\globalPlugins\terminalAccess.py:3460
+#: addon\globalPlugins\terminalAccess.py:3476
+#: addon\globalPlugins\terminalAccess.py:4338
+#: addon\globalPlugins\terminalAccess.py:4343
+#: addon\globalPlugins\terminalAccess.py:4899
 msgid "Unable to copy"
 msgstr "Kopyalanamıyor"
 
 # Message when line is copied
-#: addon\globalPlugins\terminalAccess.py:2103
+#: addon\globalPlugins\terminalAccess.py:2110
 msgid "Line copied"
 msgstr "Satır kopyalandı"
 
 # Description for copying screen
 #. Translators: Description for copying screen
-#: addon\globalPlugins\terminalAccess.py:2111
+#: addon\globalPlugins\terminalAccess.py:2118
 msgid "Copy screen in copy mode"
 msgstr "Kopyalama modunda ekranı kopyala"
 
 # Message when screen is copied
-#: addon\globalPlugins\terminalAccess.py:2127
+#: addon\globalPlugins\terminalAccess.py:2134
 msgid "Screen copied"
 msgstr "Ekran kopyalandı"
 
 # Description for exiting copy mode
 #. Translators: Description for exiting copy mode
-#: addon\globalPlugins\terminalAccess.py:2135
+#: addon\globalPlugins\terminalAccess.py:2142
 msgid "Exit copy mode"
 msgstr "Kopyalama modundan çık"
 
 # Message when copy mode is canceled
 #. Translators: Message when copy mode is canceled
-#: addon\globalPlugins\terminalAccess.py:2145
+#: addon\globalPlugins\terminalAccess.py:2152
 msgid "Copy mode canceled"
 msgstr "Kopyalama modu iptal edildi"
 
 #. Translators: Description for toggling table mode
-#: addon\globalPlugins\terminalAccess.py:2173
+#: addon\globalPlugins\terminalAccess.py:2180
 msgid "Toggle table mode for column-aware reading of tabular terminal output"
 msgstr ""
 
 #. Translators: Message when table mode finds no table on the current line
-#: addon\globalPlugins\terminalAccess.py:2193
-#: addon\globalPlugins\terminalAccess.py:2199
+#: addon\globalPlugins\terminalAccess.py:2200
+#: addon\globalPlugins\terminalAccess.py:2206
 #, fuzzy
 msgid "No table at this position"
 msgstr "Konum belirlenemiyor"
 
-#: addon\globalPlugins\terminalAccess.py:2213
+#: addon\globalPlugins\terminalAccess.py:2220
 #, python-brace-format
 msgid ""
 "Table mode. {rows} rows, {cols} columns. Use arrows to move, Escape to exit."
@@ -336,792 +336,792 @@ msgstr ""
 
 # Message when quiet mode is disabled
 #. Translators: Announced when table mode ends
-#: addon\globalPlugins\terminalAccess.py:2238
+#: addon\globalPlugins\terminalAccess.py:2245
 #, fuzzy
 msgid "Table mode off"
 msgstr "Sessiz mod kapalı"
 
 #. Translators: Message when table navigation hits the table boundary
-#: addon\globalPlugins\terminalAccess.py:2249
+#: addon\globalPlugins\terminalAccess.py:2256
 msgid "Edge of table"
 msgstr ""
 
 # Description for reading the previous word
 #. Translators: Description for moving to the previous table row
-#: addon\globalPlugins\terminalAccess.py:2256
+#: addon\globalPlugins\terminalAccess.py:2263
 #, fuzzy
 msgid "Move to the previous row in table mode"
 msgstr "Terminalde önceki kelimeyi oku"
 
 #. Translators: Description for moving to the next table row
-#: addon\globalPlugins\terminalAccess.py:2265
+#: addon\globalPlugins\terminalAccess.py:2272
 msgid "Move to the next row in table mode"
 msgstr ""
 
 #. Translators: Description for moving to the previous table column
-#: addon\globalPlugins\terminalAccess.py:2274
+#: addon\globalPlugins\terminalAccess.py:2281
 msgid "Move to the previous column in table mode"
 msgstr ""
 
 #. Translators: Description for moving to the next table column
-#: addon\globalPlugins\terminalAccess.py:2283
+#: addon\globalPlugins\terminalAccess.py:2290
 msgid "Move to the next column in table mode"
 msgstr ""
 
 #. Translators: Description for jumping to the first table column
-#: addon\globalPlugins\terminalAccess.py:2292
+#: addon\globalPlugins\terminalAccess.py:2299
 msgid "Move to the first column in table mode"
 msgstr ""
 
 #. Translators: Description for jumping to the last table column
-#: addon\globalPlugins\terminalAccess.py:2306
+#: addon\globalPlugins\terminalAccess.py:2313
 msgid "Move to the last column in table mode"
 msgstr ""
 
 #. Translators: Description for announcing the current column header
-#: addon\globalPlugins\terminalAccess.py:2320
+#: addon\globalPlugins\terminalAccess.py:2327
 msgid "Announce the header of the current column in table mode"
 msgstr ""
 
 # Description for reading the current word
 #. Translators: Description for reading the whole current table row
-#: addon\globalPlugins\terminalAccess.py:2333
+#: addon\globalPlugins\terminalAccess.py:2340
 #, fuzzy
 msgid "Read the current row with headers in table mode"
 msgstr "Terminalde mevcut kelimeyi oku"
 
 # Description for exiting copy mode
 #. Translators: Description for exiting table mode
-#: addon\globalPlugins\terminalAccess.py:2346
+#: addon\globalPlugins\terminalAccess.py:2353
 #, fuzzy
 msgid "Exit table mode"
 msgstr "Kopyalama modundan çık"
 
 # Description for toggling the command layer
 #. Translators: Description for toggling the command layer
-#: addon\globalPlugins\terminalAccess.py:2362
+#: addon\globalPlugins\terminalAccess.py:2369
 msgid "Toggle terminal command layer (single-key command mode)"
 msgstr "Terminal komut katmanını değiştir (tek tuşlu komut modu)"
 
 # Announced when the terminal command layer is activated
 #. Translators: Announced when the terminal command layer is activated
-#: addon\globalPlugins\terminalAccess.py:2394
+#: addon\globalPlugins\terminalAccess.py:2401
 msgid "Terminal commands"
 msgstr "Terminal komutları"
 
 # Announced when the terminal command layer is deactivated
 #. Translators: Announced when the terminal command layer is deactivated
-#: addon\globalPlugins\terminalAccess.py:2408
+#: addon\globalPlugins\terminalAccess.py:2415
 msgid "Exit terminal commands"
 msgstr "Çıkış terminali komutları"
 
 # Description for exiting the command layer
 #. Translators: Description for exiting the command layer
-#: addon\globalPlugins\terminalAccess.py:2412
+#: addon\globalPlugins\terminalAccess.py:2419
 msgid "Exit the terminal command layer"
 msgstr "Terminal komut katmanından çıkın"
 
 # Description for opening terminal settings
 #. Translators: Description for opening terminal settings
-#: addon\globalPlugins\terminalAccess.py:2424
+#: addon\globalPlugins\terminalAccess.py:2431
 msgid "Open Terminal Access settings"
 msgstr "Terminal Erişimi ayarlarını açın"
 
 # Error message when settings dialog cannot be opened
 #. Translators: Error message when settings dialog cannot be opened
-#: addon\globalPlugins\terminalAccess.py:2438
+#: addon\globalPlugins\terminalAccess.py:2445
 msgid "Unable to open settings dialog. Please try again."
 msgstr "Ayarlar iletişim kutusu açılamıyor. Lütfen tekrar deneyin."
 
 #. Translators: Description for checking gesture conflicts
-#: addon\globalPlugins\terminalAccess.py:2442
+#: addon\globalPlugins\terminalAccess.py:2449
 msgid "Check for gesture conflicts with other add-ons"
 msgstr ""
 
 #. Translators: Announced when gesture conflicts are found
-#: addon\globalPlugins\terminalAccess.py:2463
+#: addon\globalPlugins\terminalAccess.py:2470
 #, python-brace-format
 msgid "{count} gesture conflicts found. {report}"
 msgstr ""
 
 # Message when no tabs are detected
 #. Translators: Announced when no gesture conflicts are found
-#: addon\globalPlugins\terminalAccess.py:2468
+#: addon\globalPlugins\terminalAccess.py:2475
 #, fuzzy
 msgid "No gesture conflicts detected."
 msgstr "Sekme algılanmadı"
 
 # Description for cycling cursor tracking modes
 #. Translators: Description for cycling cursor tracking modes
-#: addon\globalPlugins\terminalAccess.py:2472
+#: addon\globalPlugins\terminalAccess.py:2479
 msgid "Cycle cursor tracking mode"
 msgstr "Döngü imleci izleme modu"
 
-#: addon\globalPlugins\terminalAccess.py:2495
+#: addon\globalPlugins\terminalAccess.py:2502
 msgid "Cursor tracking off"
 msgstr "İmleç izleme kapalı"
 
-#: addon\globalPlugins\terminalAccess.py:2496
+#: addon\globalPlugins\terminalAccess.py:2503
 msgid "Standard cursor tracking"
 msgstr "Standart imleç izleme"
 
-#: addon\globalPlugins\terminalAccess.py:2497
+#: addon\globalPlugins\terminalAccess.py:2504
 msgid "Window tracking"
 msgstr "Pencere izleme"
 
-#: addon\globalPlugins\terminalAccess.py:2499
+#: addon\globalPlugins\terminalAccess.py:2506
 msgid "Unknown mode"
 msgstr "Bilinmeyen mod"
 
 # Description for setting screen window
 #. Translators: Description for setting screen window
-#: addon\globalPlugins\terminalAccess.py:2503
+#: addon\globalPlugins\terminalAccess.py:2510
 msgid "Set screen window boundaries"
 msgstr "Ekran penceresi sınırlarını ayarla"
 
-#: addon\globalPlugins\terminalAccess.py:2516
-#: addon\globalPlugins\terminalAccess.py:2521
-#: addon\globalPlugins\terminalAccess.py:2553
+#: addon\globalPlugins\terminalAccess.py:2523
+#: addon\globalPlugins\terminalAccess.py:2528
+#: addon\globalPlugins\terminalAccess.py:2560
 msgid "Unable to set window"
 msgstr "Pencere ayarlanamıyor"
 
 # Message when window start is set
 #. Translators: Message when window start is set
-#: addon\globalPlugins\terminalAccess.py:2532
+#: addon\globalPlugins\terminalAccess.py:2539
 msgid "Window start set. Move to end position and press again."
 msgstr "Pencere başlangıç seti. Son konuma gidin ve tekrar basın."
 
 # Translators: Message when window is defined with coordinates
 #. Translators: Message when window is defined with coordinates
-#: addon\globalPlugins\terminalAccess.py:2550
+#: addon\globalPlugins\terminalAccess.py:2557
 #, python-brace-format
 msgid "Window defined: rows {top}-{bottom}, columns {left}-{right}"
 msgstr "Pencere tanımlandı: satırlar {top}-{bottom}, sütunlar {left}-{right}"
 
 # Description for clearing screen window
 #. Translators: Description for clearing screen window
-#: addon\globalPlugins\terminalAccess.py:2558
+#: addon\globalPlugins\terminalAccess.py:2565
 msgid "Clear screen window"
 msgstr "Ekran penceresini temizle"
 
 # Message when window is cleared
 #. Translators: Message when window is cleared
-#: addon\globalPlugins\terminalAccess.py:2571
+#: addon\globalPlugins\terminalAccess.py:2578
 msgid "Window cleared"
 msgstr "Pencere temizlendi"
 
 # Description for reading window content
 #. Translators: Description for reading window content
-#: addon\globalPlugins\terminalAccess.py:2575
+#: addon\globalPlugins\terminalAccess.py:2582
 msgid "Read window content"
 msgstr "Pencere içeriğini oku"
 
 # Message when no window is defined
 #. Translators: Message when no window is defined
-#: addon\globalPlugins\terminalAccess.py:2587
+#: addon\globalPlugins\terminalAccess.py:2594
 msgid "No window defined"
 msgstr "Tanımlanmış pencere yok"
 
-#: addon\globalPlugins\terminalAccess.py:2593
-#: addon\globalPlugins\terminalAccess.py:2647
+#: addon\globalPlugins\terminalAccess.py:2600
+#: addon\globalPlugins\terminalAccess.py:2654
 msgid "Unable to read window"
 msgstr "Pencere okunamıyor"
 
-#: addon\globalPlugins\terminalAccess.py:2604
+#: addon\globalPlugins\terminalAccess.py:2611
 msgid "Window not properly defined"
 msgstr "Pencere doğru tanımlanmamış"
 
 # Message when window contains no text
 #. Translators: Message when window contains no text
-#: addon\globalPlugins\terminalAccess.py:2644
+#: addon\globalPlugins\terminalAccess.py:2651
 msgid "Window is empty"
 msgstr "Pencere boş"
 
 # Description for reading text attributes
 #. Translators: Description for reading text attributes
-#: addon\globalPlugins\terminalAccess.py:2651
+#: addon\globalPlugins\terminalAccess.py:2658
 msgid "Read text attributes at cursor"
 msgstr "İmlecin bulunduğu yerdeki metin özniteliklerini oku"
 
-#: addon\globalPlugins\terminalAccess.py:2664
-#: addon\globalPlugins\terminalAccess.py:2696
+#: addon\globalPlugins\terminalAccess.py:2671
+#: addon\globalPlugins\terminalAccess.py:2703
 msgid "Unable to read attributes"
 msgstr "Özellikleri okuyamıyor"
 
 # Message when no text at cursor
 #. Translators: Message when no text at cursor
-#: addon\globalPlugins\terminalAccess.py:2691
+#: addon\globalPlugins\terminalAccess.py:2698
 msgid "No text at cursor"
 msgstr "İmleçte metin yok"
 
 # Description for continuous reading (say all)
 #. Translators: Description for continuous reading (say all)
-#: addon\globalPlugins\terminalAccess.py:2702
+#: addon\globalPlugins\terminalAccess.py:2709
 msgid "Read continuously from cursor to end of buffer"
 msgstr "İmleçten tamponun sonuna kadar sürekli oku"
 
 # Message when unable to start continuous reading
 #. Translators: Message when unable to start continuous reading
 #. Translators: Message when continuous reading fails
-#: addon\globalPlugins\terminalAccess.py:2716
-#: addon\globalPlugins\terminalAccess.py:2738
-#: addon\globalPlugins\terminalAccess.py:3309
-#: addon\globalPlugins\terminalAccess.py:3323
-#: addon\globalPlugins\terminalAccess.py:3342
+#: addon\globalPlugins\terminalAccess.py:2723
+#: addon\globalPlugins\terminalAccess.py:2745
+#: addon\globalPlugins\terminalAccess.py:3316
+#: addon\globalPlugins\terminalAccess.py:3330
+#: addon\globalPlugins\terminalAccess.py:3349
 msgid "Unable to read"
 msgstr "Okuyamıyor"
 
 # Message when buffer is empty
 #. Translators: Message when buffer is empty
-#: addon\globalPlugins\terminalAccess.py:2729
+#: addon\globalPlugins\terminalAccess.py:2736
 msgid "Nothing to read"
 msgstr "Okumak için hiçbir şey yok"
 
 # Message for blank line
 #. Translators: Message for blank line
-#: addon\globalPlugins\terminalAccess.py:2753
-#: addon\globalPlugins\terminalAccess.py:3256
+#: addon\globalPlugins\terminalAccess.py:2760
+#: addon\globalPlugins\terminalAccess.py:3263
 msgid "Blank"
 msgstr "Boş"
 
 # Description for jumping to start of line
 #. Translators: Description for jumping to start of line
-#: addon\globalPlugins\terminalAccess.py:2757
+#: addon\globalPlugins\terminalAccess.py:2764
 msgid "Move to first character of current line"
 msgstr "Geçerli satırın ilk karakterine git"
 
 # Message when unable to move
 #. Translators: Message when unable to move
-#: addon\globalPlugins\terminalAccess.py:2771
-#: addon\globalPlugins\terminalAccess.py:2783
-#: addon\globalPlugins\terminalAccess.py:2800
-#: addon\globalPlugins\terminalAccess.py:2814
-#: addon\globalPlugins\terminalAccess.py:2831
-#: addon\globalPlugins\terminalAccess.py:2840
-#: addon\globalPlugins\terminalAccess.py:2857
-#: addon\globalPlugins\terminalAccess.py:2866
+#: addon\globalPlugins\terminalAccess.py:2778
+#: addon\globalPlugins\terminalAccess.py:2790
+#: addon\globalPlugins\terminalAccess.py:2807
+#: addon\globalPlugins\terminalAccess.py:2821
+#: addon\globalPlugins\terminalAccess.py:2838
+#: addon\globalPlugins\terminalAccess.py:2847
+#: addon\globalPlugins\terminalAccess.py:2864
+#: addon\globalPlugins\terminalAccess.py:2873
 msgid "Unable to move"
 msgstr "Hareket edemiyor"
 
 # Description for jumping to end of line
 #. Translators: Description for jumping to end of line
-#: addon\globalPlugins\terminalAccess.py:2787
+#: addon\globalPlugins\terminalAccess.py:2794
 msgid "Move to last character of current line"
 msgstr "Geçerli satırın son karakterine git"
 
 # Description for jumping to top
 #. Translators: Description for jumping to top
-#: addon\globalPlugins\terminalAccess.py:2818
+#: addon\globalPlugins\terminalAccess.py:2825
 msgid "Move to top of terminal buffer"
 msgstr "Terminal tamponunun en üstüne git"
 
 # Description for jumping to bottom
 #. Translators: Description for jumping to bottom
-#: addon\globalPlugins\terminalAccess.py:2844
+#: addon\globalPlugins\terminalAccess.py:2851
 msgid "Move to bottom of terminal buffer"
 msgstr "Terminal tamponunun en altına git"
 
 # Description for announcing position
 #. Translators: Description for announcing position
-#: addon\globalPlugins\terminalAccess.py:2870
+#: addon\globalPlugins\terminalAccess.py:2877
 msgid "Announce current row and column position"
 msgstr "Geçerli satır ve sütun konumunu duyur"
 
 # Message when position unavailable
 #. Translators: Message when position unavailable
-#: addon\globalPlugins\terminalAccess.py:2884
 #: addon\globalPlugins\terminalAccess.py:2891
-#: addon\globalPlugins\terminalAccess.py:2897
+#: addon\globalPlugins\terminalAccess.py:2898
+#: addon\globalPlugins\terminalAccess.py:2904
 msgid "Position unavailable"
 msgstr "Pozisyon mevcut değil"
 
 #. Translators: Description for announcing active profile; double-press opens profile selection
-#: addon\globalPlugins\terminalAccess.py:2901
+#: addon\globalPlugins\terminalAccess.py:2908
 msgid "Announce active profile. Press twice to select a profile."
 msgstr ""
 
 # Message when no profile is active
-#: addon\globalPlugins\terminalAccess.py:2918
+#: addon\globalPlugins\terminalAccess.py:2925
 msgid "None (using global settings)"
 msgstr "Yok (genel ayarlar kullanılarak)"
 
 # Message when no default profile is set
 #. Translators: Punctuation level option
-#: addon\globalPlugins\terminalAccess.py:2925 addon\lib\profiles.py:933
-#: addon\lib\settings_panel.py:207
+#: addon\globalPlugins\terminalAccess.py:2932 addon\lib\profiles.py:933
+#: addon\lib\settings_panel.py:208
 msgid "None"
 msgstr "Yok"
 
 # Message announcing active and default profiles
-#: addon\globalPlugins\terminalAccess.py:2927
+#: addon\globalPlugins\terminalAccess.py:2934
 #, python-brace-format
 msgid "Active profile: {active}. Default profile: {default}"
 msgstr "Etkin profil: {active}. Varsayılan profil: {default}"
 
-#: addon\globalPlugins\terminalAccess.py:2940
+#: addon\globalPlugins\terminalAccess.py:2947
 #, python-brace-format
 msgid "Profile activated: {name}"
 msgstr ""
 
 # Message when unable to read indentation
 #. Translators: Message when unable to read indentation
-#: addon\globalPlugins\terminalAccess.py:2959
-#: addon\globalPlugins\terminalAccess.py:2980
+#: addon\globalPlugins\terminalAccess.py:2966
+#: addon\globalPlugins\terminalAccess.py:2987
 msgid "Unable to read indentation"
 msgstr "Girinti okunamıyor"
 
 # Message for empty line
 #. Translators: Message for empty line
-#: addon\globalPlugins\terminalAccess.py:2970
+#: addon\globalPlugins\terminalAccess.py:2977
 msgid "Empty line"
 msgstr "Boş satır"
 
 # Message when line has no indentation
 #. Translators: Message when line has no indentation
-#: addon\globalPlugins\terminalAccess.py:2978
+#: addon\globalPlugins\terminalAccess.py:2985
 msgid "No indentation"
 msgstr "Girinti yok"
 
 # Message for mixed indentation
 #. Translators: Message for mixed indentation
-#: addon\globalPlugins\terminalAccess.py:3030
+#: addon\globalPlugins\terminalAccess.py:3037
 #, python-brace-format
 msgid "{tabs} tab, {spaces} spaces"
 msgstr "{tabs} sekme, {spaces} boşluk"
 
 # Message for mixed indentation
-#: addon\globalPlugins\terminalAccess.py:3030
+#: addon\globalPlugins\terminalAccess.py:3037
 #, python-brace-format
 msgid "{tabs} tabs, {spaces} spaces"
 msgstr "{tabs} sekmeler, {spaces} boşluklar"
 
 # Message for tab indentation
 #. Translators: Message for tab indentation
-#: addon\globalPlugins\terminalAccess.py:3033
+#: addon\globalPlugins\terminalAccess.py:3040
 #, python-brace-format
 msgid "{count} tab"
 msgstr "{count} sekme"
 
 # Message for tab indentation
-#: addon\globalPlugins\terminalAccess.py:3033
+#: addon\globalPlugins\terminalAccess.py:3040
 #, python-brace-format
 msgid "{count} tabs"
 msgstr "{count} sekmeler"
 
 # Message for space indentation
 #. Translators: Message for space indentation
-#: addon\globalPlugins\terminalAccess.py:3036
+#: addon\globalPlugins\terminalAccess.py:3043
 #, python-brace-format
 msgid "{count} space"
 msgstr "{count} uzay"
 
 # Message for space indentation
-#: addon\globalPlugins\terminalAccess.py:3036
+#: addon\globalPlugins\terminalAccess.py:3043
 #, python-brace-format
 msgid "{count} spaces"
 msgstr "{count} alanlar"
 
 # Message when no review position
 #. Translators: Message when no review position
-#: addon\globalPlugins\terminalAccess.py:3093
+#: addon\globalPlugins\terminalAccess.py:3100
 msgid "No review position"
 msgstr "İnceleme pozisyonu yok"
 
 #. Translators: Message when unable to read character
-#: addon\globalPlugins\terminalAccess.py:3099
-#: addon\globalPlugins\terminalAccess.py:3127
-#: addon\globalPlugins\terminalAccess.py:3131
-#: addon\globalPlugins\terminalAccess.py:3161
-#: addon\globalPlugins\terminalAccess.py:3198
+#: addon\globalPlugins\terminalAccess.py:3106
+#: addon\globalPlugins\terminalAccess.py:3134
+#: addon\globalPlugins\terminalAccess.py:3138
+#: addon\globalPlugins\terminalAccess.py:3168
+#: addon\globalPlugins\terminalAccess.py:3205
 msgid "Unable to read character"
 msgstr "Karakter okunamıyor"
 
 # Message when at edge of text
 #. Translators: Message when at edge of text
-#: addon\globalPlugins\terminalAccess.py:3119
+#: addon\globalPlugins\terminalAccess.py:3126
 msgid "Edge"
 msgstr "Kenar"
 
 # Message when at edge of text
-#: addon\globalPlugins\terminalAccess.py:3119
+#: addon\globalPlugins\terminalAccess.py:3126
 msgid "Top"
 msgstr "En üst"
 
 # Message when no character at position
 #. Translators: Message when no character at position
-#: addon\globalPlugins\terminalAccess.py:3171
+#: addon\globalPlugins\terminalAccess.py:3178
 msgid "No character"
 msgstr "Karakter yok"
 
 # Message announcing character code
 #. Translators: Message announcing character code
-#: addon\globalPlugins\terminalAccess.py:3192
+#: addon\globalPlugins\terminalAccess.py:3199
 #, python-brace-format
 msgid "Character {decimal}, hex {hex}, {name}"
 msgstr "Karakter{decimal}, hex{hex}, {name}"
 
-#: addon\globalPlugins\terminalAccess.py:3254
+#: addon\globalPlugins\terminalAccess.py:3261
 msgid "space"
 msgstr "uzay"
 
-#: addon\globalPlugins\terminalAccess.py:3272
+#: addon\globalPlugins\terminalAccess.py:3279
 msgid "Punctuation level unknown"
 msgstr "Noktalama düzeyi bilinmiyor"
 
 # Description for decreasing punctuation level
 #. Translators: Description for decreasing punctuation level
-#: addon\globalPlugins\terminalAccess.py:3276
+#: addon\globalPlugins\terminalAccess.py:3283
 msgid "Decrease punctuation level"
 msgstr "Noktalama seviyesini azalt"
 
 # Description for increasing punctuation level
 #. Translators: Description for increasing punctuation level
-#: addon\globalPlugins\terminalAccess.py:3289
+#: addon\globalPlugins\terminalAccess.py:3296
 msgid "Increase punctuation level"
 msgstr "Noktalama seviyesini artırın"
 
 # Message when region is empty
 #. Translators: Message when region is empty
-#: addon\globalPlugins\terminalAccess.py:3336
+#: addon\globalPlugins\terminalAccess.py:3343
 msgid "Nothing"
 msgstr "Hiçbir şey"
 
 # Description for reading to left edge
 #. Translators: Description for reading to left edge
-#: addon\globalPlugins\terminalAccess.py:3346
+#: addon\globalPlugins\terminalAccess.py:3353
 msgid "Read from cursor to beginning of line"
 msgstr "İmleçten satırın başına kadar oku"
 
 # Description for reading to right edge
 #. Translators: Description for reading to right edge
-#: addon\globalPlugins\terminalAccess.py:3359
+#: addon\globalPlugins\terminalAccess.py:3366
 msgid "Read from cursor to end of line"
 msgstr "İmleçten satır sonuna kadar oku"
 
 # Description for reading to top
 #. Translators: Description for reading to top
-#: addon\globalPlugins\terminalAccess.py:3372
+#: addon\globalPlugins\terminalAccess.py:3379
 msgid "Read from cursor to top of buffer"
 msgstr "İmleçten tamponun başına kadar oku"
 
 # Description for reading to bottom
 #. Translators: Description for reading to bottom
-#: addon\globalPlugins\terminalAccess.py:3385
+#: addon\globalPlugins\terminalAccess.py:3392
 msgid "Read from cursor to bottom of buffer"
 msgstr "İmleçten tamponun sonuna kadar oku"
 
 # Description for toggling mark position
 #. Translators: Description for toggling mark position
-#: addon\globalPlugins\terminalAccess.py:3398
+#: addon\globalPlugins\terminalAccess.py:3405
 msgid "Toggle mark for selection (enhanced)"
 msgstr "Seçim için işaretlemeyi değiştir (geliştirilmiş)"
 
-#: addon\globalPlugins\terminalAccess.py:3411
-#: addon\globalPlugins\terminalAccess.py:3431
+#: addon\globalPlugins\terminalAccess.py:3418
+#: addon\globalPlugins\terminalAccess.py:3438
 msgid "Unable to set mark"
 msgstr "İşaret koyulamıyor"
 
 # Message when start mark is set (Phase 6: Enhanced with context)
 #. Translators: Message when start mark is set (Phase 6: Enhanced with context)
-#: addon\globalPlugins\terminalAccess.py:3418
+#: addon\globalPlugins\terminalAccess.py:3425
 msgid "Mark start set"
 msgstr "Başlangıç ayarını işaretle"
 
 # Message when end mark is set (Phase 6: Enhanced with context)
 #. Translators: Message when end mark is set (Phase 6: Enhanced with context)
-#: addon\globalPlugins\terminalAccess.py:3423
+#: addon\globalPlugins\terminalAccess.py:3430
 msgid "Mark end set"
 msgstr "Son seti işaretle"
 
 # Message when marks are cleared
 #. Translators: Message when marks are cleared
 #. Translators: Message when marks cleared
-#: addon\globalPlugins\terminalAccess.py:3429
-#: addon\globalPlugins\terminalAccess.py:3486
+#: addon\globalPlugins\terminalAccess.py:3436
+#: addon\globalPlugins\terminalAccess.py:3493
 msgid "Marks cleared"
 msgstr "İşaretler silindi"
 
 # Description for copying linear selection
 #. Translators: Description for copying linear selection
-#: addon\globalPlugins\terminalAccess.py:3435
+#: addon\globalPlugins\terminalAccess.py:3442
 msgid "Copy linear selection between marks"
 msgstr "İşaretler arasındaki doğrusal seçimi kopyala"
 
 # Message when marks are not set
 #. Translators: Message when marks are not set
-#: addon\globalPlugins\terminalAccess.py:3447
+#: addon\globalPlugins\terminalAccess.py:3454
 msgid "Set start and end marks first"
 msgstr "Önce başlangıç ve bitiş işaretlerini ayarlayın"
 
 # Message when selection copied
-#: addon\globalPlugins\terminalAccess.py:3461
+#: addon\globalPlugins\terminalAccess.py:3468
 msgid "Selection copied"
 msgstr "Seçim kopyalandı"
 
-#: addon\globalPlugins\terminalAccess.py:3465
+#: addon\globalPlugins\terminalAccess.py:3472
 msgid "Unable to copy: terminal not accessible"
 msgstr "Kopyalanamıyor: terminale erişilemiyor"
 
 # Description for clearing marks
 #. Translators: Description for clearing marks
-#: addon\globalPlugins\terminalAccess.py:3473
+#: addon\globalPlugins\terminalAccess.py:3480
 msgid "Clear selection marks"
 msgstr "Seçim işaretlerini sil"
 
 # Description for setting bookmark
 #. Translators: Description for setting bookmark
-#: addon\globalPlugins\terminalAccess.py:3492
+#: addon\globalPlugins\terminalAccess.py:3499
 msgid "Set a bookmark at the current review position (use with 0-9)"
 msgstr "Geçerli inceleme konumuna yer imi ekle (0-9 ile kullanın)"
 
 # Error message when bookmark manager not initialized
 #. Translators: Error message when bookmark manager not initialized
-#: addon\globalPlugins\terminalAccess.py:3507
-#: addon\globalPlugins\terminalAccess.py:3549
-#: addon\globalPlugins\terminalAccess.py:3589
-#: addon\globalPlugins\terminalAccess.py:3637
-#: addon\globalPlugins\terminalAccess.py:3898
+#: addon\globalPlugins\terminalAccess.py:3514
+#: addon\globalPlugins\terminalAccess.py:3556
+#: addon\globalPlugins\terminalAccess.py:3596
+#: addon\globalPlugins\terminalAccess.py:3644
+#: addon\globalPlugins\terminalAccess.py:3905
 msgid "Bookmark manager not available"
 msgstr "Yer imi yöneticisi kullanılamıyor"
 
 # Message when bookmark set
 #. Translators: Message when bookmark set with line content
 #. Translators: Message when jumping to bookmark with label
-#: addon\globalPlugins\terminalAccess.py:3525
-#: addon\globalPlugins\terminalAccess.py:3567
+#: addon\globalPlugins\terminalAccess.py:3532
+#: addon\globalPlugins\terminalAccess.py:3574
 #, fuzzy, python-brace-format
 msgid "Bookmark {name}: {label}"
 msgstr "{name}i setini yer imlerine ekle"
 
 # Message when bookmark set
 #. Translators: Message when bookmark set
-#: addon\globalPlugins\terminalAccess.py:3528
+#: addon\globalPlugins\terminalAccess.py:3535
 #, python-brace-format
 msgid "Bookmark {name} set"
 msgstr "{name}i setini yer imlerine ekle"
 
 # Error message when bookmark setting fails
 #. Translators: Error message when bookmark setting fails
-#: addon\globalPlugins\terminalAccess.py:3531
+#: addon\globalPlugins\terminalAccess.py:3538
 msgid "Failed to set bookmark"
 msgstr "Yer imi ayarlanamadı"
 
 # Description for jumping to bookmark
 #. Translators: Description for jumping to bookmark
-#: addon\globalPlugins\terminalAccess.py:3535
+#: addon\globalPlugins\terminalAccess.py:3542
 msgid "Jump to a previously set bookmark (use with 0-9)"
 msgstr "Önceden ayarlanmış bir yer imine atla (0-9 ile kullanın)"
 
 # Message when jumping to bookmark
 #. Translators: Message when jumping to bookmark
-#: addon\globalPlugins\terminalAccess.py:3570
+#: addon\globalPlugins\terminalAccess.py:3577
 #, python-brace-format
 msgid "Jumped to bookmark {name}"
 msgstr "{name} adresine atla"
 
 # Error message when bookmark not found
 #. Translators: Error message when bookmark not found
-#: addon\globalPlugins\terminalAccess.py:3573
+#: addon\globalPlugins\terminalAccess.py:3580
 #, python-brace-format
 msgid "Bookmark {name} not found"
 msgstr "{name}'u yer imlerine ekle bulunamadı"
 
 # Description for listing bookmarks
 #. Translators: Description for listing bookmarks
-#: addon\globalPlugins\terminalAccess.py:3577
+#: addon\globalPlugins\terminalAccess.py:3584
 msgid "List all bookmarks"
 msgstr "Tüm yer imlerini listele"
 
 # Message when no bookmarks exist
 #. Translators: Message when no bookmarks exist
-#: addon\globalPlugins\terminalAccess.py:3595
+#: addon\globalPlugins\terminalAccess.py:3602
 msgid "No bookmarks set"
 msgstr "Yer imi ayarlanmadı"
 
 #. Translators: Description for listing detected sections
-#: addon\globalPlugins\terminalAccess.py:3619
+#: addon\globalPlugins\terminalAccess.py:3626
 msgid "List all detected sections in the terminal buffer"
 msgstr ""
 
 # Description for jumping to top
 #. Translators: Message when terminal buffer cannot be read
-#: addon\globalPlugins\terminalAccess.py:3633
-#: addon\globalPlugins\terminalAccess.py:3758
-#: addon\globalPlugins\terminalAccess.py:3811
-#: addon\globalPlugins\terminalAccess.py:3894
+#: addon\globalPlugins\terminalAccess.py:3640
+#: addon\globalPlugins\terminalAccess.py:3765
+#: addon\globalPlugins\terminalAccess.py:3818
+#: addon\globalPlugins\terminalAccess.py:3901
 #, fuzzy
 msgid "Cannot read terminal buffer"
 msgstr "Terminal tamponunun en üstüne git"
 
 # Message when no tabs are detected
 #. Translators: Message when no sections detected
-#: addon\globalPlugins\terminalAccess.py:3643
+#: addon\globalPlugins\terminalAccess.py:3650
 #, fuzzy
 msgid "No sections detected"
 msgstr "Sekme algılanmadı"
 
 #. Translators: Description for the command finder
-#: addon\globalPlugins\terminalAccess.py:3667
+#: addon\globalPlugins\terminalAccess.py:3674
 msgid "Open a searchable list of all Terminal Access commands"
 msgstr ""
 
 # Error message when command history manager not initialized
 #. Translators: Message when no commands could be collected
-#: addon\globalPlugins\terminalAccess.py:3681
+#: addon\globalPlugins\terminalAccess.py:3688
 #, fuzzy
 msgid "No commands available"
 msgstr "Komut geçmişi mevcut değil"
 
 # Announced when the terminal command layer is activated
 #. Translators: Title of the command finder dialog
-#: addon\globalPlugins\terminalAccess.py:3699
+#: addon\globalPlugins\terminalAccess.py:3706
 #, fuzzy
 msgid "Terminal Access Commands"
 msgstr "Terminal komutları"
 
 #. Translators: Column header for the command name
-#: addon\globalPlugins\terminalAccess.py:3702
+#: addon\globalPlugins\terminalAccess.py:3709
 msgid "Command"
 msgstr ""
 
 #. Translators: Column header for the command description
-#: addon\globalPlugins\terminalAccess.py:3704 addon\lib\profiles.py:825
+#: addon\globalPlugins\terminalAccess.py:3711 addon\lib\profiles.py:825
 msgid "Description"
 msgstr ""
 
 #. Translators: Column header for the command gesture
-#: addon\globalPlugins\terminalAccess.py:3706
+#: addon\globalPlugins\terminalAccess.py:3713
 msgid "Gesture"
 msgstr ""
 
-#: addon\globalPlugins\terminalAccess.py:3728
+#: addon\globalPlugins\terminalAccess.py:3735
 #, python-brace-format
 msgid "command layer {key}"
 msgstr ""
 
 #. Translators: Announces the gesture bindings of a command
-#: addon\globalPlugins\terminalAccess.py:3732
+#: addon\globalPlugins\terminalAccess.py:3739
 #, python-brace-format
 msgid "{name}: {bindings}"
 msgstr ""
 
 #. Translators: Announced for a command with no gesture assigned
-#: addon\globalPlugins\terminalAccess.py:3737
+#: addon\globalPlugins\terminalAccess.py:3744
 #, python-brace-format
 msgid "{name} has no gesture assigned"
 msgstr ""
 
 # Tooltip for export profile button
 #. Translators: Description for exporting the terminal transcript
-#: addon\globalPlugins\terminalAccess.py:3745
+#: addon\globalPlugins\terminalAccess.py:3752
 #, fuzzy
 msgid "Export the terminal transcript to a text file"
 msgstr "Seçilen profili bir JSON dosyasına dışa aktarın"
 
 #. Translators: Title of the transcript save dialog
-#: addon\globalPlugins\terminalAccess.py:3773
+#: addon\globalPlugins\terminalAccess.py:3780
 msgid "Save transcript"
 msgstr ""
 
 #. Translators: File type filter in the transcript save dialog
 #. Translators: File type filter in the issue report save dialog
-#: addon\globalPlugins\terminalAccess.py:3777
-#: addon\globalPlugins\terminalAccess.py:3856
+#: addon\globalPlugins\terminalAccess.py:3784
+#: addon\globalPlugins\terminalAccess.py:3863
 msgid "Text files (*.txt)|*.txt|All files (*.*)|*.*"
 msgstr ""
 
 #. Translators: Announced after the transcript file is written
-#: addon\globalPlugins\terminalAccess.py:3793
+#: addon\globalPlugins\terminalAccess.py:3800
 msgid "Transcript saved"
 msgstr ""
 
 #. Translators: Announced when the transcript file cannot be written
-#: addon\globalPlugins\terminalAccess.py:3796
+#: addon\globalPlugins\terminalAccess.py:3803
 #, fuzzy
 msgid "Unable to save transcript"
 msgstr "İşaret koyulamıyor"
 
 #. Translators: Description for saving a diagnostic issue report
-#: addon\globalPlugins\terminalAccess.py:3800
+#: addon\globalPlugins\terminalAccess.py:3807
 msgid "Save a diagnostic issue report for the current terminal"
 msgstr ""
 
 #. Translators: Title of the issue report save dialog
-#: addon\globalPlugins\terminalAccess.py:3852
+#: addon\globalPlugins\terminalAccess.py:3859
 msgid "Save issue report"
 msgstr ""
 
 #. Translators: Announced after the issue report file is written
-#: addon\globalPlugins\terminalAccess.py:3872
+#: addon\globalPlugins\terminalAccess.py:3879
 msgid "Issue report saved"
 msgstr ""
 
 #. Translators: Announced when the issue report file cannot be written
-#: addon\globalPlugins\terminalAccess.py:3875
+#: addon\globalPlugins\terminalAccess.py:3882
 #, fuzzy
 msgid "Unable to save issue report"
 msgstr "İşaret koyulamıyor"
 
 #. Translators: Description for listing AI conversation turns
-#: addon\globalPlugins\terminalAccess.py:3881
+#: addon\globalPlugins\terminalAccess.py:3888
 msgid "List all AI conversation turns in the terminal buffer"
 msgstr ""
 
 # Message when no tabs are detected
 #. Translators: Message when no AI turns detected
-#: addon\globalPlugins\terminalAccess.py:3904
+#: addon\globalPlugins\terminalAccess.py:3911
 #, fuzzy
 msgid "No AI turns detected"
 msgstr "Sekme algılanmadı"
 
 # Announced when URL list is loading with count of URLs found
 #. Translators: Announced when AI turn list is loading with count
-#: addon\globalPlugins\terminalAccess.py:3908
+#: addon\globalPlugins\terminalAccess.py:3915
 #, fuzzy, python-brace-format
 msgid "{count} AI turns found"
 msgstr "{count} Bulunan URL'ler"
 
 # Description for creating a new terminal tab
 #. Translators: Description for creating a new terminal tab
-#: addon\globalPlugins\terminalAccess.py:3946
+#: addon\globalPlugins\terminalAccess.py:3953
 msgid "Create a new tab in the terminal"
 msgstr "Terminalde yeni bir sekme oluşturun"
 
 # Message when creating a new tab
 #. Announce that we're creating a new tab
 #. Translators: Message when creating a new tab
-#: addon\globalPlugins\terminalAccess.py:3964
+#: addon\globalPlugins\terminalAccess.py:3971
 msgid "Creating new tab"
 msgstr "Yeni sekme oluşturma"
 
 # Error message when tab creation fails
 #. Translators: Error message when tab creation fails
-#: addon\globalPlugins\terminalAccess.py:3967
+#: addon\globalPlugins\terminalAccess.py:3974
 msgid "Unable to create new tab"
 msgstr "Yeni sekme oluşturulamıyor"
 
 # Description for listing/navigating tabs
 #. Translators: Description for listing/navigating tabs
-#: addon\globalPlugins\terminalAccess.py:3971
+#: addon\globalPlugins\terminalAccess.py:3978
 msgid "List tabs or switch to tab bar"
 msgstr "Sekmeleri listele veya sekme çubuğuna geç"
 
 # Error message when tab manager not initialized
 #. Translators: Error message when tab manager not initialized
-#: addon\globalPlugins\terminalAccess.py:3983
+#: addon\globalPlugins\terminalAccess.py:3990
 msgid "Tab manager not available"
 msgstr "Sekme yöneticisi kullanılamıyor"
 
 # Message when no tabs are detected
 #. Translators: Message when no tabs are detected
-#: addon\globalPlugins\terminalAccess.py:3993
+#: addon\globalPlugins\terminalAccess.py:4000
 msgid "No tabs detected"
 msgstr "Sekme algılanmadı"
 
 # Message for single tab
 #. Only one tab, announce it
 #. Translators: Message for single tab
-#: addon\globalPlugins\terminalAccess.py:3997
+#: addon\globalPlugins\terminalAccess.py:4004
 #, python-brace-format
 msgid "Single tab: {title}"
 msgstr "Tek sekme: {title}"
@@ -1130,365 +1130,365 @@ msgstr "Tek sekme: {title}"
 #. Multiple tabs - show simple announcement for now
 #. (Full dialog implementation would go here)
 #. Translators: Message listing tab count
-#: addon\globalPlugins\terminalAccess.py:4002
+#: addon\globalPlugins\terminalAccess.py:4009
 #, python-brace-format
 msgid "{count} tabs detected"
 msgstr "{count} sekmeler algılandı"
 
 # Message when switching tabs
 #. Translators: Message when switching tabs
-#: addon\globalPlugins\terminalAccess.py:4009
+#: addon\globalPlugins\terminalAccess.py:4016
 msgid "Switching to next tab"
 msgstr "Sonraki sekmeye geçme"
 
 # Description for listing URLs in terminal output
 #. Translators: Description for listing URLs in terminal output
-#: addon\globalPlugins\terminalAccess.py:4017
+#: addon\globalPlugins\terminalAccess.py:4024
 msgid "List URLs found in terminal output"
 msgstr "Terminal çıktısında bulunan URL'leri listele"
 
 # Announced when URL list dialog is already open
 #. Translators: Announced when URL list dialog is already open
-#: addon\globalPlugins\terminalAccess.py:4030
+#: addon\globalPlugins\terminalAccess.py:4037
 msgid "URL list already open"
 msgstr "URL listesi zaten açık"
 
 # Error when URL extractor not ready
 #. Translators: Error when URL extractor not ready
-#: addon\globalPlugins\terminalAccess.py:4035
+#: addon\globalPlugins\terminalAccess.py:4042
 msgid "URL list not available"
 msgstr "URL listesi mevcut değil"
 
 # Error when URL extraction fails
 #. Translators: Error when URL extraction fails
-#: addon\globalPlugins\terminalAccess.py:4047
+#: addon\globalPlugins\terminalAccess.py:4054
 msgid "Error extracting URLs"
 msgstr "URL'leri çıkarırken hata oluştu"
 
 # Announced when no URLs found
 #. Translators: Announced when no URLs found
-#: addon\globalPlugins\terminalAccess.py:4052
+#: addon\globalPlugins\terminalAccess.py:4059
 msgid "No URLs found"
 msgstr "URL bulunamadı"
 
 # Announced when URL list is loading with count of URLs found
 #. Translators: Announced when URL list is loading with count of URLs found
-#: addon\globalPlugins\terminalAccess.py:4056
+#: addon\globalPlugins\terminalAccess.py:4063
 #, python-brace-format
 msgid "{count} URLs found"
 msgstr "{count} Bulunan URL'ler"
 
 # Error when URL dialog fails to open
 #. Translators: Error when URL dialog fails to open
-#: addon\globalPlugins\terminalAccess.py:4072
+#: addon\globalPlugins\terminalAccess.py:4079
 msgid "Error opening URL list"
 msgstr "URL listesini açarken hata oluştu"
 
 #. Translators: Announced when a search finds a single match
-#: addon\globalPlugins\terminalAccess.py:4094
+#: addon\globalPlugins\terminalAccess.py:4101
 msgid "1 match"
 msgstr ""
 
 # Message for space indentation
 #. Translators: Announced with the number of search matches
-#: addon\globalPlugins\terminalAccess.py:4097
+#: addon\globalPlugins\terminalAccess.py:4104
 #, fuzzy, python-brace-format
 msgid "{count} matches"
 msgstr "{count} alanlar"
 
 # No matches found
 #. Translators: No matches found
-#: addon\globalPlugins\terminalAccess.py:4102
+#: addon\globalPlugins\terminalAccess.py:4109
 #, python-brace-format
 msgid "No matches found for '{pattern}'"
 msgstr "'{pattern}' için hiçbir eşleşme bulunamadı."
 
 # Description for searching output
 #. Translators: Description for searching output
-#: addon\globalPlugins\terminalAccess.py:4107
+#: addon\globalPlugins\terminalAccess.py:4114
 msgid "Search terminal output for text pattern"
 msgstr "Metin desenini terminal çıktısında ara"
 
 # Announced when search dialog is already open
 #. Translators: Announced when search dialog is already open
-#: addon\globalPlugins\terminalAccess.py:4120
+#: addon\globalPlugins\terminalAccess.py:4127
 #, fuzzy
 msgid "Search already open"
 msgstr "Arama zaten açık"
 
 # Error message when search manager not initialized
 #. Translators: Error message when search manager not initialized
-#: addon\globalPlugins\terminalAccess.py:4125
+#: addon\globalPlugins\terminalAccess.py:4132
 msgid "Search not available"
 msgstr "Arama yapılamıyor"
 
 # Search dialog prompt
 #. Translators: Search dialog prompt
-#: addon\globalPlugins\terminalAccess.py:4140
+#: addon\globalPlugins\terminalAccess.py:4147
 msgid "Enter search text:"
 msgstr "Arama metnini girin:"
 
 # Search dialog title
 #. Translators: Search dialog title
-#: addon\globalPlugins\terminalAccess.py:4142
+#: addon\globalPlugins\terminalAccess.py:4149
 msgid "Search Terminal Output"
 msgstr "Arama Terminali Çıktısı"
 
 #. Large buffer: match off the main thread.
 #. Translators: Spoken while a search of a large terminal buffer runs.
-#: addon\globalPlugins\terminalAccess.py:4204
+#: addon\globalPlugins\terminalAccess.py:4211
 msgid "Searching"
 msgstr ""
 
 # No search results
 #. Translators: No search results
-#: addon\globalPlugins\terminalAccess.py:4268
+#: addon\globalPlugins\terminalAccess.py:4275
 msgid "No search results. Use NVDA+F to search."
 msgstr "Arama sonucu bulunamadı. NVDA+F tuşlarını kullanarak arama yapın."
 
 # Error jumping to previous match
 #. Translators: Error jumping to search match
-#: addon\globalPlugins\terminalAccess.py:4279
+#: addon\globalPlugins\terminalAccess.py:4286
 #, fuzzy, python-brace-format
 msgid "Cannot jump to {direction} match"
 msgstr "Önceki maça atlayamıyorum"
 
 # Description for next search match
 #. Translators: Description for next search match
-#: addon\globalPlugins\terminalAccess.py:4283
+#: addon\globalPlugins\terminalAccess.py:4290
 msgid "Jump to next search match"
 msgstr "Sonraki arama eşleşmesine atla"
 
 # Description for previous search match
 #. Translators: Description for previous search match
-#: addon\globalPlugins\terminalAccess.py:4296
+#: addon\globalPlugins\terminalAccess.py:4303
 msgid "Jump to previous search match"
 msgstr "Önceki arama eşleşmesine git"
 
 # Announced after URL is copied
-#: addon\globalPlugins\terminalAccess.py:4334
+#: addon\globalPlugins\terminalAccess.py:4341
 #, fuzzy
 msgid "Copied"
 msgstr "URL kopyalandı"
 
 #. Translators: Spoken section category when jumping to a shell prompt
-#: addon\globalPlugins\terminalAccess.py:4421
+#: addon\globalPlugins\terminalAccess.py:4428
 msgid "prompt"
 msgstr ""
 
 # Message when at end of history
 #. Translators: Spoken section category when jumping to a command line
-#: addon\globalPlugins\terminalAccess.py:4423
+#: addon\globalPlugins\terminalAccess.py:4430
 #, fuzzy
 msgid "command"
 msgstr "Sonraki komut yok"
 
 #. Translators: Spoken section category when jumping to an error line
-#: addon\globalPlugins\terminalAccess.py:4425
+#: addon\globalPlugins\terminalAccess.py:4432
 #, fuzzy
 msgid "error"
 msgstr "Hata"
 
 #. Translators: Spoken section category when jumping to a warning line
-#: addon\globalPlugins\terminalAccess.py:4427
+#: addon\globalPlugins\terminalAccess.py:4434
 msgid "warning"
 msgstr ""
 
 #. Translators: Spoken section category when jumping to a stack trace
-#: addon\globalPlugins\terminalAccess.py:4429
+#: addon\globalPlugins\terminalAccess.py:4436
 msgid "stack trace"
 msgstr ""
 
 #. Translators: Spoken section category when jumping to a progress line
-#: addon\globalPlugins\terminalAccess.py:4431
+#: addon\globalPlugins\terminalAccess.py:4438
 msgid "progress"
 msgstr ""
 
 #. Translators: Spoken section category when jumping to a timestamped line
-#: addon\globalPlugins\terminalAccess.py:4433
+#: addon\globalPlugins\terminalAccess.py:4440
 msgid "timestamp"
 msgstr ""
 
 #. Translators: Spoken section category when jumping to a heading line
-#: addon\globalPlugins\terminalAccess.py:4435
+#: addon\globalPlugins\terminalAccess.py:4442
 msgid "heading"
 msgstr ""
 
 # Description for listing URLs in terminal output
 #. Translators: Description for jumping to the next section boundary
-#: addon\globalPlugins\terminalAccess.py:4441
+#: addon\globalPlugins\terminalAccess.py:4448
 #, fuzzy
 msgid "Jump to next section in terminal output"
 msgstr "Terminal çıktısında bulunan URL'leri listele"
 
 # Description for previous search match
 #. Translators: Description for jumping to the previous section boundary
-#: addon\globalPlugins\terminalAccess.py:4460
+#: addon\globalPlugins\terminalAccess.py:4467
 #, fuzzy
 msgid "Jump to previous section in terminal output"
 msgstr "Önceki arama eşleşmesine git"
 
 #. Translators: Description for jumping to the next error or warning
-#: addon\globalPlugins\terminalAccess.py:4479
+#: addon\globalPlugins\terminalAccess.py:4486
 msgid "Jump to next error or warning in terminal output"
 msgstr ""
 
 #. Translators: Description for jumping to the previous error or warning
-#: addon\globalPlugins\terminalAccess.py:4498
+#: addon\globalPlugins\terminalAccess.py:4505
 msgid "Jump to previous error or warning in terminal output"
 msgstr ""
 
 # Description for listing URLs in terminal output
 #. Translators: Description for jumping to the next prompt
-#: addon\globalPlugins\terminalAccess.py:4517
+#: addon\globalPlugins\terminalAccess.py:4524
 #, fuzzy
 msgid "Jump to next prompt in terminal output"
 msgstr "Terminal çıktısında bulunan URL'leri listele"
 
 # Description for reading the previous word
 #. Translators: Description for jumping to the previous prompt
-#: addon\globalPlugins\terminalAccess.py:4536
+#: addon\globalPlugins\terminalAccess.py:4543
 #, fuzzy
 msgid "Jump to previous prompt in terminal output"
 msgstr "Terminalde önceki kelimeyi oku"
 
 # Description for listing URLs in terminal output
 #. Translators: Description for jumping to the next AI turn
-#: addon\globalPlugins\terminalAccess.py:4606
+#: addon\globalPlugins\terminalAccess.py:4613
 #, fuzzy
 msgid "Jump to next AI turn in terminal output"
 msgstr "Terminal çıktısında bulunan URL'leri listele"
 
 # Description for listing URLs in terminal output
 #. Translators: Description for jumping to the previous AI turn
-#: addon\globalPlugins\terminalAccess.py:4616
+#: addon\globalPlugins\terminalAccess.py:4623
 #, fuzzy
 msgid "Jump to previous AI turn in terminal output"
 msgstr "Terminal çıktısında bulunan URL'leri listele"
 
 # Description for listing URLs in terminal output
 #. Translators: Description for jumping to the next code block
-#: addon\globalPlugins\terminalAccess.py:4626
+#: addon\globalPlugins\terminalAccess.py:4633
 #, fuzzy
 msgid "Jump to next code block in terminal output"
 msgstr "Terminal çıktısında bulunan URL'leri listele"
 
 # Description for reading the previous word
 #. Translators: Description for jumping to the previous code block
-#: addon\globalPlugins\terminalAccess.py:4636
+#: addon\globalPlugins\terminalAccess.py:4643
 #, fuzzy
 msgid "Jump to previous code block in terminal output"
 msgstr "Terminalde önceki kelimeyi oku"
 
 # Tooltip for key echo
 #. Translators: Description for announcing what changed in terminal buffer
-#: addon\globalPlugins\terminalAccess.py:4660
+#: addon\globalPlugins\terminalAccess.py:4667
 #, fuzzy
 msgid "Announce what changed in the terminal buffer"
 msgstr "Terminalde yazarken karakterleri duyur"
 
-#: addon\globalPlugins\terminalAccess.py:4672
+#: addon\globalPlugins\terminalAccess.py:4679
 #, fuzzy
 msgid "Unable to read terminal"
 msgstr "Pencere okunamıyor"
 
 # Message when no character at position
-#: addon\globalPlugins\terminalAccess.py:4681
+#: addon\globalPlugins\terminalAccess.py:4688
 #, fuzzy
 msgid "No changes"
 msgstr "Karakter yok"
 
 #. Translators: Description for summarizing the last command output
-#: addon\globalPlugins\terminalAccess.py:4697
+#: addon\globalPlugins\terminalAccess.py:4704
 msgid "Summarize the output of the last command"
 msgstr ""
 
 #. Translators: Message when there is no output to summarize
-#: addon\globalPlugins\terminalAccess.py:4739
-#: addon\globalPlugins\terminalAccess.py:4789
+#: addon\globalPlugins\terminalAccess.py:4746
+#: addon\globalPlugins\terminalAccess.py:4796
 msgid "No output to summarize"
 msgstr ""
 
 #. Translators: Message when summarizer produces empty result
-#: addon\globalPlugins\terminalAccess.py:4747
-#: addon\globalPlugins\terminalAccess.py:4796
+#: addon\globalPlugins\terminalAccess.py:4754
+#: addon\globalPlugins\terminalAccess.py:4803
 msgid "No significant output found"
 msgstr ""
 
 #. Translators: Description for summarizing the current selection
-#: addon\globalPlugins\terminalAccess.py:4751
+#: addon\globalPlugins\terminalAccess.py:4758
 msgid "Summarize the text between selection marks"
 msgstr ""
 
 # Description for clearing marks
 #. Translators: Message when no selection marks are set
-#: addon\globalPlugins\terminalAccess.py:4770
+#: addon\globalPlugins\terminalAccess.py:4777
 #, fuzzy
 msgid "No selection. Set marks first."
 msgstr "Seçim işaretlerini sil"
 
 # Message when unable to read indentation
 #. Translators: Error message when selection text cannot be read
-#: addon\globalPlugins\terminalAccess.py:4785
+#: addon\globalPlugins\terminalAccess.py:4792
 #, fuzzy
 msgid "Unable to read selection"
 msgstr "Girinti okunamıyor"
 
 #. Translators: Description for announcing privacy and feature status
-#: addon\globalPlugins\terminalAccess.py:4805
+#: addon\globalPlugins\terminalAccess.py:4812
 msgid "Announce privacy status and feature states"
 msgstr ""
 
 #. Translators: Description for announcing code block metadata
-#: addon\globalPlugins\terminalAccess.py:4819
+#: addon\globalPlugins\terminalAccess.py:4826
 msgid "Announce code block at cursor: language and line count"
 msgstr ""
 
 #. Translators: Message when cursor is not inside a code block
-#: addon\globalPlugins\terminalAccess.py:4836
-#: addon\globalPlugins\terminalAccess.py:4863
-#: addon\globalPlugins\terminalAccess.py:4887
+#: addon\globalPlugins\terminalAccess.py:4843
+#: addon\globalPlugins\terminalAccess.py:4870
+#: addon\globalPlugins\terminalAccess.py:4894
 msgid "Not inside a code block"
 msgstr ""
 
 #. Translators: Description for explaining a code block
-#: addon\globalPlugins\terminalAccess.py:4842
+#: addon\globalPlugins\terminalAccess.py:4849
 msgid "Explain the code block at cursor"
 msgstr ""
 
 #. Translators: Description for copying a code block to the clipboard
-#: addon\globalPlugins\terminalAccess.py:4870
+#: addon\globalPlugins\terminalAccess.py:4877
 msgid "Copy the code block at cursor to the clipboard"
 msgstr ""
 
 #. Translators: Announced after copying a code block that was cut at the size cap
-#: addon\globalPlugins\terminalAccess.py:4896
+#: addon\globalPlugins\terminalAccess.py:4903
 msgid "Code block copied, truncated"
 msgstr ""
 
 # Message when selection copied
 #. Translators: Announced after copying a code block
-#: addon\globalPlugins\terminalAccess.py:4899
+#: addon\globalPlugins\terminalAccess.py:4906
 #, fuzzy
 msgid "Code block copied"
 msgstr "Seçim kopyalandı"
 
 #. Translators: Description for cycling the verbosity level
-#: addon\globalPlugins\terminalAccess.py:4903
+#: addon\globalPlugins\terminalAccess.py:4910
 msgid "Cycle the verbosity level: quiet, normal, verbose"
 msgstr ""
 
 #. Translators: Verbosity level names, in order: quiet, normal, verbose
-#: addon\globalPlugins\terminalAccess.py:4914
+#: addon\globalPlugins\terminalAccess.py:4921
 #, fuzzy
 msgid "Quiet"
 msgstr "&Sessiz mod"
 
-#: addon\globalPlugins\terminalAccess.py:4914
+#: addon\globalPlugins\terminalAccess.py:4921
 msgid "Normal"
 msgstr ""
 
-#: addon\globalPlugins\terminalAccess.py:4914
+#: addon\globalPlugins\terminalAccess.py:4921
 msgid "Verbose"
 msgstr ""
 
@@ -1517,7 +1517,7 @@ msgstr "&Filtre:"
 #. Translators: Filter dropdown entry that shows every row
 #. Translators: Punctuation level option
 #: addon\lib\list_dialogs.py:334 addon\lib\profiles.py:939
-#: addon\lib\settings_panel.py:213
+#: addon\lib\settings_panel.py:214
 msgid "All"
 msgstr "Tüm"
 
@@ -1637,7 +1637,7 @@ msgstr ""
 #. Translators: Choice option that turns a profile setting off
 #. Translators: Cursor tracking mode option
 #: addon\lib\profiles.py:919 addon\lib\profiles.py:946
-#: addon\lib\settings_panel.py:238
+#: addon\lib\settings_panel.py:239
 msgid "Off"
 msgstr "Kapalı"
 
@@ -1653,7 +1653,7 @@ msgid "&Display name:"
 msgstr ""
 
 #. Translators: Label for the punctuation level choice in the profile editor
-#: addon\lib\profiles.py:930 addon\lib\settings_panel.py:203
+#: addon\lib\profiles.py:930 addon\lib\settings_panel.py:204
 msgid "&Punctuation level:"
 msgstr "&Noktalama düzeyi:"
 
@@ -1668,19 +1668,19 @@ msgid "Most"
 msgstr ""
 
 #. Translators: Label for the cursor tracking mode choice in the profile editor
-#: addon\lib\profiles.py:943 addon\lib\settings_panel.py:234
+#: addon\lib\profiles.py:943 addon\lib\settings_panel.py:235
 msgid "Cursor tracking &mode:"
 msgstr "İmleç izleme ve modu:"
 
 # Cursor tracking mode option
 #. Translators: Cursor tracking mode option
-#: addon\lib\profiles.py:948 addon\lib\settings_panel.py:240
+#: addon\lib\profiles.py:948 addon\lib\settings_panel.py:241
 msgid "Standard"
 msgstr "Standart"
 
 # Cursor tracking mode option
 #. Translators: Cursor tracking mode option
-#: addon\lib\profiles.py:950 addon\lib\settings_panel.py:242
+#: addon\lib\profiles.py:950 addon\lib\settings_panel.py:243
 msgid "Window"
 msgstr "Pencere"
 
@@ -1710,7 +1710,7 @@ msgid "Condense &repeated symbols:"
 msgstr "Yoğunlaştırma ve tekrarlanan semboller"
 
 #. Translators: Label for the repeated symbols characters field in the profile editor
-#: addon\lib\profiles.py:966 addon\lib\settings_panel.py:316
+#: addon\lib\profiles.py:966 addon\lib\settings_panel.py:317
 msgid "Repeated symbols to condense:"
 msgstr "Yoğunlaştırmak için tekrarlanan semboller:"
 
@@ -1832,17 +1832,18 @@ msgstr "&key echo'yu etkinleştir"
 #: addon\lib\settings_panel.py:182
 msgid ""
 "Announce characters as you type in the terminal, using your punctuation "
-"level and condensing repeated symbols. Active only while NVDA's own \"speak "
-"typed characters\" setting is off; when that is on, NVDA does the echo and "
+"level and condensing repeated symbols. Active only while both of NVDA's own "
+"typing-echo settings (\"speak typed characters\" and \"speak typed words\", "
+"in the Keyboard category) are off. If either is on, NVDA echoes typing and "
 "this setting and per-profile echo overrides have no effect."
 msgstr ""
 
-#: addon\lib\settings_panel.py:192
+#: addon\lib\settings_panel.py:193
 msgid "&Quiet mode"
 msgstr "&Sessiz mod"
 
 # Tooltip for quiet mode
-#: addon\lib\settings_panel.py:197
+#: addon\lib\settings_panel.py:198
 msgid ""
 "Suppress most Terminal Access announcements. Use NVDA+Shift+Q to toggle "
 "quickly."
@@ -1852,19 +1853,19 @@ msgstr ""
 
 # Punctuation level option
 #. Translators: Punctuation level option
-#: addon\lib\settings_panel.py:209
+#: addon\lib\settings_panel.py:210
 msgid "Some (.,?!;:)"
 msgstr "Bazıları (.,?!;:)"
 
 # Punctuation level option
 #. Translators: Punctuation level option
-#: addon\lib\settings_panel.py:211
+#: addon\lib\settings_panel.py:212
 #, fuzzy
 msgid "Most (adds @#$%^&*()_+=[]{}\\|<>/)"
 msgstr "Çoğu (ekler @#$%^&*()_+=[]{}\\\\|<>/)"
 
 # Tooltip for punctuation level
-#: addon\lib\settings_panel.py:219
+#: addon\lib\settings_panel.py:220
 #, fuzzy
 msgid ""
 "Controls which punctuation symbols are announced. Higher levels announce "
@@ -1875,7 +1876,7 @@ msgstr ""
 "hızlıca ayarlayabilirsiniz."
 
 # Tooltip for cursor tracking mode
-#: addon\lib\settings_panel.py:248
+#: addon\lib\settings_panel.py:249
 #, fuzzy
 msgid ""
 "Standard: announce line/column changes, Window: only announce within defined "
@@ -1884,12 +1885,12 @@ msgstr ""
 "Standart: satır/sütun değişikliklerini duyur, Vurgu: vurgulanan metni duyur, "
 "Pencere: yalnızca tanımlanan pencere içinde duyur"
 
-#: addon\lib\settings_panel.py:255
+#: addon\lib\settings_panel.py:256
 msgid "Cursor delay (milliseconds):"
 msgstr "İmleç gecikmesi (milisaniye):"
 
 # Tooltip for cursor delay
-#: addon\lib\settings_panel.py:263
+#: addon\lib\settings_panel.py:264
 msgid ""
 "Delay before announcing cursor position (0-1000ms). Higher values reduce "
 "announcement frequency."
@@ -1897,21 +1898,21 @@ msgstr ""
 "İmleç konumunu duyurmadan önce gecikme (0-1000 ms). Daha yüksek değerler "
 "duyuru sıklığını azaltır."
 
-#: addon\lib\settings_panel.py:270
+#: addon\lib\settings_panel.py:271
 msgid "Pause at &newlines"
 msgstr "&newlines'da duraklat"
 
 # Tooltip for line pause
-#: addon\lib\settings_panel.py:275
+#: addon\lib\settings_panel.py:276
 msgid "Brief pause when speaking line content to improve clarity"
 msgstr "Netliği artırmak için konuşma sırasında kısa bir duraklama"
 
-#: addon\lib\settings_panel.py:281
+#: addon\lib\settings_panel.py:282
 msgid "&Verbose mode (detailed feedback)"
 msgstr "&Ayrıntılı mod (ayrıntılı geri bildirim)"
 
 # Tooltip for verbose mode
-#: addon\lib\settings_panel.py:286
+#: addon\lib\settings_panel.py:287
 msgid ""
 "Include position and context information with announcements. Useful for "
 "debugging and understanding terminal layout."
@@ -1919,12 +1920,12 @@ msgstr ""
 "Duyurulara konum ve bağlam bilgilerini ekleyin. Hata ayıklama ve terminal "
 "düzenini anlamak için yararlıdır."
 
-#: addon\lib\settings_panel.py:293
+#: addon\lib\settings_panel.py:294
 msgid "Announce &indentation when reading lines"
 msgstr "Satırları okurken girinti duyurusu"
 
 # Tooltip for indentation announcement
-#: addon\lib\settings_panel.py:298
+#: addon\lib\settings_panel.py:299
 msgid ""
 "Automatically announce indentation level when reading lines. Use NVDA+F5 to "
 "toggle quickly. NVDA+I pressed twice still reads indentation."
@@ -1933,19 +1934,19 @@ msgstr ""
 "kullanarak hızlıca geçiş yap. NVDA+I tuşlarına iki kez basıldığında girinti "
 "hala okunur."
 
-#: addon\lib\settings_panel.py:305
+#: addon\lib\settings_panel.py:306
 msgid "Condense &repeated symbols"
 msgstr "Yoğunlaştırma ve tekrarlanan semboller"
 
 # Tooltip for repeated symbols
-#: addon\lib\settings_panel.py:310
+#: addon\lib\settings_panel.py:311
 msgid "Condense runs of repeated symbols (e.g., '====' becomes '4 equals')"
 msgstr ""
 "Tekrarlanan sembollerin dizilerini yoğunlaştırın (örneğin, '====' '4 "
 "eşittir' olur)"
 
 # Tooltip for repeated symbols values
-#: addon\lib\settings_panel.py:322
+#: addon\lib\settings_panel.py:323
 msgid ""
 "Characters that will be condensed when repeated. Example: -_=! (max 50 "
 "characters)"
@@ -1955,16 +1956,16 @@ msgstr ""
 # Label for default profile choice
 #. Default profile dropdown
 #. Translators: Label for default profile choice
-#: addon\lib\settings_panel.py:328
+#: addon\lib\settings_panel.py:329
 msgid "None (use global settings)"
 msgstr "Yok (genel ayarları kullan)"
 
-#: addon\lib\settings_panel.py:330
+#: addon\lib\settings_panel.py:331
 msgid "&Default profile:"
 msgstr "&Varsayılan profil:"
 
 # Tooltip for default profile
-#: addon\lib\settings_panel.py:345
+#: addon\lib\settings_panel.py:346
 msgid ""
 "Profile to use when no application-specific profile is detected. Use "
 "NVDA+F10 to check which profile is active."
@@ -1972,51 +1973,51 @@ msgstr ""
 "Uygulamaya özgü bir profil algılanmadığında kullanılacak profil. NVDA+F10 "
 "tuşlarını kullanarak hangi profilin etkin olduğunu kontrol edin."
 
-#: addon\lib\settings_panel.py:352
+#: addon\lib\settings_panel.py:353
 msgid "&Reset to Defaults"
 msgstr "&Varsayılanlara Sıfırla"
 
 # Tooltip for reset button
-#: addon\lib\settings_panel.py:356
+#: addon\lib\settings_panel.py:357
 msgid "Reset all Terminal Access settings to their default values"
 msgstr "Tüm Terminal Erişimi ayarlarını varsayılan değerlerine sıfırla"
 
-#: addon\lib\settings_panel.py:370
+#: addon\lib\settings_panel.py:371
 msgid "Error and &warning audio cues"
 msgstr ""
 
-#: addon\lib\settings_panel.py:375
+#: addon\lib\settings_panel.py:376
 msgid ""
 "Play a low tone on error lines and a higher tone on warning lines during "
 "navigation."
 msgstr ""
 
-#: addon\lib\settings_panel.py:381
+#: addon\lib\settings_panel.py:382
 msgid "Error audio cues in &quiet mode"
 msgstr ""
 
-#: addon\lib\settings_panel.py:386
+#: addon\lib\settings_panel.py:387
 msgid ""
 "Play error and warning tones on caret events while quiet mode is active. "
 "Lets you hear errors during fast output without speech."
 msgstr ""
 
-#: addon\lib\settings_panel.py:393
+#: addon\lib\settings_panel.py:394
 msgid "Output &activity tones"
 msgstr ""
 
-#: addon\lib\settings_panel.py:398
+#: addon\lib\settings_panel.py:399
 msgid ""
 "Play two ascending tones when new program output appears on screen. Does not "
 "play for characters you type."
 msgstr ""
 
-#: addon\lib\settings_panel.py:405
+#: addon\lib\settings_panel.py:406
 msgid "Activity tone &debounce (ms):"
 msgstr ""
 
 # Tooltip for coalesce delay
-#: addon\lib\settings_panel.py:413
+#: addon\lib\settings_panel.py:414
 #, fuzzy
 msgid ""
 "Milliseconds between activity tone repeats. Higher values mean fewer tones "
@@ -2025,98 +2026,98 @@ msgstr ""
 "Birikmiş yeni çıktıyı duyurmadan önce beklenecek milisaniye sayısı. Daha "
 "büyük değerler, hızlı çıktı sırasında kesintileri azaltır."
 
-#: addon\lib\settings_panel.py:420
+#: addon\lib\settings_panel.py:421
 msgid "Suppress speech during &streaming output"
 msgstr ""
 
-#: addon\lib\settings_panel.py:425
+#: addon\lib\settings_panel.py:426
 msgid ""
 "Automatically suppress per-character announcements when the terminal is "
 "rapidly producing output (AI CLI responses, build output, etc.). Prevents a "
 "flood of extraneous speech during streaming."
 msgstr ""
 
-#: addon\lib\settings_panel.py:433
+#: addon\lib\settings_panel.py:434
 msgid "Announce progress &milestones"
 msgstr ""
 
-#: addon\lib\settings_panel.py:438
+#: addon\lib\settings_panel.py:439
 msgid ""
 "Announce progress percentages at 25, 50, 75, and 100 percent during long "
 "operations such as downloads and builds. Gives progress feedback while "
 "streaming output is suppressed."
 msgstr ""
 
-#: addon\lib\settings_panel.py:453
+#: addon\lib\settings_panel.py:454
 msgid "Earcon &volume (percent):"
 msgstr ""
 
-#: addon\lib\settings_panel.py:461
+#: addon\lib\settings_panel.py:462
 msgid "Loudness of Terminal Access audio cues, from 10 to 100 percent."
 msgstr ""
 
-#: addon\lib\settings_panel.py:467
+#: addon\lib\settings_panel.py:468
 msgid "Earcon &pitch (percent):"
 msgstr ""
 
-#: addon\lib\settings_panel.py:475
+#: addon\lib\settings_panel.py:476
 msgid ""
 "Shift all audio cue frequencies, from 50 to 200 percent. Lower values help "
 "with high-frequency hearing loss, higher values help with low-frequency "
 "hearing loss."
 msgstr ""
 
-#: addon\lib\settings_panel.py:490
+#: addon\lib\settings_panel.py:491
 msgid ""
 "These features process terminal text locally on your machine.\n"
 "No data is sent to any server. Enable only the ones you need."
 msgstr ""
 
-#: addon\lib\settings_panel.py:498
+#: addon\lib\settings_panel.py:499
 msgid "Enable &summarization"
 msgstr ""
 
-#: addon\lib\settings_panel.py:503
+#: addon\lib\settings_panel.py:504
 msgid ""
 "Allow offline extractive summarization of terminal output. Use NVDA+' then Z "
 "to summarize recent output."
 msgstr ""
 
-#: addon\lib\settings_panel.py:510
+#: addon\lib\settings_panel.py:511
 msgid "Enable code block e&xplanation"
 msgstr ""
 
-#: addon\lib\settings_panel.py:515
+#: addon\lib\settings_panel.py:516
 msgid ""
 "Allow offline heuristic explanation of fenced code blocks. Assign a gesture "
 "to the explain command in NVDA's Input Gestures dialog."
 msgstr ""
 
-#: addon\lib\settings_panel.py:522
+#: addon\lib\settings_panel.py:523
 msgid "Enable &AI conversation parsing"
 msgstr ""
 
-#: addon\lib\settings_panel.py:527
+#: addon\lib\settings_panel.py:528
 msgid ""
 "Allow detection of AI CLI turns (user, assistant, system) for navigation and "
 "labeling in Claude CLI, Aider, ChatGPT, etc."
 msgstr ""
 
-#: addon\lib\settings_panel.py:534
+#: addon\lib\settings_panel.py:535
 msgid "Announce when a feature is &blocked"
 msgstr ""
 
-#: addon\lib\settings_panel.py:539
+#: addon\lib\settings_panel.py:540
 msgid ""
 "Speak a message when a disabled feature is invoked, explaining how to enable "
 "it. Uncheck for silent blocking."
 msgstr ""
 
-#: addon\lib\settings_panel.py:565
+#: addon\lib\settings_panel.py:566
 msgid "&Gestures that override NVDA defaults:"
 msgstr ""
 
-#: addon\lib\settings_panel.py:583
+#: addon\lib\settings_panel.py:584
 msgid ""
 "Checked gestures override the NVDA default inside terminals.\n"
 "Unchecked gestures restore the NVDA default. You can still\n"
@@ -2124,12 +2125,12 @@ msgid ""
 "To customize other gestures, use NVDA Preferences > Input Gestures."
 msgstr ""
 
-#: addon\lib\settings_panel.py:600
+#: addon\lib\settings_panel.py:601
 msgid "Installed &profiles:"
 msgstr "Yüklü profiller:"
 
 # Tooltip for profile list
-#: addon\lib\settings_panel.py:608
+#: addon\lib\settings_panel.py:609
 msgid ""
 "Select an application profile to view or edit. Profiles customize Terminal "
 "Access behavior for specific applications. Active and default profiles are "
@@ -2141,60 +2142,60 @@ msgstr ""
 
 # Label for new profile button
 #. Translators: Label for new profile button
-#: addon\lib\settings_panel.py:617
+#: addon\lib\settings_panel.py:618
 msgid "&New Profile..."
 msgstr "&Yeni Profil..."
 
 # Tooltip for new profile button
-#: addon\lib\settings_panel.py:621
+#: addon\lib\settings_panel.py:622
 msgid "Create a new application profile with custom settings"
 msgstr "Özel ayarlarla yeni bir uygulama profili oluşturun"
 
 # Label for edit profile button
 #. Translators: Label for edit profile button
-#: addon\lib\settings_panel.py:626
+#: addon\lib\settings_panel.py:627
 msgid "&Edit Profile..."
 msgstr "&Profili Düzenle..."
 
 # Tooltip for edit profile button
-#: addon\lib\settings_panel.py:630
+#: addon\lib\settings_panel.py:631
 msgid "Edit the selected application profile"
 msgstr "Seçilen uygulama profilini düzenle"
 
 # Label for delete profile button
 #. Translators: Label for delete profile button
-#: addon\lib\settings_panel.py:635
+#: addon\lib\settings_panel.py:636
 msgid "&Delete Profile"
 msgstr "&Profili Sil"
 
 # Tooltip for delete profile button
-#: addon\lib\settings_panel.py:639
+#: addon\lib\settings_panel.py:640
 msgid "Delete the selected custom profile (default profiles cannot be deleted)"
 msgstr "Seçilen özel profili silin (varsayılan profiller silinemez)"
 
 # Label for import profile button
 #. Translators: Label for import profile button
-#: addon\lib\settings_panel.py:649
+#: addon\lib\settings_panel.py:650
 msgid "&Import..."
 msgstr "&İçe aktar..."
 
 # Tooltip for import profile button
-#: addon\lib\settings_panel.py:653
+#: addon\lib\settings_panel.py:654
 msgid "Import a profile from a JSON file"
 msgstr "JSON dosyasından profil içe aktarma"
 
 # Label for export profile button
 #. Translators: Label for export profile button
-#: addon\lib\settings_panel.py:658
+#: addon\lib\settings_panel.py:659
 msgid "E&xport..."
 msgstr "E&xport..."
 
 # Tooltip for export profile button
-#: addon\lib\settings_panel.py:662
+#: addon\lib\settings_panel.py:663
 msgid "Export the selected profile to a JSON file"
 msgstr "Seçilen profili bir JSON dosyasına dışa aktarın"
 
-#: addon\lib\settings_panel.py:680
+#: addon\lib\settings_panel.py:681
 msgid ""
 "Are you sure you want to reset all Terminal Access settings to their default "
 "values?"
@@ -2202,105 +2203,105 @@ msgstr ""
 "Tüm Terminal Erişimi ayarlarını varsayılan değerlerine sıfırlamak "
 "istediğinizden emin misiniz?"
 
-#: addon\lib\settings_panel.py:681
+#: addon\lib\settings_panel.py:682
 msgid "Confirm Reset"
 msgstr "Sıfırlamayı Onayla"
 
-#: addon\lib\settings_panel.py:743
+#: addon\lib\settings_panel.py:744
 msgid "All settings have been reset to their default values."
 msgstr "Tüm ayarlar varsayılan değerlerine sıfırlanmıştır."
 
-#: addon\lib\settings_panel.py:744
+#: addon\lib\settings_panel.py:745
 msgid "Settings Reset"
 msgstr "Ayarlar Sıfırla"
 
 # Indicator for currently active profile
 #. Translators: Indicator for currently active profile
-#: addon\lib\settings_panel.py:876
+#: addon\lib\settings_panel.py:877
 msgid "Active"
 msgstr "Aktif"
 
 # Indicator for default profile
 #. Translators: Indicator for default profile
-#: addon\lib\settings_panel.py:879
+#: addon\lib\settings_panel.py:880
 msgid "Default"
 msgstr "Varsayılan"
 
 #. Translators: Title of the error shown when profile editor values are invalid
-#: addon\lib\settings_panel.py:934
+#: addon\lib\settings_panel.py:935
 #, fuzzy
 msgid "Invalid Profile"
 msgstr "Yüklü profiller:"
 
-#: addon\lib\settings_panel.py:999
+#: addon\lib\settings_panel.py:1000
 #, python-brace-format
 msgid "Are you sure you want to delete the profile '{name}'?"
 msgstr "'{name}' profilini silmek istediğinizden emin misiniz?"
 
-#: addon\lib\settings_panel.py:1000
+#: addon\lib\settings_panel.py:1001
 msgid "Confirm Delete"
 msgstr "Silmeyi Onayla"
 
-#: addon\lib\settings_panel.py:1017
+#: addon\lib\settings_panel.py:1018
 #, python-brace-format
 msgid "Profile '{name}' has been deleted."
 msgstr "\"{name}\" profili silinmiştir."
 
-#: addon\lib\settings_panel.py:1018
+#: addon\lib\settings_panel.py:1019
 msgid "Profile Deleted"
 msgstr "Profil Silindi"
 
-#: addon\lib\settings_panel.py:1027
+#: addon\lib\settings_panel.py:1028
 msgid "Failed to delete profile. See NVDA log for details."
 msgstr "Profil silinmedi. Ayrıntılar için NVDA günlüğüne bakın."
 
-#: addon\lib\settings_panel.py:1028
+#: addon\lib\settings_panel.py:1029
 msgid "Error"
 msgstr "Hata"
 
-#: addon\lib\settings_panel.py:1037
+#: addon\lib\settings_panel.py:1038
 msgid "Import Profile"
 msgstr "İçe Aktarma Profili"
 
-#: addon\lib\settings_panel.py:1039 addon\lib\settings_panel.py:1101
+#: addon\lib\settings_panel.py:1040 addon\lib\settings_panel.py:1102
 msgid "JSON files (*.json)|*.json"
 msgstr "JSON dosyaları (*.json)|*.json"
 
-#: addon\lib\settings_panel.py:1063
+#: addon\lib\settings_panel.py:1064
 #, python-brace-format
 msgid "Profile '{name}' has been imported successfully."
 msgstr "\"{name}\" profili başarıyla içe aktarıldı."
 
-#: addon\lib\settings_panel.py:1066
+#: addon\lib\settings_panel.py:1067
 msgid "Profile Imported"
 msgstr "Profil İçe Aktarıldı"
 
-#: addon\lib\settings_panel.py:1075
+#: addon\lib\settings_panel.py:1076
 msgid "Failed to import profile. The file may be invalid or corrupted."
 msgstr "Profil içe aktarılmadı. Dosya geçersiz veya bozuk olabilir."
 
-#: addon\lib\settings_panel.py:1076
+#: addon\lib\settings_panel.py:1077
 msgid "Import Error"
 msgstr "İçe Aktarma Hatası"
 
-#: addon\lib\settings_panel.py:1098
+#: addon\lib\settings_panel.py:1099
 msgid "Export Profile"
 msgstr "İhracat Profili"
 
-#: addon\lib\settings_panel.py:1114
+#: addon\lib\settings_panel.py:1115
 #, python-brace-format
 msgid "Profile '{name}' has been exported successfully."
 msgstr "\"{name}\" profili başarıyla dışa aktarıldı."
 
-#: addon\lib\settings_panel.py:1115
+#: addon\lib\settings_panel.py:1116
 msgid "Profile Exported"
 msgstr "Profil Dışa Aktarıldı"
 
-#: addon\lib\settings_panel.py:1124
+#: addon\lib\settings_panel.py:1125
 msgid "Failed to export profile. See NVDA log for details."
 msgstr "Profil dışa aktarılmadı. Ayrıntılar için NVDA günlüğüne bakın."
 
-#: addon\lib\settings_panel.py:1125
+#: addon\lib\settings_panel.py:1126
 msgid "Export Error"
 msgstr "Dışa Aktarma Hatası"
 

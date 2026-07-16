@@ -549,7 +549,7 @@ Open settings from NVDA menu > Preferences > Settings > Terminal Settings.
 
 | Setting | Description |
 |---------|-------------|
-| **Key Echo** | Hear characters as you type in terminals, spoken at your punctuation level and with repeated symbols condensed ("dash 4 times"). See the note below on how this relates to NVDA's own typed-character echo. |
+| **Key Echo** | Hear characters as you type in terminals, spoken at your punctuation level and with repeated symbols condensed ("dash 4 times"). See the note below on how this relates to NVDA's own typing echo. |
 | **Cursor Tracking** | Announce cursor movements. |
 | **Punctuation Level** | Control symbol verbosity (None, Some, Most, All). |
 | **Indentation** | Announce indentation for code automatically. |
@@ -560,14 +560,14 @@ Open settings from NVDA menu > Preferences > Settings > Terminal Settings.
 
 The settings panel also has a "NVDA Gesture Conflicts" section for disabling conflicting gestures and an "Application Profiles" section for managing profiles.
 
-### Key Echo and NVDA's Speak Typed Characters
+### Key Echo and NVDA's Typing Echo
 
-Terminal Access's key echo and NVDA's own "speak typed characters" setting (NVDA menu > Preferences > Settings > Keyboard) both announce typing, but they are not the same feature, and only one speaks at a time:
+NVDA has two typing-echo settings of its own in NVDA menu > Preferences > Settings > Keyboard: "Speak typed characters" and "Speak typed words". Terminal Access's Key Echo and those settings all announce typing, but they are not the same feature, and only one echoes at a time:
 
-- **When NVDA's speak typed characters is off** (recommended for terminal work), Terminal Access does the echo inside terminals. You get symbol names at your chosen punctuation level, repeated symbols condensed ("dash 4 times"), and per-application profile control: profiles for single-key programs such as less, lazygit, btop, and Claude turn echo off automatically so shortcuts do not chatter.
-- **When NVDA's speak typed characters is on**, NVDA does the echo everywhere and Terminal Access steps aside to avoid speaking every character twice. The add-on's Key Echo setting and any per-profile echo overrides then have no effect, and you lose symbol condensing and the automatic per-application behavior.
+- **When both of NVDA's typing-echo settings are off** (recommended for terminal work), Terminal Access does the echo inside terminals. You get symbol names at your chosen punctuation level, repeated symbols condensed ("dash 4 times"), and per-application profile control: profiles for single-key programs such as less, lazygit, btop, and Claude turn echo off automatically so shortcuts do not chatter.
+- **When either of NVDA's typing-echo settings is on**, NVDA echoes typing itself and Terminal Access steps aside. This matters especially for "Speak typed words": NVDA builds each spoken word from the individual keystrokes it sees, so if Terminal Access also echoed each character it would speak over the words. With NVDA's setting on, the add-on's Key Echo and any per-profile echo overrides have no effect, and you lose symbol condensing and the automatic per-application behavior.
 
-In short: for the full terminal experience, leave NVDA's speak typed characters off and use Terminal Access's Key Echo; keep NVDA's setting on only if you want identical echo in every application.
+In short: for the full terminal experience, leave both of NVDA's typing-echo settings off and use Terminal Access's Key Echo; turn on NVDA's settings only if you want the same echo in every application, in which case Terminal Access's Key Echo does nothing.
 
 ---
 
