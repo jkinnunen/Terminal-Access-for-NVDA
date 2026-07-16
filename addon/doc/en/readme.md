@@ -246,7 +246,7 @@ Press **0-9** in the command layer (or **Alt+0** through **Alt+9** directly) to 
 
 Press **B** in the command layer (or **NVDA+Shift+B** directly) to open an interactive list. The dialog shows two columns: bookmark number and line content. Press Enter to jump to the selected bookmark, or Delete to remove it.
 
-Bookmarks are isolated per tab when you use Windows Terminal tabs.
+Bookmarks are kept per terminal window and persist while that window is open, including when focus leaves and returns. Separate terminal windows keep their own bookmarks. Note that several tabs inside a single Windows Terminal window share one window, so they share the same bookmarks.
 
 ---
 

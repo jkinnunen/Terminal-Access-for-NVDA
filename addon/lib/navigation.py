@@ -254,28 +254,30 @@ class BookmarkManager:
 			tab_manager: Optional TabManager for tab-aware bookmark storage
 		"""
 		self._terminal = terminal_obj
+		# tab_manager is accepted for API compatibility but no longer keys
+		# bookmark storage. See _get_bookmark_dict.
 		self._tab_manager = tab_manager
+		# Fallback storage used only when the terminal has no window handle.
 		self._bookmarks = {}  # name -> {"bookmark": obj, "label": str}
-		self._tab_bookmarks = {}  # tab_id -> {name -> {"bookmark": obj, "label": str}}
-		self._max_bookmarks = 50  # Maximum number of bookmarks per tab
-
-	def _get_current_tab_id(self) -> str:
-		"""Get current tab ID, or None if no tab manager."""
-		if self._tab_manager:
-			return self._tab_manager.get_current_tab_id()
-		return None
+		# Per-window storage: windowHandle -> {name -> {"bookmark", "label"}}.
+		self._window_bookmarks = {}
+		self._max_bookmarks = 50  # Maximum number of bookmarks per window
 
 	def _get_bookmark_dict(self):
-		"""Get the appropriate bookmark dictionary for the current context."""
-		tab_id = self._get_current_tab_id()
-		if tab_id:
-			# Multi-tab mode: use per-tab storage
-			if tab_id not in self._tab_bookmarks:
-				self._tab_bookmarks[tab_id] = {}
-			return self._tab_bookmarks[tab_id]
-		else:
-			# Legacy mode: use shared storage
-			return self._bookmarks
+		"""Return the bookmark dictionary for the current terminal window.
+
+		Bookmarks are keyed on the window handle, which is stable across
+		focus events. They were previously keyed on a tab id that hashed the
+		window title and the focused object id, both of which change on every
+		focus, so bookmarks were orphaned the moment focus returned to the
+		terminal. Per-window storage is also correct because a bookmark's
+		stored line number is specific to the window it was set in.
+		"""
+		hwnd = getattr(self._terminal, "windowHandle", None)
+		if hwnd:
+			return self._window_bookmarks.setdefault(hwnd, {})
+		# No window handle available: fall back to a single shared store.
+		return self._bookmarks
 
 	# Prompt patterns for extracting command text from prompt lines.
 	_PROMPT_COMMAND_RE = [

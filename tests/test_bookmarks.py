@@ -6,6 +6,70 @@ from unittest.mock import Mock, MagicMock, patch
 import pytest
 
 
+class _ChurningTabManager:
+	"""Tab manager whose id changes between calls, like the real one when the
+	window title or focused object changes on refocus."""
+	def __init__(self, tab_id="A"):
+		self._id = tab_id
+
+	def get_current_tab_id(self):
+		return self._id
+
+
+def test_bookmarks_survive_tab_id_churn():
+	"""Bookmarks must not be lost when focus returns to the same terminal
+	window and the tab id churns. They are keyed on the stable window handle,
+	not the volatile tab id."""
+	from globalPlugins.terminalAccess import BookmarkManager
+
+	terminal = Mock()
+	terminal.windowHandle = 0x55
+	tabmgr = _ChurningTabManager("A")
+	manager = BookmarkManager(terminal, tab_manager=tabmgr)
+
+	ti = Mock()
+	ti.bookmark = "b1"
+	ti.text = "line one"
+	with patch('api.getReviewPosition', return_value=ti):
+		manager.set_bookmark("1")
+	assert len(manager.list_bookmarks()) == 1
+
+	# Refocus: same window, new object, churned tab id.
+	tabmgr._id = "B"
+	rebound = Mock()
+	rebound.windowHandle = 0x55
+	manager.update_terminal(rebound)
+
+	assert len(manager.list_bookmarks()) == 1
+
+
+def test_bookmarks_separate_and_restore_per_window():
+	"""Bookmarks are per terminal window (line numbers are window-specific).
+	Switching to another window shows its own bookmarks; returning restores
+	the first window's."""
+	from globalPlugins.terminalAccess import BookmarkManager
+
+	terminal = Mock()
+	terminal.windowHandle = 0xAA
+	manager = BookmarkManager(terminal)
+	ti = Mock()
+	ti.bookmark = "b"
+	ti.text = "x"
+	with patch('api.getReviewPosition', return_value=ti):
+		manager.set_bookmark("1")
+	assert len(manager.list_bookmarks()) == 1
+
+	other = Mock()
+	other.windowHandle = 0xBB
+	manager.update_terminal(other)
+	assert manager.list_bookmarks() == []
+
+	back = Mock()
+	back.windowHandle = 0xAA
+	manager.update_terminal(back)
+	assert len(manager.list_bookmarks()) == 1
+
+
 def test_bookmark_manager_set_and_jump():
 	"""Test that bookmarks can be set and jumped to."""
 	from globalPlugins.terminalAccess import BookmarkManager
@@ -43,8 +107,11 @@ def test_bookmark_manager_terminal_rebind():
 	"""Test that BookmarkManager works when terminal is rebound."""
 	from globalPlugins.terminalAccess import BookmarkManager
 
-	# Create first mock terminal
+	# Create first mock terminal. A rebind is the SAME window refocused as a
+	# new NVDAObject, so both objects share a window handle; bookmarks are
+	# keyed on that handle and must carry over.
 	terminal1 = Mock()
+	terminal1.windowHandle = 0x1234
 	mock_textinfo1 = Mock()
 	mock_textinfo1.bookmark = "bookmark1"
 	terminal1.makeTextInfo = Mock(return_value=mock_textinfo1)
@@ -57,8 +124,9 @@ def test_bookmark_manager_terminal_rebind():
 		result = manager.set_bookmark("1")
 		assert result is True
 
-	# Now simulate terminal rebind - create a new terminal object
+	# Now simulate terminal rebind - a new object for the same window.
 	terminal2 = Mock()
+	terminal2.windowHandle = 0x1234  # same window
 	mock_textinfo2 = Mock()
 	mock_textinfo2.bookmark = "bookmark1"  # Same bookmark content
 	terminal2.makeTextInfo = Mock(return_value=mock_textinfo2)
