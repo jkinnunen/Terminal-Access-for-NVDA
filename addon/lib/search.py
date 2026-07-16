@@ -122,38 +122,37 @@ class OutputSearchManager:
 		self._search_history: list[str] = []
 		# Message from the last search (e.g. fuzzy fallback notification)
 		self._last_search_message: str = ""
-		# The active search. Lives on the instance (not keyed by a tab id)
-		# and is cleared only on a real window change in update_terminal.
-		self._pattern = None
-		self._matches = []  # List of (bookmark, line_text, line_num, pos, offset) tuples
-		self._current_match_index = -1
-		self._case_sensitive = False
-		self._use_regex = False
+		# Active search per terminal window, keyed on the stable window
+		# handle (windowHandle). Keying on the window handle instead of the
+		# old tab id (a hash of the volatile window title and focused object
+		# id) means the search survives refocus and is restored when you
+		# switch to another window and back. Terminals without a handle fall
+		# back to the None key, a single shared slot.
+		self._window_searches = {}  # hwnd -> state dict
 
-	def _get_search_state(self):
-		"""Return the active search state.
-
-		The active search is stored on the manager instance and is not keyed
-		by a per-tab id. The tab id was a hash of the window title and the
-		NVDA object id, both of which change on every focus event, so keying
-		on it orphaned the results the moment focus returned to the terminal
-		(the dialog jump and findNext/findPrevious then found no matches).
-		"""
+	@staticmethod
+	def _blank_search_state():
 		return {
-			'pattern': self._pattern,
-			'matches': self._matches,
-			'current_match_index': self._current_match_index,
-			'case_sensitive': self._case_sensitive,
-			'use_regex': self._use_regex
+			'pattern': None,
+			'matches': [],
+			'current_match_index': -1,
+			'case_sensitive': False,
+			'use_regex': False,
 		}
 
+	def _search_key(self):
+		return getattr(self._terminal, "windowHandle", None) or None
+
+	def _get_search_state(self):
+		"""Return the active search state for the current terminal window."""
+		key = self._search_key()
+		if key not in self._window_searches:
+			self._window_searches[key] = self._blank_search_state()
+		return self._window_searches[key]
+
 	def _save_search_state(self, state):
-		"""Persist the active search state onto the instance."""
-		self._pattern = state['pattern']
-		self._matches = state['matches']
-		self._current_match_index = state['current_match_index']
-		self._case_sensitive = state['case_sensitive']
-		self._use_regex = state['use_regex']
+		"""Persist the active search state for the current terminal window."""
+		self._window_searches[self._search_key()] = state
 
 	# Safety limits for search input validation
 	MAX_PATTERN_LENGTH = 500
@@ -892,23 +891,15 @@ class OutputSearchManager:
 		Args:
 			terminal_obj: New terminal TextInfo object
 		"""
-		# NVDA creates a fresh NVDAObject for every focus event, so this is
-		# called with a new object even when the user returns to the SAME
-		# terminal window (for example when the search results dialog
-		# closes). Wiping the matches in that case breaks the dialog jump
-		# and findNext/findPrevious. Only clear when it is genuinely a
-		# different window (or the window cannot be identified).
-		old_hwnd = getattr(self._terminal, "windowHandle", None)
-		new_hwnd = getattr(terminal_obj, "windowHandle", None)
-		same_window = bool(old_hwnd) and old_hwnd == new_hwnd
-
-		self._terminal = terminal_obj
-		# Even for the same window, drop the buffer cache: content may have
+		# Search state is keyed on the window handle, so a rebind (a fresh
+		# NVDAObject for the same window on every focus event) automatically
+		# resolves to the same window's search, and switching to another
+		# window selects that window's own search. Nothing to clear here.
+		# The buffer cache is per-content, so it is dropped: output may have
 		# changed while focus was elsewhere.
+		self._terminal = terminal_obj
 		self.note_content_changed()
 		self._cached_lines = None
-		if not same_window:
-			self.clear_search()
 
 	def set_tab_manager(self, tab_manager):
 		"""

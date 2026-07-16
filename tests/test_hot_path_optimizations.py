@@ -472,7 +472,7 @@ class TestOutputSearchManagerSinglePass(unittest.TestCase):
         manager = OutputSearchManager(terminal)
         manager.search("b")
         # Matches should be on lines 2 and 4 (1-indexed)
-        line_nums = [m[2] for m in manager._matches]
+        line_nums = [m[2] for m in manager._get_search_state()["matches"]]
         self.assertEqual(line_nums, [2, 4])
 
     def test_navigation_after_single_pass_search(self):

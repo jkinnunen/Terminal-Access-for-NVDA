@@ -70,11 +70,11 @@ class TestBufferCache:
         assert terminal.read_count == 2
 
 
-class TestUpdateTerminalPreservesMatches:
-    """update_terminal runs on every terminal focus (including the focus
-    return after the search results dialog closes). Rebinding to the SAME
-    terminal window must not wipe the matches, or the dialog jump and
-    findNext/findPrevious break the moment focus returns."""
+class TestSearchStatePerWindow:
+    """The active search is keyed on the window handle, so it survives a
+    refocus (a new NVDAObject for the same window) and is restored when you
+    switch to another window and back. update_terminal runs on every focus,
+    including the focus return after the search results dialog closes."""
 
     def test_same_window_keeps_matches(self):
         terminal = CountingTerminal("alpha\nerror here\nbeta")
@@ -89,7 +89,7 @@ class TestUpdateTerminalPreservesMatches:
         assert mgr.get_match_count() == 1
         assert mgr._terminal is rebound
 
-    def test_different_window_clears_matches(self):
+    def test_other_window_has_its_own_search(self):
         terminal = CountingTerminal("error here")
         terminal.windowHandle = 0x42
         mgr = OutputSearchManager(terminal)
@@ -98,20 +98,36 @@ class TestUpdateTerminalPreservesMatches:
         other = CountingTerminal("different buffer")
         other.windowHandle = 0x99
         mgr.update_terminal(other)
-
+        # The other window has no search of its own yet.
         assert mgr.get_match_count() == 0
 
-    def test_unknown_window_clears_matches(self):
-        terminal = CountingTerminal("error here")
-        terminal.windowHandle = 0x42
-        mgr = OutputSearchManager(terminal)
+    def test_search_restored_when_returning_to_a_window(self):
+        win_a = CountingTerminal("alpha\nerror here\nbeta")
+        win_a.windowHandle = 0xAA
+        mgr = OutputSearchManager(win_a)
         assert mgr.search("error") == 1
 
-        no_hwnd = CountingTerminal("whatever")
-        no_hwnd.windowHandle = None
-        mgr.update_terminal(no_hwnd)
-
+        win_b = CountingTerminal("no matches here")
+        win_b.windowHandle = 0xBB
+        mgr.update_terminal(win_b)
         assert mgr.get_match_count() == 0
+
+        back = CountingTerminal("alpha\nerror here\nbeta")
+        back.windowHandle = 0xAA  # same window as win_a
+        mgr.update_terminal(back)
+        # win_a's search is restored.
+        assert mgr.get_match_count() == 1
+
+    def test_no_handle_uses_shared_slot(self):
+        terminal = CountingTerminal("error here")
+        terminal.windowHandle = None
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("error") == 1
+        # A rebind to another handle-less terminal shares the None slot.
+        other = CountingTerminal("error here")
+        other.windowHandle = None
+        mgr.update_terminal(other)
+        assert mgr.get_match_count() == 1
 
 
 class TestSearchSurvivesTabIdChurn:
