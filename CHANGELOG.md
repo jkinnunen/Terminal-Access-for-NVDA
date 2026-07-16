@@ -6,6 +6,10 @@ Version 2.0.0 was developed through fifteen pre-releases (2.0.0-beta through 2.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Find next and find previous (NVDA+F3 / NVDA+Shift+F3) now work after you activate a search result.** Search results were stored per terminal "tab", but the tab identity was a hash of the window title and the focused object, both of which change every time focus returns to the terminal. So activating a result and pressing F3 looked under a different key, found nothing, and reported "No search results." The active search is now kept with the search session itself and cleared only when you switch to a genuinely different terminal window, so it survives the focus change. (This is also the path a missing test failed to cover, which is now added.)
+
 ## [2.0.2] - 2026-07-13
 
 ### Fixed

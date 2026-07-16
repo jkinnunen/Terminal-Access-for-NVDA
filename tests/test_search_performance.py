@@ -114,6 +114,57 @@ class TestUpdateTerminalPreservesMatches:
         assert mgr.get_match_count() == 0
 
 
+class TestSearchSurvivesTabIdChurn:
+    """The active search must survive a terminal focus event even with a tab
+    manager present. The tab id is a hash of the window title and the NVDA
+    object id, both of which change on refocus, so keying search state on it
+    orphaned the results and findNext/findPrevious reported no matches. The
+    active search is now instance-scoped, cleared only on a real window
+    change. (This is the tab-manager path the earlier same-window test did
+    not cover.)"""
+
+    class ChurningTabManager:
+        """Tab manager whose id changes between calls, as the real one does
+        when the title or the focused NVDAObject changes."""
+        def __init__(self, tab_id="tabA"):
+            self._id = tab_id
+
+        def get_current_tab_id(self):
+            return self._id
+
+        def update_terminal(self, obj):
+            pass
+
+    def test_matches_survive_refocus_when_tab_id_changes(self):
+        terminal = CountingTerminal("alpha\nerror here\nbeta")
+        terminal.windowHandle = 0x42
+        tabmgr = self.ChurningTabManager("tabA")
+        mgr = OutputSearchManager(terminal, tab_manager=tabmgr)
+        assert mgr.search("error") == 1
+
+        # Refocus: same window, but a new object and title churn the tab id.
+        tabmgr._id = "tabB"
+        rebound = CountingTerminal("alpha\nerror here\nbeta")
+        rebound.windowHandle = 0x42
+        mgr.update_terminal(rebound)
+
+        # findNext/findPrevious read this; it must still see the match.
+        assert mgr.get_match_count() == 1
+        info = mgr.get_current_match_info()
+        assert info is None or info[1] == 1  # total count is 1 if index set
+
+    def test_state_not_split_across_tab_ids(self):
+        """Saving under one id and reading under another must see the same
+        active search (no per-tab dict to split it)."""
+        terminal = CountingTerminal("x\nneedle\ny")
+        terminal.windowHandle = 0x7
+        tabmgr = self.ChurningTabManager("t1")
+        mgr = OutputSearchManager(terminal, tab_manager=tabmgr)
+        assert mgr.search("needle") == 1
+        tabmgr._id = "t2"
+        assert mgr.get_match_count() == 1
+
+
 # ---------------------------------------------------------------------------
 # #4 Skip ANSI strip when there is nothing to strip
 # ---------------------------------------------------------------------------

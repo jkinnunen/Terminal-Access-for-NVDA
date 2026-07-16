@@ -108,6 +108,8 @@ class OutputSearchManager:
 			tab_manager: Optional TabManager for tab-aware search storage
 		"""
 		self._terminal = terminal_obj
+		# tab_manager is accepted for API compatibility but no longer keys
+		# the search state. See _get_search_state.
 		self._tab_manager = tab_manager
 		# Cached ANSI-stripped, length-capped buffer lines. Reused across
 		# searches until the plugin signals new output via
@@ -120,58 +122,38 @@ class OutputSearchManager:
 		self._search_history: list[str] = []
 		# Message from the last search (e.g. fuzzy fallback notification)
 		self._last_search_message: str = ""
-		# Legacy single-tab storage
+		# The active search. Lives on the instance (not keyed by a tab id)
+		# and is cleared only on a real window change in update_terminal.
 		self._pattern = None
-		self._matches = []  # List of (bookmark, line_text, line_num) tuples
+		self._matches = []  # List of (bookmark, line_text, line_num, pos, offset) tuples
 		self._current_match_index = -1
 		self._case_sensitive = False
 		self._use_regex = False
-		# Per-tab storage
-		self._tab_searches = {}  # tab_id -> {pattern, matches, index, case_sensitive, use_regex}
-
-	def _get_current_tab_id(self) -> str:
-		"""Get current tab ID, or None if no tab manager."""
-		if self._tab_manager:
-			return self._tab_manager.get_current_tab_id()
-		return None
 
 	def _get_search_state(self):
-		"""Get the appropriate search state dict for the current context."""
-		tab_id = self._get_current_tab_id()
-		if tab_id:
-			# Multi-tab mode: use per-tab storage
-			if tab_id not in self._tab_searches:
-				self._tab_searches[tab_id] = {
-					'pattern': None,
-					'matches': [],
-					'current_match_index': -1,
-					'case_sensitive': False,
-					'use_regex': False
-				}
-			return self._tab_searches[tab_id]
-		else:
-			# Legacy mode: use instance variables
-			return {
-				'pattern': self._pattern,
-				'matches': self._matches,
-				'current_match_index': self._current_match_index,
-				'case_sensitive': self._case_sensitive,
-				'use_regex': self._use_regex
-			}
+		"""Return the active search state.
+
+		The active search is stored on the manager instance and is not keyed
+		by a per-tab id. The tab id was a hash of the window title and the
+		NVDA object id, both of which change on every focus event, so keying
+		on it orphaned the results the moment focus returned to the terminal
+		(the dialog jump and findNext/findPrevious then found no matches).
+		"""
+		return {
+			'pattern': self._pattern,
+			'matches': self._matches,
+			'current_match_index': self._current_match_index,
+			'case_sensitive': self._case_sensitive,
+			'use_regex': self._use_regex
+		}
 
 	def _save_search_state(self, state):
-		"""Save search state to the appropriate storage."""
-		tab_id = self._get_current_tab_id()
-		if tab_id:
-			# Multi-tab mode
-			self._tab_searches[tab_id] = state
-		else:
-			# Legacy mode
-			self._pattern = state['pattern']
-			self._matches = state['matches']
-			self._current_match_index = state['current_match_index']
-			self._case_sensitive = state['case_sensitive']
-			self._use_regex = state['use_regex']
+		"""Persist the active search state onto the instance."""
+		self._pattern = state['pattern']
+		self._matches = state['matches']
+		self._current_match_index = state['current_match_index']
+		self._case_sensitive = state['case_sensitive']
+		self._use_regex = state['use_regex']
 
 	# Safety limits for search input validation
 	MAX_PATTERN_LENGTH = 500
