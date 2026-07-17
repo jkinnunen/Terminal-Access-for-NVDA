@@ -269,20 +269,23 @@ are testable without a terminal.
 - Create: `addon/lib/buffer_snapshot.py`
 - Create: `tests/test_buffer_snapshot.py`
 
-- [ ] create `BufferSnapshot` holding `lines`, `terminal_name`, `captured_at`,
+- [x] create `BufferSnapshot` holding `lines`, `terminal_name`, `captured_at`,
       `total_lines`, `truncated` (bool), `first_line_num` (absolute)
-- [ ] add `capture(terminal, lines, max_lines=MAX_SNAPSHOT_LINES)` classmethod
+- [x] add `capture(terminal, lines, max_lines=MAX_SNAPSHOT_LINES)` classmethod
       keeping only the most recent `max_lines` and setting `truncated` /
       `first_line_num` so absolute line numbers stay correct
-- [ ] add `MAX_SNAPSHOT_LINES` as a cap, with a comment that 50000 (matching
+- [x] add `MAX_SNAPSHOT_LINES` as a cap, with a comment that 50000 (matching
       `search.MAX_SEARCH_LINES`) is a CEILING to disprove at the Task 3 real-NVDA
       gate, not a default to ship; default it low and raise only to the measured
       responsive limit
-- [ ] add `line_at(index)` returning the text for an absolute line number
-- [ ] write tests for capture under the cap (not truncated, first_line_num 0)
-- [ ] write tests for capture over the cap (truncated, absolute numbers preserved)
-- [ ] write tests for empty and single-line buffers
-- [ ] run tests - must pass before task 2
+      ➕ implemented as two constants: `MAX_SNAPSHOT_LINES = 10000` (shipped
+      default) and `SNAPSHOT_LINES_CEILING = 50000` (documented bound, tested
+      equal to `search.MAX_SEARCH_LINES`)
+- [x] add `line_at(index)` returning the text for an absolute line number
+- [x] write tests for capture under the cap (not truncated, first_line_num 0)
+- [x] write tests for capture over the cap (truncated, absolute numbers preserved)
+- [x] write tests for empty and single-line buffers
+- [x] run tests - must pass before task 2 (15 new tests; full suite 1907 green)
 
 ### Task 2: HTML escaping of untrusted terminal output
 
