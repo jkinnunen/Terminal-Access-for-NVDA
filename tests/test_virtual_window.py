@@ -242,21 +242,23 @@ class TestJumpDialogScript:
 
         gesture.send.assert_called_once()
 
+    def _on_activate(self, plugin, snap, rows):
+        with patch("lib.list_dialogs.BrowsableListDialog") as dlg_cls:
+            plugin._showJumpToLineDialog(snap, rows)
+        on_activate = dlg_cls.call_args.kwargs.get("on_activate")
+        if on_activate is None:
+            on_activate = dlg_cls.call_args.args[4]
+        return on_activate
+
     def test_activation_sets_jump_target_by_content(self):
         """Selection arms the SAME reapply machinery the search dialog
         uses: _searchJumpPending plus a (text, line_num) target that the
         focus-return handler resolves by content, never by counting."""
         plugin = _make_plugin()
-        plugin._boundTerminal = Mock()
+        plugin._searchManager = Mock()
         snap = _snapshot(lines=("PS C:\\repo> run", "output line"))
         rows = [(0, "PS C:\\repo> run", ""), (1, "output line", "PS C:\\repo> run")]
-
-        with patch("lib.list_dialogs.BrowsableListDialog") as dlg_cls:
-            plugin._showJumpToLineDialog(snap, rows)
-
-        on_activate = dlg_cls.call_args.kwargs.get("on_activate")
-        if on_activate is None:
-            on_activate = dlg_cls.call_args.args[4]
+        on_activate = self._on_activate(plugin, snap, rows)
         plugin._searchJumpPending = False
         plugin._searchJumpTarget = None
 
@@ -265,18 +267,35 @@ class TestJumpDialogScript:
         assert plugin._searchJumpPending is True
         assert plugin._searchJumpTarget == ("output line", 1)
 
-    def test_activation_with_terminal_gone_announces_instead(self):
-        import ui
+    def test_activation_arms_even_though_focus_left_the_terminal(self):
+        """THE SHIPPED-BUG REGRESSION TEST. While the dialog is open,
+        focus is on the dialog, so the global focus handler has already
+        nulled _boundTerminal. Activation must still arm the jump: the
+        reapply machinery resolves through the search manager, which
+        keeps its own terminal binding, exactly like the search results
+        dialog (which never consults _boundTerminal)."""
         plugin = _make_plugin()
         plugin._boundTerminal = None
-        snap = _snapshot()
-        rows = [(0, "alpha", "")]
+        plugin._searchManager = Mock()
+        snap = _snapshot(lines=("alpha",))
+        on_activate = self._on_activate(plugin, snap, [(0, "alpha", "")])
+        plugin._searchJumpPending = False
+        plugin._searchJumpTarget = None
 
-        with patch("lib.list_dialogs.BrowsableListDialog") as dlg_cls:
-            plugin._showJumpToLineDialog(snap, rows)
-        on_activate = dlg_cls.call_args.kwargs.get("on_activate")
-        if on_activate is None:
-            on_activate = dlg_cls.call_args.args[4]
+        on_activate(0)
+
+        assert plugin._searchJumpPending is True
+        assert plugin._searchJumpTarget == ("alpha", 0)
+
+    def test_activation_without_a_search_manager_announces_instead(self):
+        """No manager means no terminal was ever focused: nothing can
+        resolve the landing, so say so rather than arming a jump that
+        can never fire."""
+        import ui
+        plugin = _make_plugin()
+        plugin._searchManager = None
+        snap = _snapshot()
+        on_activate = self._on_activate(plugin, snap, [(0, "alpha", "")])
         plugin._searchJumpPending = False
         ui.message.reset_mock()
 

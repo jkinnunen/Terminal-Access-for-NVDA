@@ -4031,7 +4031,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		import gui
 
 		def on_activate(index):
-			if self._boundTerminal is None:
+			# Do NOT consult _boundTerminal here: focus is on this dialog,
+			# so the global focus handler has already nulled it (that check
+			# shipped as a bug that made every jump announce "no longer
+			# available"). The reapply machinery resolves through the
+			# search manager, which keeps its own terminal binding, exactly
+			# like the search results dialog. No manager at all means no
+			# terminal was ever focused, and nothing could resolve the
+			# landing.
+			if self._searchManager is None:
 				# Translators: Announced when jumping fails because the
 				# terminal window has gone away
 				ui.message(_("The terminal is no longer available"))
