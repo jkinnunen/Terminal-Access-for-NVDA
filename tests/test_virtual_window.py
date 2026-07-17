@@ -167,3 +167,175 @@ class TestWorkerAndPresentation:
             ui.browseableMessage.side_effect = None
 
         ui.message.assert_called_once()
+
+
+class TestBuildJumpRows:
+    """Rows for the jump dialog: every line, with its command context."""
+
+    def _rows(self, lines, max_lines=None):
+        from lib.list_dialogs import build_jump_rows
+        from lib.section_tokenizer import SectionTokenizer
+
+        snap = _snapshot(lines=lines) if max_lines is None else None
+        if snap is None:
+            term = Mock()
+            term.appModule.appName = "wt"
+            snap = BufferSnapshot.capture(term, list(lines), max_lines=max_lines)
+        tok = SectionTokenizer()
+        sections = tok.tokenize(snap.lines)
+        return build_jump_rows(snap, sections)
+
+    def test_one_row_per_line(self):
+        rows = self._rows(["a", "b", "c"])
+        assert len(rows) == 3
+
+    def test_row_carries_absolute_number_and_text(self):
+        rows = self._rows(["alpha", "beta"])
+        assert rows[0][:2] == (0, "alpha")
+        assert rows[1][:2] == (1, "beta")
+
+    def test_absolute_numbers_survive_truncation(self):
+        rows = self._rows([f"line {i}" for i in range(30)], max_lines=20)
+        assert rows[0][0] == 10
+        assert rows[0][1] == "line 10"
+
+    def test_context_is_the_governing_command(self):
+        rows = self._rows([
+            "PS C:\\repo> npm run build",
+            "compiling",
+            "done",
+        ])
+        assert "npm run build" in rows[1][2]
+        assert "npm run build" in rows[2][2]
+
+    def test_prompt_row_is_its_own_context(self):
+        rows = self._rows([
+            "PS C:\\repo> first",
+            "out",
+            "PS C:\\repo> second",
+        ])
+        assert "second" in rows[2][2]
+        assert "first" not in rows[2][2]
+
+    def test_lines_before_any_prompt_have_empty_context(self):
+        rows = self._rows(["banner text", "PS C:\\repo> go"])
+        assert rows[0][2] == ""
+
+
+class TestJumpDialogScript:
+    def test_script_exists_and_gestures_bound(self):
+        from globalPlugins.terminalAccess import (
+            GlobalPlugin,
+            _COMMAND_LAYER_MAP,
+            _DEFAULT_GESTURES,
+        )
+        assert hasattr(GlobalPlugin, "script_jumpToBufferLine")
+        assert _DEFAULT_GESTURES.get("kb:NVDA+shift+enter") == "jumpToBufferLine"
+        assert _COMMAND_LAYER_MAP.get("kb:shift+enter") == "jumpToBufferLine"
+
+    def test_passes_through_outside_terminal(self):
+        plugin = _make_plugin()
+        plugin.isTerminalApp = Mock(return_value=False)
+        gesture = MagicMock()
+
+        plugin.script_jumpToBufferLine(gesture)
+
+        gesture.send.assert_called_once()
+
+    def test_activation_sets_jump_target_by_content(self):
+        """Selection arms the SAME reapply machinery the search dialog
+        uses: _searchJumpPending plus a (text, line_num) target that the
+        focus-return handler resolves by content, never by counting."""
+        plugin = _make_plugin()
+        plugin._boundTerminal = Mock()
+        snap = _snapshot(lines=("PS C:\\repo> run", "output line"))
+        rows = [(0, "PS C:\\repo> run", ""), (1, "output line", "PS C:\\repo> run")]
+
+        with patch("lib.list_dialogs.BrowsableListDialog") as dlg_cls:
+            plugin._showJumpToLineDialog(snap, rows)
+
+        on_activate = dlg_cls.call_args.kwargs.get("on_activate")
+        if on_activate is None:
+            on_activate = dlg_cls.call_args.args[4]
+        plugin._searchJumpPending = False
+        plugin._searchJumpTarget = None
+
+        on_activate(1)
+
+        assert plugin._searchJumpPending is True
+        assert plugin._searchJumpTarget == ("output line", 1)
+
+    def test_activation_with_terminal_gone_announces_instead(self):
+        import ui
+        plugin = _make_plugin()
+        plugin._boundTerminal = None
+        snap = _snapshot()
+        rows = [(0, "alpha", "")]
+
+        with patch("lib.list_dialogs.BrowsableListDialog") as dlg_cls:
+            plugin._showJumpToLineDialog(snap, rows)
+        on_activate = dlg_cls.call_args.kwargs.get("on_activate")
+        if on_activate is None:
+            on_activate = dlg_cls.call_args.args[4]
+        plugin._searchJumpPending = False
+        ui.message.reset_mock()
+
+        on_activate(0)
+
+        assert plugin._searchJumpPending is False
+        ui.message.assert_called_once()
+
+
+class TestReapplyFallbackAnnouncement:
+    """The shared reapply path speaks up when the line cannot be reached.
+
+    Both search jumps and buffer jumps land through _reapplySearchJump.
+    It retries once after NVDA's focus transition; when every attempt
+    fails to resolve the line (scrolled out of history), the user must
+    hear that, not silence. Exactly one announcement, after the LAST
+    attempt only.
+    """
+
+    def _armed_plugin(self, resolves):
+        plugin = _make_plugin()
+        plugin._searchJumpTarget = ("some line", 5)
+        mgr = Mock()
+        mgr._resolve_line_by_content = Mock(
+            return_value=Mock() if resolves else None
+        )
+        plugin._searchManager = mgr
+        plugin._scheduleSearchJumpReapply()
+        return plugin
+
+    def test_failure_announced_once_after_final_attempt(self):
+        import ui
+        plugin = self._armed_plugin(resolves=False)
+        ui.message.reset_mock()
+
+        plugin._reapplySearchJump()
+        assert ui.message.call_count == 0
+
+        plugin._reapplySearchJump()
+        assert ui.message.call_count == 1
+
+    def test_no_announcement_when_the_jump_resolves(self):
+        import ui
+        plugin = self._armed_plugin(resolves=True)
+        ui.message.reset_mock()
+
+        plugin._reapplySearchJump()
+        plugin._reapplySearchJump()
+
+        assert ui.message.call_count == 0
+
+    def test_success_on_retry_is_not_a_failure(self):
+        """First attempt misses (NVDA still rebinding), second lands."""
+        import ui
+        plugin = self._armed_plugin(resolves=False)
+        ui.message.reset_mock()
+
+        plugin._reapplySearchJump()
+        plugin._searchManager._resolve_line_by_content.return_value = Mock()
+        plugin._reapplySearchJump()
+
+        assert ui.message.call_count == 0

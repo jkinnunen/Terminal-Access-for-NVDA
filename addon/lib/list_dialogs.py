@@ -147,6 +147,37 @@ def build_search_rows(matches):
     ]
 
 
+def build_jump_rows(snapshot, sections):
+    """Build (absolute_line_num, text, context) rows for the jump dialog.
+
+    One row per snapshot line. The context is the governing command: the
+    text of the nearest preceding prompt line, so the list is navigable
+    by structure ("which command produced this?") rather than by line
+    number alone. A prompt row is its own context, since it starts a new
+    command; lines before any prompt have an empty context.
+
+    Args:
+        snapshot: A BufferSnapshot.
+        sections: SectionTokenizer.tokenize() output for snapshot.lines.
+
+    Returns:
+        List of (absolute_line_num, line_text, context_text) tuples,
+        absolute through snapshot.first_line_num so truncation does not
+        shift the numbering the jump resolves against.
+    """
+    rows = []
+    context = ""
+    for section in sections:
+        if section.category == "prompt":
+            context = section.text
+        rows.append((
+            snapshot.first_line_num + section.line_num,
+            section.text,
+            context,
+        ))
+    return rows
+
+
 def build_url_rows(urls):
     """Build (index, url, line, context) rows from URL entries.
 

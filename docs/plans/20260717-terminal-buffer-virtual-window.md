@@ -416,23 +416,31 @@ makes `_searchJumpTarget` / `_reapplySearchJump` work.
 - Modify: `addon/lib/list_dialogs.py` (reuse the browsable list dialog)
 - Modify: `tests/test_virtual_window.py`
 
-- [ ] build the list from the same tokenized snapshot: one entry per line, each
+- [x] build the list from the same tokenized snapshot: one entry per line, each
       showing its heading context (e.g. "line 812, under: npm run build") so the
       list is navigable by structure, not just line number
-- [ ] add `script_jumpToBufferLine` on the command layer (`Shift+Enter`) and a
+      (`build_jump_rows` in lib/list_dialogs.py; columns Line / Text / Command,
+      type-to-filter enabled on text and command)
+- [x] add `script_jumpToBufferLine` on the command layer (`Shift+Enter`) and a
       direct gesture; open the modal list dialog
-- [ ] on selection, close the dialog and resolve the target via
+      (direct gesture NVDA+Shift+Enter, verified free in NVDA core)
+- [x] on selection, close the dialog and resolve the target via
       `resolve_line_by_content()` (NEVER by counting lines)
-- [ ] set `_searchJumpTarget` and reuse `_reapplySearchJump` so the review cursor
+- [x] set `_searchJumpTarget` and reuse `_reapplySearchJump` so the review cursor
       survives the focus transition (see CLAUDE.md), exactly as the section list
       already does
-- [ ] announce the landed line
-- [ ] fall back with a spoken message when the line has scrolled out of history
+- [x] announce the landed line (line text spoken at selection)
+- [x] fall back with a spoken message when the line has scrolled out of history
       OR the terminal is no longer focused/alive
-- [ ] write tests that selection resolves by content, not by line number
-- [ ] write tests for the scrolled-out-of-history fallback
-- [ ] write tests for the terminal-gone fallback
-- [ ] write tests that the review cursor lands on the matched line text
+      ➕ the scrolled-away announcement lives in the shared
+      `_reapplySearchJump`, spoken once after the LAST retry fails; this also
+      fixes the pre-existing silent failure for search-result jumps
+- [x] write tests that selection resolves by content, not by line number
+- [x] write tests for the scrolled-out-of-history fallback
+- [x] write tests for the terminal-gone fallback
+- [x] write tests that the review cursor lands on the matched line text
+      (via the armed reapply path with a resolving manager)
+- [x] run tests (11 new tests; full suite 1981 green)
 - [ ] run tests - must pass before task 6
 
 ### Task 6: Open the browse window near the newest output

@@ -239,6 +239,7 @@ _COMMAND_LAYER_MAP = {
 	"kb:g": "toggleTableMode",
 	# Buffer window
 	"kb:enter": "showBufferWindow",
+	"kb:shift+enter": "jumpToBufferLine",
 	# Layer exit
 	"kb:escape": "exitCommandLayer",
 }
@@ -293,6 +294,7 @@ _DEFAULT_GESTURES = {
 	"kb:NVDA+-": "decreasePunctuationLevel",
 	"kb:NVDA+=": "increasePunctuationLevel",
 	"kb:NVDA+enter": "showBufferWindow",
+	"kb:NVDA+shift+enter": "jumpToBufferLine",
 	"kb:NVDA+shift+leftArrow": "readToLeft",
 	"kb:NVDA+shift+rightArrow": "readToRight",
 	"kb:NVDA+shift+upArrow": "readToTop",
@@ -698,6 +700,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# while match state is intact so the review cursor can be re-applied
 		# after focus returns to the terminal (which clears match state).
 		self._searchJumpTarget = None
+		# Reapply bookkeeping: how many scheduled attempts remain, and
+		# whether any attempt resolved. Failure is announced only after the
+		# last attempt, so a retry that succeeds stays silent.
+		self._reapplyAttemptsLeft = 0
+		self._reapplyEverResolved = False
 		self._cursorTrackingTimer = None
 		self._lastCaretPosition = None
 		self._lastTypedChar = None
@@ -1126,6 +1133,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _scheduleSearchJumpReapply(self):
 		"""Re-apply the search jump after NVDA's focus transition settles."""
+		self._reapplyAttemptsLeft = len(self._REVIEW_REAPPLY_DELAYS_MS)
+		self._reapplyEverResolved = False
 		for delay in self._REVIEW_REAPPLY_DELAYS_MS:
 			try:
 				wx.CallLater(delay, self._reapplySearchJump)
@@ -1138,8 +1147,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		Resolves the review position from the line text captured at jump
 		time, so it does not depend on the search manager's match state
 		(which is cleared when focus returns to the terminal).
+
+		When every scheduled attempt fails to resolve the line, that is
+		announced once: the line has scrolled out of the terminal's
+		history, and silence would leave the user thinking the jump
+		worked. Serves both search jumps and buffer-window jumps, which
+		land through this same path.
 		"""
 		try:
+			self._reapplyAttemptsLeft = max(0, self._reapplyAttemptsLeft - 1)
 			target = self._searchJumpTarget
 			mgr = self._searchManager
 			if not target or mgr is None:
@@ -1147,11 +1163,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			line_text, line_num = target
 			pos = mgr._resolve_line_by_content(line_text, line_num)
 			if pos is not None:
+				self._reapplyEverResolved = True
 				try:
 					pos.expand(textInfos.UNIT_LINE)
 				except (RuntimeError, AttributeError, TypeError):
 					pass
 				api.setReviewPosition(pos)
+			elif self._reapplyAttemptsLeft == 0 and not self._reapplyEverResolved:
+				# Translators: Announced when a jump target line cannot be
+				# found in the terminal anymore
+				ui.message(_(
+					"Could not reach that line. "
+					"It may have scrolled out of the terminal history."
+				))
 		except Exception:
 			pass
 
@@ -3885,6 +3909,102 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# rather than silence.
 			# Translators: Announced when the buffer window cannot be shown
 			ui.message(_("Unable to show the buffer window"))
+
+	@script(
+		# Translators: Description for the jump-to-line dialog
+		description=_(
+			"Open a list of every line in the terminal buffer, "
+			"with the command that produced it. Press enter on a line "
+			"to move the review cursor there."
+		),
+		category=SCRCAT_TERMINALACCESS,
+		gesture="kb:NVDA+shift+enter",
+	)
+	def script_jumpToBufferLine(self, gesture):
+		"""Open the jump-to-line list for the terminal buffer."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		# COM read on the main thread (watchdog-cancellable), CPU work on
+		# the worker: same split as the buffer window and search.
+		lines = self._getBufferLines()
+		if not lines:
+			# Translators: Message when terminal buffer cannot be read
+			ui.message(_("Cannot read terminal buffer"))
+			return
+		from lib.buffer_snapshot import BufferSnapshot
+		snapshot = BufferSnapshot.capture(self._boundTerminal, lines)
+		import threading
+		threading.Thread(
+			target=self._jumpDialogWorker,
+			args=(snapshot,),
+			name="TerminalAccessJumpList",
+			daemon=True,
+		).start()
+
+	def _jumpDialogWorker(self, snapshot):
+		"""Tokenize and build the jump rows off the main thread."""
+		from lib.list_dialogs import build_jump_rows
+		from lib.section_tokenizer import SectionTokenizer
+		tokenizer = SectionTokenizer()
+		sections = tokenizer.tokenize(snapshot.lines)
+		rows = build_jump_rows(snapshot, sections)
+		wx.CallAfter(self._showJumpToLineDialog, snapshot, rows)
+
+	def _showJumpToLineDialog(self, snapshot, rows):
+		"""Open the modal jump list (main thread).
+
+		Selection arms the same reapply machinery the search results
+		dialog uses: _searchJumpPending suppresses the focus-return
+		cursor reset, and _searchJumpTarget carries (text, line number)
+		so the landing is resolved by content after NVDA's focus
+		transition settles, never by counting lines.
+		"""
+		from lib.list_dialogs import BrowsableListDialog
+		import gui
+
+		def on_activate(index):
+			if self._boundTerminal is None:
+				# Translators: Announced when jumping fails because the
+				# terminal window has gone away
+				ui.message(_("The terminal is no longer available"))
+				return
+			line_num, text, _context = rows[index]
+			self._searchJumpPending = True
+			self._searchJumpTarget = (text, line_num)
+			if text.strip():
+				ui.message(text)
+
+		display_rows = [
+			(str(line_num + 1), text, context)
+			for line_num, text, context in rows
+		]
+		try:
+			gui.mainFrame.prePopup()
+			dlg = BrowsableListDialog(
+				gui.mainFrame,
+				# Translators: Title of the jump-to-line dialog. {terminal}
+				# is the terminal application's name.
+				title=_("Jump to line - {terminal}").format(
+					terminal=snapshot.terminal_name),
+				columns=[
+					# Translators: Column header for the line number
+					(_("Line"), 80),
+					# Translators: Column header for the line's text
+					(_("Text"), 420),
+					# Translators: Column header for the command that
+					# produced the line
+					(_("Command"), 260),
+				],
+				rows=display_rows,
+				on_activate=on_activate,
+				enable_search=True,
+				search_columns=[1, 2],
+			)
+			dlg.ShowModal()
+			dlg.Destroy()
+		finally:
+			gui.mainFrame.postPopup()
 
 	@script(
 		# Translators: Description for saving a diagnostic issue report
