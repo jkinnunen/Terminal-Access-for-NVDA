@@ -743,6 +743,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._searchDialogOpen = False
 		self._urlDialogOpen = False
 
+		# Last-used search options, remembered across searches this session.
+		self._searchCaseSensitive = False
+		self._searchUseRegex = False
+
 		# Table mode state (modal, like copy mode). _tableNavigator is
 		# non-None only while table mode is active.
 		self._tableNavigator = None
@@ -3533,6 +3537,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				# Translators: Message when bookmark set
 				ui.message(_("Bookmark {name} set").format(name=name))
+		elif self._bookmarkManager.is_full_for(name):
+			# Translators: Announced when the per-window bookmark limit is
+			# reached and a new bookmark cannot be added.
+			ui.message(_("Bookmark limit reached ({limit}). Delete a bookmark first.").format(
+				limit=self._bookmarkManager.max_bookmarks))
 		else:
 			# Translators: Error message when bookmark setting fails
 			ui.message(_("Failed to set bookmark"))
@@ -4137,20 +4146,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._searchDialogOpen = True
 
 		def show_search_dialog():
-			"""Prompt for text, run the search, then show results."""
-			search_text = None
+			"""Prompt for text and options, run the search, show results."""
+			result = None
 			try:
 				gui.mainFrame.prePopup()
-				dlg = wx.TextEntryDialog(
-					gui.mainFrame,
-					# Translators: Search dialog prompt
-					_("Enter search text:"),
-					# Translators: Search dialog title
-					_("Search Terminal Output")
-				)
-				if dlg.ShowModal() == wx.ID_OK:
-					search_text = dlg.GetValue()
-				dlg.Destroy()
+				result = self._promptForSearch()
 			except Exception:
 				try:
 					import logHandler
@@ -4160,22 +4160,66 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			finally:
 				gui.mainFrame.postPopup()
 
-			if not search_text:
+			if not result or not result[0]:
 				self._searchDialogOpen = False
 				return
 
+			search_text, case_sensitive, use_regex = result
+			# Remember the options for the next search this session.
+			self._searchCaseSensitive = case_sensitive
+			self._searchUseRegex = use_regex
+
 			# Run the search (matching moves off the main thread for large
 			# buffers) and present results when it completes.
-			self._runTerminalSearch(search_text, self._presentSearchResults)
+			self._runTerminalSearch(
+				search_text, self._presentSearchResults,
+				case_sensitive=case_sensitive, use_regex=use_regex)
 
 		# Run dialog in main thread
 		wx.CallAfter(show_search_dialog)
+
+	def _promptForSearch(self):
+		"""Show the search dialog with case-sensitive and regular-expression
+		options. Returns (text, case_sensitive, use_regex), or None if the
+		dialog was cancelled. The option checkboxes default to the last-used
+		values (self._searchCaseSensitive / self._searchUseRegex)."""
+		import wx
+		dlg = wx.Dialog(gui.mainFrame, title=_("Search Terminal Output"))
+		sizer = wx.BoxSizer(wx.VERTICAL)
+		# Translators: Prompt in the terminal search dialog
+		sizer.Add(wx.StaticText(dlg, label=_("Enter search text:")),
+				  flag=wx.ALL, border=8)
+		text_ctrl = wx.TextCtrl(dlg, style=wx.TE_PROCESS_ENTER)
+		sizer.Add(text_ctrl, flag=wx.EXPAND | wx.LEFT | wx.RIGHT, border=8)
+		# Translators: Search option: match letter case exactly
+		case_cb = wx.CheckBox(dlg, label=_("&Case sensitive"))
+		case_cb.SetValue(bool(getattr(self, "_searchCaseSensitive", False)))
+		sizer.Add(case_cb, flag=wx.ALL, border=8)
+		# Translators: Search option: treat the text as a regular expression
+		regex_cb = wx.CheckBox(dlg, label=_("Regular &expression"))
+		regex_cb.SetValue(bool(getattr(self, "_searchUseRegex", False)))
+		sizer.Add(regex_cb, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM, border=8)
+		buttons = dlg.CreateButtonSizer(wx.OK | wx.CANCEL)
+		if buttons:
+			sizer.Add(buttons, flag=wx.EXPAND | wx.ALL, border=8)
+		dlg.SetSizerAndFit(sizer)
+		# Enter in the text field submits the dialog.
+		text_ctrl.Bind(wx.EVT_TEXT_ENTER, lambda e: dlg.EndModal(wx.ID_OK))
+		text_ctrl.SetFocus()
+		try:
+			if dlg.ShowModal() == wx.ID_OK:
+				return (text_ctrl.GetValue(), case_cb.GetValue(),
+						regex_cb.GetValue())
+			return None
+		finally:
+			dlg.Destroy()
 
 	# Buffers at or above this size (characters) have their matching run on a
 	# worker thread so a large scrollback cannot block NVDA during a search.
 	_SEARCH_ASYNC_THRESHOLD = 200_000
 
-	def _runTerminalSearch(self, search_text, on_complete):
+	def _runTerminalSearch(self, search_text, on_complete,
+						   case_sensitive=False, use_regex=False):
 		"""Read the terminal buffer, then match and deliver the count.
 
 		The buffer read happens on the main thread (makeTextInfo is
@@ -4189,6 +4233,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			on_complete(search_text, 0)
 			return
 
+		# Fail fast (on the main thread) on an invalid regular expression
+		# rather than silently returning zero matches from a worker.
+		if use_regex:
+			import re
+			try:
+				re.compile(search_text)
+			except re.error as exc:
+				# Translators: announced when a search regular expression is invalid
+				ui.message(_("Invalid regular expression: {error}").format(error=exc))
+				self._searchDialogOpen = False
+				return
+
 		try:
 			raw_text = mgr._acquire_raw_text()
 		except Exception:
@@ -4199,8 +4255,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# thread, which is safe.
 		if not raw_text or len(raw_text) < self._SEARCH_ASYNC_THRESHOLD:
 			try:
-				count = mgr.search(search_text, case_sensitive=False,
-									raw_text=raw_text)
+				count = mgr.search(search_text, case_sensitive=case_sensitive,
+									use_regex=use_regex, raw_text=raw_text)
 			except Exception:
 				count = 0
 			on_complete(search_text, count)
@@ -4212,8 +4268,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		def worker():
 			try:
-				count = mgr.search(search_text, case_sensitive=False,
-									raw_text=raw_text)
+				count = mgr.search(search_text, case_sensitive=case_sensitive,
+									use_regex=use_regex, raw_text=raw_text)
 			except Exception:
 				count = 0
 			wx.CallAfter(on_complete, search_text, count)

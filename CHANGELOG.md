@@ -9,6 +9,8 @@ Version 2.0.0 was developed through fifteen pre-releases (2.0.0-beta through 2.0
 ### Added
 
 - **Find next and find previous now announce your position in the results.** Pressing NVDA+F3 or NVDA+Shift+F3 speaks the matched line followed by "N of M", and says "Wrapped" when navigation loops from the last match back to the first (or the reverse), so you always know where you are in the results and when you have been all the way through.
+- **The search dialog now offers case-sensitive and regular-expression search.** Two checkboxes, Case sensitive and Regular expression, sit under the search box and remember their setting for the next search in the session. An invalid regular expression is announced instead of silently finding nothing. (The search engine already supported both; they were just not reachable from the dialog.)
+- **Setting a bookmark past the per-window limit is now announced.** With 50 bookmarks already set for a window, setting another announces "Bookmark limit reached" and tells you to delete one, instead of failing silently.
 
 ### Fixed
 

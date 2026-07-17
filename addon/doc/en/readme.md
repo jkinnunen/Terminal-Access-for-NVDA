@@ -147,7 +147,11 @@ While in the command layer, these keys are active:
 | **F3** | Next search match |
 | **Shift+F3** | Previous search match |
 
-Search opens a results dialog listing every matching line. Activating a result (Enter or the Activate button) closes the dialog and places the review cursor at the beginning of the matched line, the same way a bookmark jump does, so review-current-line reads the match. After the dialog closes, F3 and Shift+F3 continue through the remaining matches from that position. If a search finds nothing, close fuzzy matches (one typo away) are offered instead.
+The search dialog has a text box plus two options: **Case sensitive** (match letter case exactly) and **Regular expression** (treat the text as a Python regular expression). Both remember their setting for the next search in the session. If a regular expression is invalid, you hear a short message and the search is not run.
+
+Search opens a results dialog listing every matching line. Activating a result (Enter or the Activate button) closes the dialog and places the review cursor at the beginning of the matched line, the same way a bookmark jump does, so review-current-line reads the match. After the dialog closes, F3 and Shift+F3 continue through the remaining matches, announcing each match's position as "N of M" and saying "Wrapped" when navigation loops back to the start. If a search finds nothing, close fuzzy matches (one typo away) are offered instead.
+
+Search results are taken at the moment you search. If the program then prints more output, the next find-next or find-previous re-runs the search against the current buffer so the results stay accurate, keeping your place on the same matched line where possible. Results are remembered per terminal window for the current NVDA session; they are not saved across an NVDA restart.
 
 #### Table Mode
 | Key | Action |
@@ -246,7 +250,9 @@ Press **0-9** in the command layer (or **Alt+0** through **Alt+9** directly) to 
 
 Press **B** in the command layer (or **NVDA+Shift+B** directly) to open an interactive list. The dialog shows two columns: bookmark number and line content. Press Enter to jump to the selected bookmark, or Delete to remove it.
 
-Bookmarks are kept per terminal window and persist while that window is open, including when focus leaves and returns. Separate terminal windows keep their own bookmarks. Note that several tabs inside a single Windows Terminal window share one window, so they share the same bookmarks.
+Bookmarks are kept per terminal window and persist while that window is open, including when focus leaves and returns. Separate terminal windows keep their own bookmarks. Note that several tabs inside a single Windows Terminal window share one window, so they share the same bookmarks. Bookmarks are held for the current NVDA session only; they are not saved across an NVDA restart. Up to 50 bookmarks are kept per window; once that limit is reached, setting a new one announces "Bookmark limit reached" until you delete one.
+
+Because terminal output scrolls, a bookmark points at a line by its content. Jumping to a bookmark re-finds that line, which is reliable while the line is still in the buffer; if the line has scrolled out of the terminal's history, the jump may not land.
 
 ---
 

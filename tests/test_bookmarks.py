@@ -70,6 +70,29 @@ def test_bookmarks_separate_and_restore_per_window():
 	assert len(manager.list_bookmarks()) == 1
 
 
+def test_bookmark_is_full_for_reports_limit():
+	"""is_full_for reports when a new bookmark cannot be added; an existing
+	name can still be updated."""
+	from globalPlugins.terminalAccess import BookmarkManager
+
+	terminal = Mock()
+	terminal.windowHandle = 0x77
+	manager = BookmarkManager(terminal)
+	manager._max_bookmarks = 2  # small limit for the test
+
+	ti = Mock()
+	ti.bookmark = "b"
+	ti.text = "x"
+	with patch('api.getReviewPosition', return_value=ti):
+		assert manager.set_bookmark("1") is True
+		assert manager.set_bookmark("2") is True
+		# At the limit now.
+		assert manager.is_full_for("3") is True          # a new name is blocked
+		assert manager.is_full_for("1") is False         # an existing name is fine
+		assert manager.set_bookmark("3") is False        # and set actually fails
+		assert manager.max_bookmarks == 2
+
+
 def test_bookmark_jump_resolves_by_text_without_position_bookmark():
 	"""On terminals that cannot produce a position bookmark (legacy consoles),
 	jump re-finds the line by its stored text, landing on the real line even

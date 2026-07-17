@@ -354,6 +354,29 @@ class TestRunTerminalSearch:
         assert results == [("err", 3)]
         assert mgr.search.call_args.kwargs.get("raw_text") == "short buffer"
 
+    def test_options_passed_to_search(self):
+        plugin, mgr = self._plugin("short buffer", 1)
+        plugin._runTerminalSearch("Err", lambda t, n: None,
+                                  case_sensitive=True, use_regex=False)
+        kwargs = mgr.search.call_args.kwargs
+        assert kwargs.get("case_sensitive") is True
+        assert kwargs.get("use_regex") is False
+
+    def test_invalid_regex_announced_and_not_searched(self):
+        import globalPlugins.terminalAccess as ta
+        plugin, mgr = self._plugin("short buffer", 0)
+        plugin._searchDialogOpen = True
+        called = []
+        with patch.object(ta.ui, "message") as mock_msg:
+            plugin._runTerminalSearch("[bad(", lambda t, n: called.append(n),
+                                      use_regex=True)
+        # Announced the error, never ran the search, never completed.
+        assert mock_msg.called
+        assert "regular expression" in mock_msg.call_args[0][0].lower()
+        mgr.search.assert_not_called()
+        assert called == []
+        assert plugin._searchDialogOpen is False
+
     def test_large_buffer_runs_on_worker_thread(self):
         import threading
         import globalPlugins.terminalAccess as ta

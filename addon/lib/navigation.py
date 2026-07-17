@@ -721,6 +721,17 @@ class BookmarkManager:
 		bookmarks = self._get_bookmark_dict()
 		return len(bookmarks)
 
+	@property
+	def max_bookmarks(self) -> int:
+		"""Maximum number of bookmarks kept per terminal window."""
+		return self._max_bookmarks
+
+	def is_full_for(self, name: str) -> bool:
+		"""True if a *new* bookmark named *name* cannot be added because the
+		per-window limit is reached. An existing name can always be updated."""
+		bookmarks = self._get_bookmark_dict()
+		return name not in bookmarks and len(bookmarks) >= self._max_bookmarks
+
 	def update_terminal(self, terminal_obj):
 		"""
 		Update the terminal reference.
