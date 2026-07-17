@@ -142,6 +142,83 @@ class TestRenderPlain:
         assert render_plain(_snapshot([])) == ""
 
 
+class TestRenderSemantic:
+    """Task 4 renderer: headings mark structure, output stays plain.
+
+    H1 = the terminal, H2 = each command you ran (prompt lines), H3 = the
+    start of each error, warning, or stack trace. Output/progress/
+    timestamp spans get NO heading: a heading per output span would make
+    the H key useless.
+    """
+
+    def _render(self, lines, name="WindowsTerminal"):
+        from lib.buffer_html import render
+        from lib.section_tokenizer import SectionTokenizer
+
+        snap = _snapshot(lines, name=name)
+        tok = SectionTokenizer()
+        tok.tokenize(snap.lines)
+        return render(snap, tok.get_spans())
+
+    def test_terminal_name_is_h1(self):
+        out = self._render(["hello"], name="wt")
+        assert "<h1>wt</h1>" in out
+
+    def test_prompt_line_is_h2(self):
+        out = self._render(["PS C:\\repo> npm test", "ok"])
+        assert "<h2" in out
+        assert "npm test" in out.split("<h2", 1)[1].split("</h2>", 1)[0]
+
+    def test_each_prompt_gets_its_own_h2(self):
+        out = self._render([
+            "PS C:\\repo> build",
+            "done",
+            "PS C:\\repo> deploy",
+            "done again",
+        ])
+        assert out.count("<h2") == 2
+
+    def test_error_line_starts_an_h3(self):
+        out = self._render(["setup", "Error: disk full", "cleanup"])
+        assert "<h3" in out
+        assert "disk full" in out.split("<h3", 1)[1].split("</h3>", 1)[0]
+
+    def test_stack_trace_heads_once_then_stays_plain(self):
+        """A 3-line traceback is ONE H3 stop, not three."""
+        out = self._render([
+            'Traceback (most recent call last):',
+            '  File "app.py", line 10, in main',
+            '  File "lib.py", line 4, in helper',
+        ])
+        assert out.count("<h3") == 1
+
+    def test_plain_output_gets_no_heading(self):
+        out = self._render(["just some output", "more output"])
+        assert "<h2" not in out
+        assert "<h3" not in out
+
+    def test_headings_carry_absolute_line_ids(self):
+        out = self._render(["PS C:\\repo> run", "output"])
+        assert 'id="L0"' in out
+
+    def test_heading_text_is_escaped(self):
+        out = self._render(["PS C:\\repo> echo <b>hi</b>"])
+        assert "<b>" not in out
+        assert "&lt;b&gt;" in out
+
+    def test_no_prompts_still_renders_every_line(self):
+        lines = ["alpha", "beta", "gamma"]
+        out = self._render(lines)
+        for line in lines:
+            assert line in out
+
+    def test_all_lines_present_around_headings(self):
+        lines = ["PS C:\\repo> run", "output one", "Error: nope", "after"]
+        out = self._render(lines)
+        for line in ["run", "output one", "nope", "after"]:
+            assert line in out
+
+
 class TestWindowTitle:
     """The title names the terminal and never hides truncation."""
 

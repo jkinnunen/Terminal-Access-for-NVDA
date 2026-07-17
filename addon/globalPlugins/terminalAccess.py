@@ -3850,9 +3850,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		).start()
 
 	def _bufferWindowWorker(self, snapshot):
-		"""Render the snapshot to HTML off the main thread, then present."""
+		"""Render the snapshot to HTML off the main thread, then present.
+
+		Tokenization runs here too: it is pure CPU over the captured
+		lines and has no business on the main thread.
+		"""
 		from lib import buffer_html
-		html_doc = buffer_html.render_plain(snapshot)
+		from lib.section_tokenizer import SectionTokenizer
+		tokenizer = SectionTokenizer()
+		tokenizer.tokenize(snapshot.lines)
+		html_doc = buffer_html.render(snapshot, tokenizer.get_spans())
 		title = buffer_html.window_title(snapshot)
 		wx.CallAfter(self._presentBufferWindow, html_doc, title)
 

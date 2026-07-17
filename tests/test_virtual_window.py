@@ -112,6 +112,20 @@ class TestWorkerAndPresentation:
         target = wx.CallAfter.call_args.args[0]
         assert target == plugin._presentBufferWindow
 
+    def test_worker_output_has_semantic_headings(self):
+        """The worker tokenizes and renders structure, not flat text:
+        a prompt line must arrive at the window as an H2."""
+        import wx
+        plugin = _make_plugin()
+        snap = _snapshot(lines=("PS C:\\repo> npm test", "1 passed"))
+        wx.CallAfter.reset_mock()
+
+        plugin._bufferWindowWorker(snap)
+
+        html_doc = wx.CallAfter.call_args.args[1]
+        assert "<h2" in html_doc
+        assert "<h1" in html_doc
+
     def test_present_calls_browseable_message_with_html(self):
         import ui
         plugin = _make_plugin()

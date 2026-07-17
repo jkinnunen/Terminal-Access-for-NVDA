@@ -382,19 +382,26 @@ assumptions below are confirmed in real NVDA.
 - Modify: `addon/lib/buffer_html.py`
 - Modify: `tests/test_buffer_html.py`
 
-- [ ] add `render(snapshot, sections)` building on `SectionTokenizer.get_spans()`
-- [ ] emit `<h1>` for the terminal, `<h2>` per `prompt` span, `<h3>` for `error`,
+- [x] add `render(snapshot, sections)` building on `SectionTokenizer.get_spans()`
+- [x] emit `<h1>` for the terminal, `<h2>` per `prompt` span, `<h3>` for `error`,
       `warning`, and `stack_trace` spans
-- [ ] render `output`, `progress`, `timestamp` spans as plain `<p>` (NOT headings:
+      ➕ adjacent H3-category spans coalesce into ONE heading stop: the
+      tokenizer classifies "Traceback:" as error and the "File ..." lines as
+      stack_trace, but to a reader they are a single event and must not cost
+      two presses of H
+- [x] render `output`, `progress`, `timestamp` spans as plain `<p>` (NOT headings:
       a heading per output span is noise and would make `H` useless)
-- [ ] give each heading a stable `id` carrying its absolute line number, for the
+- [x] give each heading a stable `id` carrying its absolute line number, for the
       Task 5 jump back
-- [ ] write tests that a prompt span becomes an `<h2>`
-- [ ] write tests that error/warning/stack_trace spans become `<h3>`
-- [ ] write tests that output spans produce no heading
-- [ ] write tests that heading text is escaped (a prompt containing `<b>`)
-- [ ] write tests for a buffer with no prompts (no h2, still renders)
-- [ ] run tests - must pass before task 5
+- [x] write tests that a prompt span becomes an `<h2>`
+- [x] write tests that error/warning/stack_trace spans become `<h3>`
+- [x] write tests that output spans produce no heading
+- [x] write tests that heading text is escaped (a prompt containing `<b>`)
+- [x] write tests for a buffer with no prompts (no h2, still renders)
+- [x] run tests - must pass before task 5 (11 new tests; full suite 1963 green;
+      tokenization moved into the worker alongside rendering)
+      ⚠️ re-check `H` heading navigation in real NVDA now that headings exist
+      (carried from the Task 3 gate, where there was nothing to navigate to)
 
 ### Task 5: Modal "jump to line" dialog
 

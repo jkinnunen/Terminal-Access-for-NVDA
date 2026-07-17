@@ -61,10 +61,57 @@ def render_plain(snapshot):
 	A blank buffer row renders as a non-breaking space so it still
 	occupies a line when arrowing; an empty paragraph would be skipped.
 	"""
-	return "\n".join(
-		"<p>%s</p>" % (escape_line(line) or "&nbsp;")
-		for line in snapshot.lines
-	)
+	return "\n".join(_paragraph(line) for line in snapshot.lines)
+
+
+# Span categories that head a section. Prompts are chapter boundaries
+# (each command the user ran); errors, warnings, and stack traces are the
+# places worth jumping to. Everything else renders plain: a heading per
+# output span would make the H key useless.
+_H2_CATEGORIES = frozenset({"prompt"})
+_H3_CATEGORIES = frozenset({"error", "warning", "stack_trace"})
+
+
+def _paragraph(line):
+	return "<p>%s</p>" % (escape_line(line) or "&nbsp;")
+
+
+def render(snapshot, spans):
+	"""Render a snapshot with semantic headings from tokenizer spans.
+
+	H1 is the terminal, H2 each prompt line (a command the user ran),
+	H3 the first line of each error/warning/stack-trace span; the rest
+	of such a span stays plain so a 30-line traceback is one heading
+	stop, not thirty. Headings carry id="L{n}" with the ABSOLUTE line
+	number, for the jump dialog and for opening at the review cursor.
+
+	*spans* are SectionSpan tuples over snapshot.lines (relative
+	indexes); ids translate through snapshot.first_line_num.
+
+	Adjacent H3-category spans coalesce into ONE heading stop: the
+	tokenizer classifies "Traceback:" as error and the "File ..." lines
+	under it as stack_trace, but to a reader they are a single event and
+	must not cost two presses of H.
+	"""
+	parts = ["<h1>%s</h1>" % escape_line(snapshot.terminal_name)]
+	in_h3_run = False
+	for span in spans:
+		is_h3_span = span.category in _H3_CATEGORIES
+		for idx in range(span.start_line, span.end_line + 1):
+			line = snapshot.lines[idx]
+			absolute = snapshot.first_line_num + idx
+			if span.category in _H2_CATEGORIES:
+				parts.append(
+					'<h2 id="L%d">%s</h2>' % (absolute, escape_line(line) or "&nbsp;")
+				)
+			elif is_h3_span and idx == span.start_line and not in_h3_run:
+				parts.append(
+					'<h3 id="L%d">%s</h3>' % (absolute, escape_line(line) or "&nbsp;")
+				)
+			else:
+				parts.append(_paragraph(line))
+		in_h3_run = is_h3_span
+	return "\n".join(parts)
 
 
 def window_title(snapshot):
