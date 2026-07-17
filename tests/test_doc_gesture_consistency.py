@@ -25,16 +25,24 @@ from globalPlugins.terminalAccess import (
     _COMMAND_LAYER_MAP,
     _TABLE_MODE_BINDINGS,
 )
+from lib._runtime import KEY_WORDS
 
 _GUIDE = os.path.join("addon", "doc", "en", "readme.md")
 
 
+_WORDS_TO_SYMBOLS = {word: symbol for symbol, word in KEY_WORDS.items()}
+
+
 def _norm(gesture):
-    """Normalize a gesture string for comparison (code key or guide token)."""
+    """Normalize a gesture string for comparison (code key or guide token).
+
+    The guide names punctuation keys ("NVDA+apostrophe") while the code
+    binds the symbol ("kb:NVDA+'"), so map the words back to compare.
+    KEY_WORDS is the shared source of truth, so a punctuation key added
+    to the code cannot be missed here.
+    """
     g = gesture.lower().replace("kb:", "")
-    for word, symbol in (("minus", "-"), ("equals", "="), ("apostrophe", "'")):
-        g = g.replace(word, symbol)
-    return g
+    return "+".join(_WORDS_TO_SYMBOLS.get(part, part) for part in g.split("+"))
 
 
 def _all_bound_script_names():
@@ -75,6 +83,45 @@ class TestGuideToCode:
         )
 
 
+class TestPunctuationNamedByWord:
+    """The guide never presents a punctuation key as a bare symbol.
+
+    A screen reader speaks a bare symbol at the reader's punctuation
+    level, which is usually low or off for terminal work, so "NVDA+;"
+    is heard as "NVDA plus" and the command cannot be learned by ear.
+    Every punctuation key is written as a word instead.
+    """
+
+    def _guide_text(self):
+        return open(_GUIDE, encoding="utf-8").read()
+
+    def test_no_direct_gesture_uses_a_bare_symbol(self):
+        text = self._guide_text()
+        offenders = sorted(
+            f"NVDA+{symbol}" for symbol in KEY_WORDS if f"NVDA+{symbol}" in text
+        )
+        assert not offenders, (
+            f"Guide writes punctuation gestures as symbols: {offenders}. "
+            "Use the word instead, e.g. NVDA+apostrophe."
+        )
+
+    def test_no_command_layer_key_is_a_bare_symbol(self):
+        """Catches the key column of the command reference tables.
+
+        Those cells are bold, so check bold spans and split the "a / b"
+        alternatives the tables use.
+        """
+        offenders = []
+        for span in re.findall(r"\*\*(.+?)\*\*", self._guide_text()):
+            for token in span.split("/"):
+                if token.strip() in KEY_WORDS:
+                    offenders.append(span)
+        assert not offenders, (
+            f"Guide lists punctuation keys as bare symbols: {sorted(set(offenders))}. "
+            "Name the key instead, e.g. semicolon."
+        )
+
+
 class TestNormalizer:
     """Guard the normalizer so the checks above cannot silently pass."""
 
@@ -82,6 +129,12 @@ class TestNormalizer:
         assert _norm("NVDA+minus") == "nvda+-"
         assert _norm("NVDA+equals") == "nvda+="
         assert _norm("NVDA+apostrophe") == "nvda+'"
+        assert _norm("NVDA+comma") == "nvda+,"
+        assert _norm("NVDA+period") == "nvda+."
+        assert _norm("NVDA+semicolon") == "nvda+;"
 
     def test_case_and_prefix_stripped(self):
         assert _norm("kb:NVDA+Alt+G") == "nvda+alt+g"
+
+    def test_unknown_parts_pass_through_untouched(self):
+        assert _norm("NVDA+shift+f1") == "nvda+shift+f1"

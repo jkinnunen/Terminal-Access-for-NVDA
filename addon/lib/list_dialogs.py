@@ -173,7 +173,9 @@ def collect_commands(plugin, default_gestures=None, layer_map=None):
     preserves the original docstring). Gesture bindings are gathered
     from the default gesture dict and the decorator metadata, and
     formatted with lib._runtime.gesture_label. The command layer key
-    comes from the layer map.
+    comes from the layer map. Both name punctuation keys by word
+    (lib._runtime.KEY_WORDS), since this list exists to be read aloud and
+    a bare symbol is silent at most punctuation levels.
 
     Args:
         plugin: The GlobalPlugin instance.
@@ -188,7 +190,7 @@ def collect_commands(plugin, default_gestures=None, layer_map=None):
     """
     import sys
 
-    from lib._runtime import gesture_label
+    from lib._runtime import gesture_label, spell_key
 
     plugin_module = sys.modules.get(type(plugin).__module__)
     if default_gestures is None:
@@ -220,7 +222,7 @@ def collect_commands(plugin, default_gestures=None, layer_map=None):
         )
 
         layer_key = ", ".join(sorted(
-            gesture[len("kb:"):]
+            "+".join(spell_key(part) for part in gesture[len("kb:"):].split("+"))
             for gesture, script_name in layer_map.items()
             if script_name == name
         ))

@@ -313,6 +313,33 @@ class TestCollectCommands:
         by_name = {c["name"]: c for c in commands}
         assert by_name["spellCurrentWord"]["layer_key"] == ""
 
+    def test_layer_key_names_punctuation_instead_of_showing_the_symbol(self):
+        """A bare symbol here is silent at most punctuation levels.
+
+        The command finder exists to be read aloud, so a layer key of "-"
+        would announce as nothing at all.
+        """
+        from lib.list_dialogs import collect_commands
+
+        commands = collect_commands(_make_plugin())
+        by_name = {c["name"]: c for c in commands}
+
+        assert by_name["decreasePunctuationLevel"]["layer_key"] == "minus"
+        assert by_name["increasePunctuationLevel"]["layer_key"] == "equals"
+        assert by_name["announcePosition"]["layer_key"] == "semicolon"
+
+    def test_layer_key_names_punctuation_within_a_combination(self):
+        from lib.list_dialogs import collect_commands
+        from lib._runtime import spell_key
+
+        commands = collect_commands(_make_plugin())
+        for command in commands:
+            for combo in command["layer_key"].split(", "):
+                for part in combo.split("+"):
+                    assert part == spell_key(part), (
+                        f"{command['name']} layer key {combo!r} leaves a bare symbol"
+                    )
+
 
 class TestFindCommandScript:
     """script_findCommand wiring on the plugin."""

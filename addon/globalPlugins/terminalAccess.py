@@ -40,13 +40,13 @@ Architecture Overview:
 	   - Registers keyboard gestures and scripts
 	   - Manages terminal detection and navigation
 	   - Coordinates all components for terminal access
-	   - Command Layer: modal input mode (NVDA+') that binds single-key
+	   - Command Layer: modal input mode (NVDA+apostrophe) that binds single-key
 	     gestures from _COMMAND_LAYER_MAP so commands do not require
 	     NVDA modifier combos; auto-exits on focus loss
 
 Key Features:
-	- Command Layer: Press NVDA+' to enter single-key command mode; press Escape
-	  or NVDA+' again to exit. All navigation, selection, configuration, and
+	- Command Layer: Press NVDA+apostrophe to enter single-key command mode; press
+	  Escape or NVDA+apostrophe again to exit. All navigation, selection, configuration, and
 	  search commands become simple single-key presses (e.g. u/i/o for line
 	  navigation, j/k/l for word navigation, f for search, etc.).
 	- Navigation: Line, word, character, column, row movement
@@ -606,7 +606,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		NVDA+Shift+Down  - Read from cursor to bottom of buffer
 
 	Information and Attributes:
-		NVDA+;           - Announce cursor position (row, column)
+		NVDA+semicolon   - Announce cursor position (row, column)
 		NVDA+A           - Say All (continuous reading)
 		NVDA+Shift+A     - Read color and formatting attributes
 
@@ -626,8 +626,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	Configuration:
 		NVDA+Shift+Q     - Toggle quiet mode
-		NVDA+-           - Decrease punctuation level
-		NVDA+=           - Increase punctuation level
+		NVDA+minus       - Decrease punctuation level
+		NVDA+equals      - Increase punctuation level
 		NVDA+F5          - Toggle automatic indentation announcement
 		NVDA+F10         - Announce active and default profiles
 

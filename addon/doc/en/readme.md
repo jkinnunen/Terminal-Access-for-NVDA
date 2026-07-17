@@ -54,9 +54,9 @@ These few commands cover most reading. The first column is the key inside the co
 |---------------|----------------|--------|
 | **I / O / U** | **NVDA+I / O / U** | Read current / next / previous line |
 | **K / L / J** | **NVDA+K / L / J** | Read current / next / previous word |
-| **, / . / M** | **NVDA+, / . / M** | Read current / next / previous character |
+| **comma / period / M** | **NVDA+comma / period / M** | Read current / next / previous character |
 | **A** | **NVDA+A** | Continuous reading (say all) |
-| **;** | **NVDA+;** | Announce position (row, column) |
+| **semicolon** | **NVDA+semicolon** | Announce position (row, column) |
 | **Escape** | | Exit the command layer |
 
 The full reference for every command is in the next section.
@@ -85,7 +85,7 @@ While in the command layer, these keys are active:
 |-----|--------|
 | **U / I / O** | Read previous / current / next line |
 | **J / K / L** | Read previous / current / next word |
-| **M / , / .** | Read previous / current / next character |
+| **M / comma / period** | Read previous / current / next character |
 | **Home / End** | Jump to start / end of line |
 | **PageUp / PageDown** | Jump to top / bottom of buffer |
 | **Shift+Left / Right** | Read to start / end of line |
@@ -95,11 +95,11 @@ While in the command layer, these keys are active:
 | Key | Action |
 |-----|--------|
 | **A** | Continuous reading (say all) |
-| **;** | Announce position (row, column) |
+| **semicolon** | Announce position (row, column) |
 | **Shift+A** | Read text attributes and colors |
 | **I** (twice) | Announce line indentation |
-| **,** (twice) | Phonetic character reading |
-| **,** (three times) | Character code |
+| **comma** (twice) | Phonetic character reading |
+| **comma** (three times) | Character code |
 | **K** (twice) | Spell current word |
 
 #### Selection and Copying
@@ -122,7 +122,7 @@ While in the command layer, these keys are active:
 | Key | Action |
 |-----|--------|
 | **Q** | Toggle quiet mode |
-| **- / =** | Decrease / increase punctuation level |
+| **minus / equals** | Decrease / increase punctuation level |
 | **D** | Toggle indentation announcement |
 | **P** | Announce active profile. Press twice to select. |
 

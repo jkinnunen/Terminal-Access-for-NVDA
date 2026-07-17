@@ -4,6 +4,16 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 The 2.0.3 entry below is the consolidated summary of everything that changed since 1.4.0, written for anyone upgrading from 1.4.0 or installing for the first time. It is the entry to read. The 2.0.2, 2.0.1, and 2.0.0 sections beneath it are the per-release history for anyone already running a 2.0.x build, and the fifteen 2.0.0-beta sections below those are the detailed development history.
 
+## [Unreleased]
+
+### Changed
+
+- **Punctuation keys are now named rather than shown as symbols.** A screen reader speaks a bare symbol at your punctuation level, and terminal work is usually done at a low level or with punctuation off, so "NVDA+;" was heard as "NVDA plus" and the command could not be learned by ear. The user guide and the command finder now write the word: NVDA+apostrophe, NVDA+comma, NVDA+period, NVDA+semicolon, NVDA+minus, NVDA+equals. The keys themselves are unchanged; only how they are named has changed.
+
+### Fixed
+
+- **The command finder announced the spell-word command as a key you cannot press.** A double-press binding is stored as two gestures joined by a comma, and the finder printed that literally as "NVDA+K,nvda+K": the comma is silent at most punctuation levels and the second half lost its capitalization, so the command was announced as "NVDA plus K nvda plus K". It now reads "NVDA+K twice".
+
 ## [2.0.3] - 2026-07-16
 
 Terminal Access 2.0.3 is a reliability and capability release. It adds first-class support for AI command-line tools, semantic navigation of terminal output, table reading, and a much faster and more dependable search. It also removes the native (Rust) component entirely: the add-on is now pure Python, a quarter of its former download size, and runs on ARM64 versions of Windows.
