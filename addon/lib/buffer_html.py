@@ -72,8 +72,112 @@ _H2_CATEGORIES = frozenset({"prompt"})
 _H3_CATEGORIES = frozenset({"error", "warning", "stack_trace"})
 
 
+def _inline_html(text):
+	"""Escape a line while turning safe URLs into real links.
+
+	Splits on URL matches so the surrounding text and the URL text are
+	escaped exactly as escape_line would, then wraps a URL in an anchor
+	ONLY when the shared scheme check (the same one the URL list uses)
+	accepts it: file://, javascript:, data:, and unknown schemes render
+	as inert text. The href is attribute-escaped separately from the
+	link text.
+	"""
+	if not isinstance(text, str):
+		return ""
+	from lib.search import _URL_PATTERN, UrlExtractorManager
+	text = ANSIParser.stripANSI(text)
+	text = _DISALLOWED_CHARS.sub("", text)
+	parts = []
+	last = 0
+	for match in _URL_PATTERN.finditer(text):
+		parts.append(html.escape(text[last:match.start()], quote=True))
+		url = match.group(0)
+		safe = None
+		try:
+			safe = UrlExtractorManager._prepare_safe_url(url)
+		except Exception:
+			safe = None
+		if safe:
+			parts.append('<a href="%s">%s</a>' % (
+				html.escape(safe, quote=True),
+				html.escape(url, quote=True),
+			))
+		else:
+			parts.append(html.escape(url, quote=True))
+		last = match.end()
+	parts.append(html.escape(text[last:], quote=True))
+	return "".join(parts)
+
+
 def _paragraph(line):
-	return "<p>%s</p>" % (escape_line(line) or "&nbsp;")
+	return "<p>%s</p>" % (_inline_html(line) or "&nbsp;")
+
+
+# Spans longer than this skip table detection: a real table never
+# approaches it (table_reader bounds regions at MAX_LINES anyway), and
+# scanning a huge log dump line by line for column alignment is wasted
+# worker time.
+_MAX_TABLE_SCAN_SPAN = 2000
+
+
+def _table_html(navigator):
+	"""Render a detected table region as a real HTML table.
+
+	Row 0 is the header row (TableNavigator's contract), so it becomes
+	<th> cells and NVDA's native table navigation announces headers.
+	"""
+	rows = []
+	header = "".join(
+		"<th>%s</th>" % (escape_line(navigator.header(col)) or "&nbsp;")
+		for col in range(navigator.n_cols)
+	)
+	rows.append("<tr>%s</tr>" % header)
+	for row in range(1, navigator.n_rows):
+		cells = "".join(
+			"<td>%s</td>" % (escape_line(navigator.cell(row, col)) or "&nbsp;")
+			for col in range(navigator.n_cols)
+		)
+		rows.append("<tr>%s</tr>" % cells)
+	return "<table>%s</table>" % "".join(rows)
+
+
+# Categories that render as plain paragraphs and may participate in a
+# table. Merged into one block before scanning because the tokenizer
+# splits a table from its header row: an all-caps header line like
+# "CONTAINER ID   IMAGE" classifies as "heading" while the rows below
+# are "output".
+_TABLE_CANDIDATE_CATEGORIES = frozenset({"output", "heading", "timestamp", "progress"})
+
+
+def _render_block(snapshot, first_idx, last_idx):
+	"""Render a plain block, upgrading detected columnar runs to tables.
+
+	Detection reuses TableDetector, the same heuristic behind live table
+	mode, and it is experimental there too: anything it is not confident
+	about stays plain paragraphs, because a wrong table is worse than no
+	table.
+	"""
+	lines = snapshot.lines[first_idx:last_idx + 1]
+	count = len(lines)
+	if count < 2 or count > _MAX_TABLE_SCAN_SPAN:
+		return [_paragraph(line) for line in lines]
+	from lib.table_reader import TableDetector, TableNavigator
+	detector = TableDetector()
+	parts = []
+	pos = 0
+	while pos < count:
+		region = None
+		try:
+			region = detector.detect(lines, pos)
+		except Exception:
+			region = None
+		if region is not None and region.first_line >= pos:
+			parts.append(_table_html(TableNavigator(region, lines)))
+			pos = region.last_line + 1
+		else:
+			parts.append(_paragraph(lines[pos]))
+			pos += 1
+	return parts
 
 
 def render(snapshot, spans):
@@ -101,7 +205,20 @@ def render(snapshot, spans):
 	body = []
 	toc_entries = []
 	in_h3_run = False
-	for span in spans:
+	span_index = 0
+	while span_index < len(spans):
+		span = spans[span_index]
+		if span.category in _TABLE_CANDIDATE_CATEGORIES:
+			# Merge the run of adjacent plain spans and scan it for tables.
+			run_end = span_index
+			while (run_end + 1 < len(spans)
+					and spans[run_end + 1].category in _TABLE_CANDIDATE_CATEGORIES):
+				run_end += 1
+			body.extend(_render_block(
+				snapshot, span.start_line, spans[run_end].end_line))
+			in_h3_run = False
+			span_index = run_end + 1
+			continue
 		is_h3_span = span.category in _H3_CATEGORIES
 		for idx in range(span.start_line, span.end_line + 1):
 			line = snapshot.lines[idx]
@@ -117,6 +234,7 @@ def render(snapshot, spans):
 			else:
 				body.append(_paragraph(line))
 		in_h3_run = is_h3_span
+		span_index += 1
 	parts = ["<h1>%s</h1>" % escape_line(snapshot.terminal_name)]
 	if toc_entries:
 		# Translators: Label above the table of contents in the buffer window

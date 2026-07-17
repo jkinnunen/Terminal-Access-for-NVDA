@@ -266,6 +266,122 @@ class TestTableOfContents:
         assert 'id="L0"' in out
 
 
+class TestTablesInRender:
+    """Columnar output renders as a real table; prose never does.
+
+    A real <table> gives NVDA native table navigation, strictly better
+    than the heuristic live table mode. But the detection heuristic is
+    experimental, and a wrong table is worse than no table, so anything
+    ambiguous stays plain paragraphs.
+    """
+
+    def _render(self, lines):
+        from lib.buffer_html import render
+        from lib.section_tokenizer import SectionTokenizer
+
+        snap = _snapshot(lines)
+        tok = SectionTokenizer()
+        tok.tokenize(snap.lines)
+        return render(snap, tok.get_spans())
+
+    DOCKER_PS = [
+        "CONTAINER ID   IMAGE     STATUS",
+        "a1b2c3d4       nginx     Up 2 hours",
+        "e5f6a7b8       redis     Up 5 days",
+    ]
+
+    def test_aligned_columns_become_a_table_with_headers(self):
+        out = self._render(self.DOCKER_PS)
+        assert "<table>" in out
+        assert "<th>CONTAINER ID</th>" in out
+        assert "<th>IMAGE</th>" in out
+        assert "<td>nginx</td>" in out
+
+    def test_pipe_table_becomes_a_table(self):
+        out = self._render([
+            "name | qty | price",
+            "app  | 3   | 1.50",
+            "pear | 1   | 0.75",
+        ])
+        assert "<table>" in out
+        assert "<th>name</th>" in out
+        assert "<td>pear</td>" in out
+
+    def test_prose_does_not_become_a_table(self):
+        out = self._render([
+            "this is a sentence of ordinary output",
+            "and another line follows it here",
+        ])
+        assert "<table>" not in out
+
+    def test_table_cells_are_escaped(self):
+        out = self._render([
+            "NAME       VALUE",
+            "<script>   ok",
+        ])
+        assert "<script>" not in out
+        if "<table>" in out:
+            assert "&lt;script&gt;" in out
+
+    def test_lines_after_a_table_stay_paragraphs(self):
+        out = self._render(self.DOCKER_PS + ["done listing containers"])
+        assert "<p>done listing containers</p>" in out
+
+    def test_table_under_a_prompt_keeps_the_heading(self):
+        out = self._render(["PS C:\\repo> docker ps"] + self.DOCKER_PS)
+        assert "<h2" in out
+        assert "<table>" in out
+
+
+class TestLinksInRender:
+    """URLs become real links; unsafe schemes never do.
+
+    The href is program-influenced text embedded in an attribute, so it
+    gets the same scrutiny as everything else: scheme allowlist first
+    (the shared check the URL list uses), attribute escaping second.
+    """
+
+    def _render_line(self, line):
+        from lib.buffer_html import render_plain
+
+        return render_plain(_snapshot([line]))
+
+    def test_https_url_becomes_a_link(self):
+        out = self._render_line("see https://example.com/docs for details")
+        assert '<a href="https://example.com/docs">' in out
+
+    def test_www_url_becomes_a_link_with_https(self):
+        out = self._render_line("visit www.example.com today")
+        assert "<a href=" in out
+        assert "www.example.com" in out
+
+    def test_javascript_url_is_not_a_link(self):
+        out = self._render_line("try javascript:alert(1) now")
+        assert "<a" not in out
+
+    def test_file_url_is_not_a_link(self):
+        out = self._render_line("open file://C:/secret/plans.txt maybe")
+        assert "<a" not in out
+
+    def test_data_url_is_not_a_link(self):
+        out = self._render_line("data:text/html,<script>x</script>")
+        assert "<a" not in out
+        assert "<script>" not in out
+
+    def test_text_around_the_url_is_still_escaped(self):
+        out = self._render_line("<b>click</b> https://example.com <i>now</i>")
+        assert "<b>" not in out
+        assert "<i>" not in out
+        assert '<a href="https://example.com">' in out
+
+    def test_ampersand_in_url_is_escaped_in_href(self):
+        out = self._render_line("https://example.com/?a=1&b=2")
+        assert 'href="https://example.com/?a=1&amp;b=2"' in out
+
+    def test_lines_without_urls_are_unchanged(self):
+        assert self._render_line("npm run build") == "<p>npm run build</p>"
+
+
 class TestWindowTitle:
     """The title names the terminal and never hides truncation."""
 
