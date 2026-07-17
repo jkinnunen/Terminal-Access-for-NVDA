@@ -7,6 +7,7 @@ Usage: python validate.py
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -57,7 +58,6 @@ def check_python_syntax():
 	
 	python_files = list(Path("addon").rglob("*.py"))
 	python_files.append(Path("buildVars.py"))
-	python_files.append(Path("build.py"))
 	
 	all_valid = True
 	for py_file in python_files:
@@ -100,7 +100,7 @@ def check_documentation():
 		"README.md",
 		"CHANGELOG.md",
 		"INSTALL.md",
-		"ROADMAP.md",
+		"docs/developer/ROADMAP.md",
 		"CONTRIBUTING.md",
 		"LICENSE",
 	]
@@ -125,16 +125,26 @@ def check_user_guide():
 		content = f.read()
 	
 	required_sections = [
-		"Introduction",
-		"Features",
-		"Keyboard Commands",
+		"Getting Started",
+		"Command Layer",
+		"Bookmarks",
+		"AI CLI Support",
 		"Settings",
 		"Troubleshooting",
+		"Getting Help",
 	]
 	
+	# Match section headings, not any occurrence of the words: a bare substring
+	# search over the whole guide passes on incidental prose, so it would not
+	# notice a section being renamed or removed.
+	headings = {
+		h.strip().lower()
+		for h in re.findall(r"<h[12][^>]*>(.*?)</h[12]>", content, re.IGNORECASE | re.DOTALL)
+	}
+
 	all_present = True
 	for section in required_sections:
-		if section.lower() in content.lower():
+		if section.lower() in headings:
 			print(f"[OK] Section found: {section}")
 		else:
 			print(f"[FAIL] Section missing: {section}")

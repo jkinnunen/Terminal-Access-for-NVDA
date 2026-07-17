@@ -2,22 +2,92 @@
 
 All notable changes to Terminal Access for NVDA will be documented in this file.
 
-Version 2.0.0 was developed through fifteen pre-releases (2.0.0-beta through 2.0.0-beta.15). The consolidated 2.0.0 entry below is the release summary; the per-beta sections that follow it are the detailed history.
+The 2.0.3 entry below is the consolidated summary of everything that changed since 1.4.0, written for anyone upgrading from 1.4.0 or installing for the first time. It is the entry to read. The 2.0.2, 2.0.1, and 2.0.0 sections beneath it are the per-release history for anyone already running a 2.0.x build, and the fifteen 2.0.0-beta sections below those are the detailed development history.
 
-## [Unreleased]
+## [2.0.3] - 2026-07-16
+
+Terminal Access 2.0.3 is a reliability and capability release. It adds first-class support for AI command-line tools, semantic navigation of terminal output, table reading, and a much faster and more dependable search. It also removes the native (Rust) component entirely: the add-on is now pure Python, a quarter of its former download size, and runs on ARM64 versions of Windows.
+
+The release principle: for a screen-reader add-on, trust is set by the worst bug, not the longest feature list. The serious bugs found during this cycle (a machine freeze during find, search results landing the cursor on the wrong line, and search results and bookmarks being silently lost when focus returned to the terminal) are fixed, and the manual verification protocol that would have caught them is now part of every release.
+
+Everything below is the change from 1.4.0. Existing settings are preserved on upgrade.
 
 ### Added
 
-- **Find next and find previous now announce your position in the results.** Pressing NVDA+F3 or NVDA+Shift+F3 speaks the matched line followed by "N of M", and says "Wrapped" when navigation loops from the last match back to the first (or the reverse), so you always know where you are in the results and when you have been all the way through.
-- **The search dialog now offers case-sensitive and regular-expression search.** Two checkboxes, Case sensitive and Regular expression, sit under the search box and remember their setting for the next search in the session. An invalid regular expression is announced instead of silently finding nothing. (The search engine already supported both; they were just not reachable from the dialog.)
-- **Setting a bookmark past the per-window limit is now announced.** With 50 bookmarks already set for a window, setting another announces "Bookmark limit reached" and tells you to delete one, instead of failing silently.
+#### AI CLI support
+- Turn detection and navigation for Claude, Aider, ChatGPT CLI, Copilot CLI, Gemini CLI, Codex CLI, and Ollama: jump between conversation turns with role announcements (NVDA+Alt+T / NVDA+Alt+Shift+T).
+- Code block navigation (NVDA+Alt+B / NVDA+Alt+Shift+B), announce language and line count (NVDA+Alt+L), copy block (NVDA+Alt+C), offline explanation (NVDA+Alt+E, gated by the privacy setting).
+- Streaming delta mode (NVDA+Shift+D): hear only what changed since the last check while a response streams.
+- AI-specific error and rate-limit detection with distinct tones.
+- Built-in profiles for the AI CLIs, activated automatically.
+
+#### Navigation and reading
+- Section tokenizer classifies output lines (prompt, command, error, warning, stack trace, progress, and more) and powers next/previous section, error, and prompt navigation plus a filterable section list dialog.
+- Table mode (NVDA+Alt+G): cell-by-cell reading of columnar output such as docker ps, kubectl get, and ls -l, with header announcements. Column detection is heuristic and marked experimental.
+- Progress milestone announcements at 25/50/75/100 percent.
+- Verbosity presets (quiet, normal, verbose) cycled with NVDA+Shift+V.
+
+#### Search
+- Search results dialog listing every match; activating a result places the review cursor at the start of the matched line, like a bookmark jump, and find next/previous continue from there.
+- Case-sensitive and regular-expression search, offered as two checkboxes in the search dialog that remember their setting for the session. An invalid regular expression is announced instead of silently finding nothing.
+- Find next and find previous (NVDA+F3 / NVDA+Shift+F3) announce the matched line followed by your position as "N of M", and say "Wrapped" when navigation loops from the last match back to the first, so you always know where you are and when you have been all the way through.
+- Results refresh automatically when the terminal produces new output, so find next and find previous stay accurate against a live buffer instead of a stale snapshot.
+- Scoped search within the current section or AI turn.
+- Fuzzy fallback (one-typo matches) when an exact search finds nothing.
+- Search history (last 10 patterns).
+
+#### Tools and quality of life
+- Command finder (NVDA+Alt+H): searchable list of every command.
+- Transcript export (NVDA+Alt+X): save the buffer to a text file.
+- Issue report (Shift+I in the command layer): saves a diagnostic text file with versions, terminal, profile, and a buffer sample for actionable bug reports.
+- First-run tutorial, replayable with Shift+H in the command layer.
+- Profile editor and sound scheme settings (earcon volume and pitch).
+- Bookmarks: AI-aware auto-labeling, turn list dialog, rename. Setting a bookmark past the 50-per-window limit now announces "Bookmark limit reached" instead of failing silently.
+- Privacy guard: offline-only summarization and code explanation, off by default, with a spoken privacy status (NVDA+Shift+P).
+
+### Changed
+- **Pure Python.** The native library and helper process were removed after field testing showed the in-process Python reads are faster and more reliable. The download shrank from about 2.2 MB to about 0.6 MB, and the add-on runs on ARM64 Windows with no separate build. The "Use native acceleration" setting is gone; a leftover key in saved configuration is ignored.
+- Search is much faster on large buffers: the cleaned buffer is cached between searches, ANSI stripping is skipped when there are no color codes, matching is bounded on very long scrollback, and large-buffer matching runs off NVDA's main thread.
+- Search results and bookmarks are now kept per terminal window rather than per terminal tab. One consequence worth noting: several tabs inside a single Windows Terminal window share one window, so they share search results and bookmarks; separate terminal windows keep their own. This is a deliberate trade for reliability (see Fixed below).
+- Terminal events are handled by an NVDA overlay class instead of global event handlers, taking the add-on out of the event chain for non-terminal apps.
+- The full user guide ships inside the add-on (NVDA+Shift+F1) and is the single source of documentation; a consistency test keeps its command reference in sync with the code.
+- Settings panel restructured into flat groups exposed correctly to NVDA.
 
 ### Fixed
+- **Find could freeze the whole machine on Windows Terminal** (helper COM deadlock). Fixed by moving the helper out of the single-threaded apartment, and made structurally impossible by removing the helper entirely.
+- **Activating a search result left the review cursor on the command prompt.** Three stacked causes: the jump resolved the wrong line (terminals count lines differently from plain text), the match state was cleared when focus returned, and NVDA rebinds the review cursor during the focus switch. Results now land on the matched line and stay there.
+- **Find next and find previous stopped working after you activated a search result.** Search results were stored per terminal "tab", but the tab identity was a hash of the window title and the focused object, both of which change every time focus returns to the terminal. Activating a result and pressing F3 therefore looked under a different key, found nothing, and reported "No search results." Results are now keyed on the stable window handle, so they survive the focus change and are restored when you switch to another window and back.
+- **Bookmarks were lost when focus returned to the terminal.** Same root cause as the search bug: a title change or a normal refocus orphaned them. Bookmarks are now stored per terminal window and persist across focus changes and window switches.
+- **Bookmark jumps landed on the wrong line on legacy consoles.** When a terminal cannot provide a position anchor (common on the classic console host, where the anchor is empty), the jump used to count lines from the top, which terminals number inconsistently, so it could land on the wrong or a blank line. The jump now re-finds the bookmarked line by its text and only counts lines as a last resort.
+- **Key Echo no longer talks over NVDA's "Speak typed words".** With the add-on's Key Echo on and NVDA's Speak typed words on, the add-on spoke each character as you typed, trampling the word echo you had chosen. NVDA builds each spoken word from the individual keystrokes it observes in a terminal, so the add-on's per-character echo has to stand down for word echo to work. The add-on now defers to NVDA whenever either Speak typed characters or Speak typed words is on. Per-application profiles that turn Key Echo off are unaffected.
+- Progress announcements read the terminal that produced the output, not whichever terminal was focused last.
+- ANSI stripping removes incomplete escape sequences split across reads.
+- Unicode width for table columns works without any native component or the wcwidth package (standard-library fallback keeps CJK at 2 columns).
+- Many smaller fixes recorded per release and per beta below.
 
-- **Find next and find previous (NVDA+F3 / NVDA+Shift+F3) now work after you activate a search result.** Search results were stored per terminal "tab", but the tab identity was a hash of the window title and the focused object, both of which change every time focus returns to the terminal. So activating a result and pressing F3 looked under a different key, found nothing, and reported "No search results." Search results are now kept per terminal window, keyed on the stable window handle, so they survive the focus change and are restored when you switch to another window and back. (This is also the path a missing test failed to cover, which is now added.)
-- **Search results refresh when the terminal produces new output.** Results used to be a fixed snapshot: after a program printed more, find next and find previous could land on shifted lines and would miss newly-appearing matches. Now, when the buffer has changed since the search ran, the next find-next or find-previous re-runs the search against the live buffer first, keeping your place on the same matched line where possible. The updated "N of M" position tells you when the number of matches changed.
-- **Bookmark jumps land on the right line on legacy consoles.** When a terminal cannot provide a position anchor for a bookmark (common on the classic console host, where the anchor is empty), the jump used to count lines from the top, which terminals number inconsistently, so it could land on the wrong or a blank line. The jump now re-finds the bookmarked line by its text, the same reliable method search-result jumps use, and only counts lines as a last resort.
-- **Bookmarks are no longer lost when focus returns to the terminal.** Bookmarks had the same root cause as the search bug: they were stored under a tab id that hashes the window title and the focused object, so a title change or a normal refocus orphaned them. Bookmarks are now stored per terminal window, keyed on the stable window handle, so they persist across focus changes and across switching to another window and back. One consequence worth noting: several tabs inside a single Windows Terminal window share one window handle, so they now share bookmarks; separate terminal windows keep their own. This is a deliberate trade for reliability, since the old title-based separation lost bookmarks constantly.
+### Security
+- Search and error-tone scanning are bounded against hostile terminal output (extremely long lines can no longer stall NVDA).
+- The issue report sanitizes fields a malicious program could influence.
+- URL opening uses one shared scheme check; file://, javascript:, and data: URLs are refused.
+- The offline privacy guarantee (no network imports, AST-verified) stands.
+
+### Removed
+- The Rust native layer (library, helper process, IPC, watchdog, setting).
+- Command history navigation (shells provide their own).
+- Highlight cursor tracking mode (modern terminals strip the ANSI it relied on).
+- Rectangular selection (linear copy covers the need).
+- Announce New Output (superseded by progress milestones and output activity tones).
+
+### Documentation
+- The user guide documents the search and bookmark behavior and its limits: the search options, the position and wrap announcements, result refresh, per-window scoping, the session-only lifetime (search results and bookmarks are not saved across an NVDA restart), the 50-bookmark-per-window limit, and the fact that a bookmark jump depends on the line still being in the terminal's scrollback.
+- The user guide and the Key Echo tooltip describe both of NVDA's typing-echo settings and state that the add-on's Key Echo is active only while both are off. They are complementary, not duplicated.
+- Developer docs (architecture and API reference) brought fully in line with the pure-Python codebase.
+- Translation catalogs refreshed: template regenerated (408 strings) and all 17 languages merged.
+
+### Compatibility
+- NVDA 2025.1 or later; tested through 2026.1.
+- Windows 10 and 11, x64, x86, and ARM64.
+- Existing configuration is preserved; removed settings are ignored.
 
 ## [2.0.2] - 2026-07-13
 
