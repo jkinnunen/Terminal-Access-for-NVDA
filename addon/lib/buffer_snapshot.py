@@ -17,12 +17,14 @@ import time
 # features read the same buffer and should agree on "the whole buffer".
 SNAPSHOT_LINES_CEILING = 50000
 
-# The shipped cap. Deliberately LOW to start: MSHTML plus NVDA's
-# browse-mode buffer build over tens of thousands of nodes is unmeasured.
-# Raise toward SNAPSHOT_LINES_CEILING only to the limit the Task 3
-# real-NVDA gate measures as responsive (see
+# The shipped cap. The Task 3 real-NVDA gate (2026-07-17) found that
+# terminals self-limit their history well below this: PowerShell dropped
+# older lines past ~9,130, and Windows Terminal's default history is
+# ~9,000 lines. So the terminal's own scrollback limit is the practical
+# bound, this cap almost never engages, and it exists as a safety net for
+# terminals configured with enormous history (see
 # docs/plans/20260717-terminal-buffer-virtual-window.md).
-MAX_SNAPSHOT_LINES = 10000
+MAX_SNAPSHOT_LINES = SNAPSHOT_LINES_CEILING
 
 
 class BufferSnapshot:

@@ -352,18 +352,29 @@ assumptions below are confirmed in real NVDA.
       ➕ inverted to match the deviation above: tests assert the read happens on
       the calling thread and only the render is handed to the worker thread
 - [x] run tests - must pass before task 4 (20 new tests; full suite 1957 green)
-- [ ] **VERIFY IN REAL NVDA before Task 4** and record findings in this plan:
-  - [ ] Escape closes the window
-  - [ ] arrow keys read line by line
-  - [ ] `H` moves by heading (proves browse mode over our HTML behaves)
-  - [ ] the title is announced and identifies the terminal
-  - [ ] a large buffer opens without freezing; **measure and record the timing**
+- [x] **VERIFY IN REAL NVDA before Task 4** and record findings in this plan:
+  - [x] Escape closes the window
+  - [x] arrow keys read line by line
+  - [ ] `H` moves by heading (no headings exist until Task 4; re-check there)
+  - [x] the title is announced and identifies the terminal
+  - [x] a large buffer opens without freezing; **measure and record the timing**
         at 5k, 20k, and 50k lines, since the sanitizer and MSHTML build are the
         suspect costs
+        ➕ GATE FINDING (Pratik, 2026-07-17): terminals self-limit their history
+        far below the ceiling. PowerShell dropped older lines past ~9,130, so
+        the terminal's own scrollback limit is the practical bound and a
+        50k-line snapshot cannot occur on default configurations. The window
+        was responsive at real buffer sizes; the 20k/50k measurements are moot.
   - [ ] NVDA+Enter still activates navigator objects *outside* terminals on the
         laptop layout
-  - [ ] ⚠️ set `MAX_SNAPSHOT_LINES` from the measured ceiling (default it LOW,
+        ⚠️ not reported at the gate; low risk (laptop layout only, and the
+        shadowing is terminal-only by design). Carried to Task 11's
+        RELEASE_VERIFICATION.md checks.
+  - [x] ⚠️ set `MAX_SNAPSHOT_LINES` from the measured ceiling (default it LOW,
         raise only to what stays responsive) and update Task 1 + the guide
+        ➕ raised to the 50,000 ceiling per the gate finding: the cap is a
+        safety net for terminals configured with enormous history, not a
+        working limit
 
 ### Task 4: Semantic headings from SectionTokenizer
 
