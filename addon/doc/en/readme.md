@@ -8,19 +8,20 @@ Open this guide any time from inside a terminal by pressing **NVDA+Shift+F1**.
 
 1. [Getting Started](#getting-started)
 2. [Command Layer](#command-layer)
-3. [Table Mode](#table-mode)
-4. [Bookmarks](#bookmarks)
-5. [Error and Warning Detection](#error-and-warning-detection)
-6. [Gesture Conflict Detection](#gesture-conflict-detection)
-7. [Application Profiles](#application-profiles)
-8. [Third-Party Terminal Support](#third-party-terminal-support)
-9. [Window Definitions](#window-definitions)
-10. [Unicode and CJK Text](#unicode-and-cjk-text)
-11. [Performance](#performance)
-12. [AI CLI Support](#ai-cli-support)
-13. [Settings](#settings)
-14. [Troubleshooting](#troubleshooting)
-15. [Getting Help](#getting-help)
+3. [Buffer Window](#buffer-window)
+4. [Table Mode](#table-mode)
+5. [Bookmarks](#bookmarks)
+6. [Error and Warning Detection](#error-and-warning-detection)
+7. [Gesture Conflict Detection](#gesture-conflict-detection)
+8. [Application Profiles](#application-profiles)
+9. [Third-Party Terminal Support](#third-party-terminal-support)
+10. [Window Definitions](#window-definitions)
+11. [Unicode and CJK Text](#unicode-and-cjk-text)
+12. [Performance](#performance)
+13. [AI CLI Support](#ai-cli-support)
+14. [Settings](#settings)
+15. [Troubleshooting](#troubleshooting)
+16. [Getting Help](#getting-help)
 
 ---
 
@@ -158,6 +159,14 @@ Search results are taken at the moment you search. If the program then prints mo
 |-----|--------|
 | **G** | Toggle table mode on the table under the review cursor |
 
+#### Buffer Window
+| Key | Action |
+|-----|--------|
+| **Enter** | Open the buffer window (a browsable snapshot of the whole buffer) |
+| **Shift+Enter** | Open the jump to line dialog |
+| **Shift+E** | Open the errors-only buffer window |
+| **Shift+C** | Open the commands-only buffer window |
+
 #### Help and Settings
 | Key | Action |
 |-----|--------|
@@ -189,6 +198,56 @@ Press **E** in the command layer (or **NVDA+Alt+U** directly) to scan the termin
 Supported URL types: HTTP/HTTPS, FTP, www-prefixed, and OSC 8 terminal hyperlinks. Duplicate URLs are removed automatically.
 
 **Security note:** URLs with `file://`, `javascript:`, or other non-web schemes are detected and listed but cannot be opened from the dialog. Attempting to open one produces the spoken message "Cannot open this URL type for security reasons." This stops malicious terminal output from tricking you into launching dangerous local resources.
+
+---
+
+## Buffer Window
+
+The buffer window takes a snapshot of everything in the terminal's scrollback and opens it in a browsable NVDA window. Inside it you read with the browse mode commands you already know: the arrow keys move line by line, H moves by heading, NVDA's find command searches the text, the Copy button copies everything, and Escape closes the window and returns you to the terminal. Nothing in the window can move under you while you read, because it is a frozen copy, not the live terminal.
+
+### Opening the Window
+
+| Gesture | Command layer key | Action |
+|---------|-------------------|--------|
+| **NVDA+Enter** | **Enter** | Open the whole buffer |
+| none | **Shift+E** | Open only the errors, warnings, and stack traces |
+| none | **Shift+C** | Open only the commands you ran |
+
+The filtered windows say so in their titles, for example "PowerShell buffer snapshot, errors only", so a filtered view cannot be mistaken for the whole buffer. If a filter finds nothing, Terminal Access announces that instead of opening an empty window.
+
+### Structure and Headings
+
+The window marks the buffer's structure with headings so the H key moves you through it quickly:
+
+- Heading level 1 is the terminal itself.
+- Heading level 2 is each command you ran (each prompt line).
+- Heading level 3 is the start of each error, warning, or stack trace. An error and the stack trace under it count as one heading, not two.
+
+Ordinary output is never a heading, so pressing H only lands somewhere meaningful. A table of contents at the top of the window links every command and error, letting you reach any part of a long buffer without arrowing through it.
+
+Columnar output such as `docker ps` or `ls -l` is rendered as a real table, so NVDA's table navigation commands work and announce the column header for each cell. Column detection uses the same experimental heuristic as table mode; when Terminal Access is not confident, output stays as plain lines, because a wrong table is worse than no table.
+
+Web addresses in the output become real links you can activate. Addresses with unsafe schemes (file, javascript, data) are never turned into links; they stay as plain text. This is the same protection the URL list applies.
+
+### The Window Is Read-Only
+
+The buffer window is for reading. Pressing Enter inside it does not move the terminal's review cursor. To act on a line you found, use the jump to line dialog described next.
+
+### Jump to Line
+
+Press **NVDA+Shift+Enter** (or **Shift+Enter** in the command layer) to open the jump to line dialog: a list of every line in the buffer with three columns, the line number, the line's text, and the command that produced it. Type in the filter box to narrow the list by the line's text or by the command. Press Enter on a line to close the dialog and move the review cursor to that line in the live terminal.
+
+The landing is found by matching the line's text, not by counting lines, so it stays correct even though terminals number lines inconsistently. If the line has scrolled out of the terminal's history by the time you jump, Terminal Access says "Could not reach that line. It may have scrolled out of the terminal history." instead of leaving you guessing.
+
+### What a Snapshot Is and Is Not
+
+- The window is frozen at the moment you open it. New terminal output does not appear inside it. To see newer output, close the window and open it again; every open captures a fresh snapshot.
+- The window holds what the terminal still holds. Terminals limit their own scrollback (PowerShell keeps roughly the most recent 9,000 lines by default), so lines the terminal has dropped cannot appear in the snapshot either. Terminal Access caps a snapshot at 50,000 lines, far beyond any default scrollback; if the cap ever applies, the window title says "most recent 50,000 of" however many lines the buffer held.
+- On the legacy Windows console, NVDA can only read the visible screen, so the buffer window there shows only what is currently displayed. Windows Terminal and the modern console expose their full scrollback. (The same limitation applies to search on the legacy console.)
+
+### Note for Laptop Keyboard Layout Users
+
+On NVDA's laptop keyboard layout, NVDA+Enter is NVDA's own command to activate the current navigator object. Terminal Access takes this gesture only inside supported terminals, where activating a navigator object rarely applies. If you need NVDA's command while in a terminal, use the command layer's Enter instead, or reassign either gesture in the Input Gestures dialog. This overlap is listed in the NVDA Gesture Conflicts section of the Terminal Access settings.
 
 ---
 
