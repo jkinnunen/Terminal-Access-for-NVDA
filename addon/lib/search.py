@@ -138,6 +138,9 @@ class OutputSearchManager:
 			'current_match_index': -1,
 			'case_sensitive': False,
 			'use_regex': False,
+			# Content generation the results were computed against, so a
+			# later navigate can tell whether new output made them stale.
+			'generation': None,
 		}
 
 	def _search_key(self):
@@ -491,14 +494,15 @@ class OutputSearchManager:
 			# Record pattern in search history.
 			self.add_to_history(pattern)
 
-			# Save results through the tab-aware state mechanism so
-			# multi-tab and legacy modes stay in sync.
+			# Save results for the current window, tagged with the content
+			# generation so a later navigate can detect stale results.
 			self._save_search_state({
 				'pattern': pattern,
 				'matches': matches,
 				'current_match_index': -1,
 				'case_sensitive': case_sensitive,
-				'use_regex': use_regex
+				'use_regex': use_regex,
+				'generation': self._content_generation,
 			})
 
 			self._log_search_timing(
@@ -513,6 +517,43 @@ class OutputSearchManager:
 			except Exception:
 				pass
 			return 0
+
+	def refresh_search_if_stale(self) -> bool:
+		"""Re-run the active search if the buffer changed since it ran.
+
+		Search results are a snapshot: after the program prints more output
+		the stored matches can point at moved lines and new matches are
+		missed. Called before find next/previous so navigation reflects the
+		live buffer. The user's place is preserved by re-locating the current
+		match's text in the refreshed results. Returns True if it refreshed.
+		"""
+		state = self._get_search_state()
+		pattern = state.get('pattern')
+		if not pattern:
+			return False
+		if state.get('generation') == self._content_generation:
+			return False  # results are current
+
+		prev = self.get_current_match_info()
+		prev_text = prev[2] if prev else None
+		try:
+			self.search(
+				pattern,
+				case_sensitive=state.get('case_sensitive', False),
+				use_regex=state.get('use_regex', False),
+			)
+		except Exception:
+			return False
+
+		# Restore the position to the same line text where possible.
+		if prev_text:
+			new_state = self._get_search_state()
+			for i, match in enumerate(new_state['matches']):
+				if self._unpack_match(match)[1] == prev_text:
+					new_state['current_match_index'] = i
+					self._save_search_state(new_state)
+					break
+		return True
 
 	def next_match(self) -> bool:
 		"""

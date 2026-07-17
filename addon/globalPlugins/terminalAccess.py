@@ -4270,6 +4270,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self._searchManager:
 			return
 
+		# Refresh the results if the terminal produced output since the
+		# search ran, so navigation reflects the live buffer.
+		try:
+			self._searchManager.refresh_search_if_stale()
+		except Exception:
+			pass
+
 		if self._searchManager.get_match_count() == 0:
 			# Translators: No search results
 			ui.message(_("No search results. Use NVDA+F to search."))

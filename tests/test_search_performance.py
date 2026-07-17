@@ -181,6 +181,52 @@ class TestSearchSurvivesTabIdChurn:
         assert mgr.get_match_count() == 1
 
 
+class TestRefreshStaleSearch:
+    """Search results are a snapshot; refresh_search_if_stale re-runs the
+    search when the buffer changed so find next/previous reflect the live
+    buffer."""
+
+    def test_refresh_picks_up_new_matches(self):
+        terminal = CountingTerminal("error one")
+        terminal.windowHandle = 0x1
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("error") == 1
+
+        terminal.text = "error one\nnoise\nerror two"
+        mgr.note_content_changed()
+        assert mgr.refresh_search_if_stale() is True
+        assert mgr.get_match_count() == 2
+
+    def test_no_refresh_when_not_stale(self):
+        terminal = CountingTerminal("error one")
+        mgr = OutputSearchManager(terminal)
+        mgr.search("error")
+        assert mgr.refresh_search_if_stale() is False
+
+    def test_no_refresh_without_active_search(self):
+        terminal = CountingTerminal("hello")
+        mgr = OutputSearchManager(terminal)
+        mgr.note_content_changed()
+        assert mgr.refresh_search_if_stale() is False
+
+    def test_refresh_preserves_position_by_text(self):
+        terminal = CountingTerminal("alpha error\nbeta error")
+        terminal.windowHandle = 0x2
+        mgr = OutputSearchManager(terminal)
+        assert mgr.search("error") == 2
+        # Point at the second match.
+        st = mgr._get_search_state()
+        st["current_match_index"] = 1
+        mgr._save_search_state(st)
+        assert mgr.get_current_match_info()[2] == "beta error"
+
+        # New output prepends a line: line numbers shift, text persists.
+        terminal.text = "new top line\nalpha error\nbeta error"
+        mgr.note_content_changed()
+        assert mgr.refresh_search_if_stale() is True
+        assert mgr.get_current_match_info()[2] == "beta error"
+
+
 # ---------------------------------------------------------------------------
 # #4 Skip ANSI strip when there is nothing to strip
 # ---------------------------------------------------------------------------
