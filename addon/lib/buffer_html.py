@@ -51,3 +51,42 @@ def escape_line(text):
 	text = ANSIParser.stripANSI(text)
 	text = _DISALLOWED_CHARS.sub("", text)
 	return html.escape(text, quote=True)
+
+
+def render_plain(snapshot):
+	"""Render a snapshot as one escaped paragraph per line, no structure.
+
+	The Task 3 minimal renderer: enough for the real-NVDA gate (arrowing,
+	Escape, title, large-buffer timing) before semantic headings exist.
+	A blank buffer row renders as a non-breaking space so it still
+	occupies a line when arrowing; an empty paragraph would be skipped.
+	"""
+	return "\n".join(
+		"<p>%s</p>" % (escape_line(line) or "&nbsp;")
+		for line in snapshot.lines
+	)
+
+
+def window_title(snapshot):
+	"""Title for the browse window: names the terminal, admits truncation.
+
+	A stale snapshot silently presented as live is the worst failure
+	mode, so the title always says "snapshot"; and when lines were
+	dropped it says how many of how many remain rather than pretending
+	the buffer is smaller than it is. The terminal name is
+	program-influenced text, so it passes through escape_line like any
+	other line.
+	"""
+	name = escape_line(snapshot.terminal_name)
+	if snapshot.truncated:
+		# Translators: Title of the terminal buffer window when older lines
+		# were dropped. {terminal} is the terminal application's name;
+		# {kept} and {total} are line counts.
+		return _("{terminal} buffer snapshot, most recent {kept} of {total} lines - Terminal Access").format(
+			terminal=name, kept=len(snapshot.lines), total=snapshot.total_lines,
+		)
+	# Translators: Title of the terminal buffer window. {terminal} is the
+	# terminal application's name; {count} is the number of lines shown.
+	return _("{terminal} buffer snapshot, {count} lines - Terminal Access").format(
+		terminal=name, count=snapshot.total_lines,
+	)

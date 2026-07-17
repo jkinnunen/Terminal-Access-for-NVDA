@@ -326,23 +326,32 @@ assumptions below are confirmed in real NVDA.
 - Modify: `addon/globalPlugins/terminalAccess.py`
 - Create: `tests/test_virtual_window.py`
 
-- [ ] add `render_plain(snapshot)` producing escaped `<p>` per line, no headings
-- [ ] add `window_title(snapshot)` (see Technical Details for exact wording)
-- [ ] add `script_showBufferWindow` gated on `isTerminalApp()`, else `gesture.send()`
-- [ ] read the buffer off the main thread; sanitize/escape on that worker thread,
+- [x] add `render_plain(snapshot)` producing escaped `<p>` per line, no headings
+      (blank rows render as `&nbsp;` so they still occupy a line when arrowing)
+- [x] add `window_title(snapshot)` (see Technical Details for exact wording)
+- [x] add `script_showBufferWindow` gated on `isTerminalApp()`, else `gesture.send()`
+- [x] read the buffer off the main thread; sanitize/escape on that worker thread,
       then `wx.CallAfter` to `ui.browseableMessage(html, title=..., isHtml=True,
       copyButton=True, sanitizeHtmlFunc=lambda s: s)` so no heavy sanitization
       runs on the main thread (see Development Approach)
-- [ ] announce and return gracefully when the buffer is empty or unreadable
-- [ ] bind `kb:NVDA+enter` in `_DEFAULT_GESTURES` and `kb:enter` in
-      `_COMMAND_LAYER_MAP`
-- [ ] add `kb:NVDA+enter` to `_CONFLICTING_GESTURES` with a comment naming
+      ➕ deviation, deliberate: the COM/UIA *read* stays ON the main thread
+      (matching `_getBufferLines` and the search path) because NVDA's watchdog
+      can cancel a stuck COM call there, while worker-thread COM is what
+      deadlocked in beta.3. Only the CPU-heavy escape/render/sanitize runs on
+      the worker. The plan's original wording had this backwards.
+- [x] announce and return gracefully when the buffer is empty or unreadable
+- [x] bind `kb:NVDA+enter` in `_DEFAULT_GESTURES` and `kb:enter` in
+      `_COMMAND_LAYER_MAP` (plus the @script decorator gesture, matching the
+      dual pattern of readCurrentLine)
+- [x] add `kb:NVDA+enter` to `_CONFLICTING_GESTURES` with a comment naming
       NVDA's laptop-layout review-activate
-- [ ] write tests that the script no-ops outside a terminal (gesture.send called)
-- [ ] write tests that `browseableMessage` is called with `isHtml=True`, the
+- [x] write tests that the script no-ops outside a terminal (gesture.send called)
+- [x] write tests that `browseableMessage` is called with `isHtml=True`, the
       expected title, and an identity `sanitizeHtmlFunc` (mock it)
-- [ ] write tests that the read happens off the main thread
-- [ ] run tests - must pass before task 4
+- [x] write tests that the read happens off the main thread
+      ➕ inverted to match the deviation above: tests assert the read happens on
+      the calling thread and only the render is handed to the worker thread
+- [x] run tests - must pass before task 4 (20 new tests; full suite 1957 green)
 - [ ] **VERIFY IN REAL NVDA before Task 4** and record findings in this plan:
   - [ ] Escape closes the window
   - [ ] arrow keys read line by line

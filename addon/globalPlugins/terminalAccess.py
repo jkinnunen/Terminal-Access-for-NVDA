@@ -237,6 +237,8 @@ _COMMAND_LAYER_MAP = {
 	"kb:shift+v": "cycleVerbosity",
 	# Table mode
 	"kb:g": "toggleTableMode",
+	# Buffer window
+	"kb:enter": "showBufferWindow",
 	# Layer exit
 	"kb:escape": "exitCommandLayer",
 }
@@ -290,6 +292,7 @@ _DEFAULT_GESTURES = {
 	"kb:NVDA+f10": "announceActiveProfile",
 	"kb:NVDA+-": "decreasePunctuationLevel",
 	"kb:NVDA+=": "increasePunctuationLevel",
+	"kb:NVDA+enter": "showBufferWindow",
 	"kb:NVDA+shift+leftArrow": "readToLeft",
 	"kb:NVDA+shift+rightArrow": "readToRight",
 	"kb:NVDA+shift+upArrow": "readToTop",
@@ -368,6 +371,7 @@ _CONFLICTING_GESTURES = frozenset({
 	"kb:NVDA+shift+b",     # NVDA: report battery status
 	"kb:NVDA+shift+upArrow",  # NVDA: report selection
 	"kb:NVDA+c",              # NVDA: read clipboard contents
+	"kb:NVDA+enter",          # NVDA: activate navigator object (laptop layout only)
 })
 
 
@@ -3810,6 +3814,70 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except OSError:
 			# Translators: Announced when the transcript file cannot be written
 			ui.message(_("Unable to save transcript"))
+
+	# Buffer window (see docs/plans/20260717-terminal-buffer-virtual-window.md)
+
+	@script(
+		# Translators: Description for opening the terminal buffer window
+		description=_(
+			"Open the terminal buffer in a browsable window. "
+			"Arrow through it, navigate by heading, and press escape to close."
+		),
+		category=SCRCAT_TERMINALACCESS,
+		gesture="kb:NVDA+enter",
+	)
+	def script_showBufferWindow(self, gesture):
+		"""Open a frozen snapshot of the terminal buffer in browse mode."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		# The COM/UIA read stays on this (main) thread, where NVDA's
+		# watchdog can cancel a stuck call; worker-thread COM is what
+		# deadlocked in 2.0.0-beta.3. Only the CPU-heavy render moves off.
+		lines = self._getBufferLines()
+		if not lines:
+			# Translators: Message when terminal buffer cannot be read
+			ui.message(_("Cannot read terminal buffer"))
+			return
+		from lib.buffer_snapshot import BufferSnapshot
+		snapshot = BufferSnapshot.capture(self._boundTerminal, lines)
+		import threading
+		threading.Thread(
+			target=self._bufferWindowWorker,
+			args=(snapshot,),
+			name="TerminalAccessBufferWindow",
+			daemon=True,
+		).start()
+
+	def _bufferWindowWorker(self, snapshot):
+		"""Render the snapshot to HTML off the main thread, then present."""
+		from lib import buffer_html
+		html_doc = buffer_html.render_plain(snapshot)
+		title = buffer_html.window_title(snapshot)
+		wx.CallAfter(self._presentBufferWindow, html_doc, title)
+
+	def _presentBufferWindow(self, html_doc, title):
+		"""Show the rendered snapshot (main thread).
+
+		The identity sanitizeHtmlFunc is deliberate: every line was
+		escaped on the worker (lib.buffer_html.escape_line is the
+		security boundary), and browseableMessage's default nh3.clean
+		would otherwise run on the main thread over the whole document.
+		"""
+		try:
+			ui.browseableMessage(
+				html_doc,
+				title=title,
+				isHtml=True,
+				copyButton=True,
+				sanitizeHtmlFunc=lambda sanitized: sanitized,
+			)
+		except Exception:
+			# browseableMessage warns-and-returns on secure desktops but can
+			# raise on MSHTML component failure; the user must hear something
+			# rather than silence.
+			# Translators: Announced when the buffer window cannot be shown
+			ui.message(_("Unable to show the buffer window"))
 
 	@script(
 		# Translators: Description for saving a diagnostic issue report

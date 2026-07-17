@@ -98,3 +98,79 @@ class TestRobustness:
 
     def test_cjk_and_emoji_pass_through(self):
         assert escape_line("宽字符 ✓") == "宽字符 ✓"
+
+
+def _snapshot(lines, name="WindowsTerminal", max_lines=None):
+    from unittest.mock import Mock
+
+    from lib.buffer_snapshot import BufferSnapshot
+
+    term = Mock()
+    term.appModule.appName = name
+    if max_lines is None:
+        return BufferSnapshot.capture(term, lines)
+    return BufferSnapshot.capture(term, lines, max_lines=max_lines)
+
+
+class TestRenderPlain:
+    """Task 3 renderer: one escaped paragraph per line, no headings yet."""
+
+    def test_each_line_is_a_paragraph(self):
+        from lib.buffer_html import render_plain
+
+        out = render_plain(_snapshot(["first", "second"]))
+        assert "<p>first</p>" in out
+        assert "<p>second</p>" in out
+
+    def test_lines_are_escaped(self):
+        from lib.buffer_html import render_plain
+
+        out = render_plain(_snapshot(["<script>boom()</script>"]))
+        assert "<script" not in out
+        assert "&lt;script&gt;" in out
+
+    def test_blank_lines_keep_their_place(self):
+        """A blank buffer row still occupies a line when arrowing."""
+        from lib.buffer_html import render_plain
+
+        out = render_plain(_snapshot(["a", "", "b"]))
+        assert out.index("<p>a</p>") < out.index("<p>&nbsp;</p>") < out.index("<p>b</p>")
+
+    def test_empty_snapshot_renders_empty_document(self):
+        from lib.buffer_html import render_plain
+
+        assert render_plain(_snapshot([])) == ""
+
+
+class TestWindowTitle:
+    """The title names the terminal and never hides truncation."""
+
+    def test_names_the_terminal_and_line_count(self):
+        from lib.buffer_html import window_title
+
+        title = window_title(_snapshot(["x"] * 42, name="wt"))
+        assert "wt" in title
+        assert "42" in title
+
+    def test_truncated_title_admits_what_was_dropped(self):
+        from lib.buffer_html import window_title
+
+        snap = _snapshot([str(i) for i in range(30)], max_lines=20)
+        title = window_title(snap)
+        assert "20" in title
+        assert "30" in title
+
+    def test_untruncated_title_does_not_claim_truncation(self):
+        from lib.buffer_html import window_title
+
+        snap = _snapshot(["x"] * 5)
+        title = window_title(snap)
+        assert "5" in title
+
+    def test_title_is_escaped(self):
+        """browseableMessage embeds the title in its HTML dialog; a
+        terminal name is program-influenced text like any other."""
+        from lib.buffer_html import window_title
+
+        title = window_title(_snapshot(["x"], name="<b>evil</b>"))
+        assert "<b>" not in title
