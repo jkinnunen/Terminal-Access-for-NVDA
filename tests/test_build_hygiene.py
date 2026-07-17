@@ -10,20 +10,37 @@ import zipfile
 import pytest
 
 
+def _current_addon_path():
+    """Path of the package for the CURRENT version in buildVars.py.
+
+    Derived, not hardcoded: a pinned filename silently outlives its
+    release, and these tests then guard a stale artifact (they were
+    pinned to 1.3.3 until 2.0.3) or skip forever once it is deleted.
+    """
+    root = os.path.dirname(os.path.dirname(__file__))
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "buildVars_for_hygiene", os.path.join(root, "buildVars.py")
+    )
+    build_vars = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(build_vars)
+    version = build_vars.addon_info["addon_version"]
+    return os.path.join(root, f"terminalAccess-{version}.nvda-addon")
+
+
 class TestAddonPackageHygiene:
     """Verify the built .nvda-addon package doesn't contain stale artifacts."""
-
-    ADDON_PATH = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "terminalAccess-1.3.3.nvda-addon"
-    )
 
     @pytest.fixture
     def addon_zip(self):
         """Open the built addon if it exists, skip if not built."""
-        if not os.path.exists(self.ADDON_PATH):
-            pytest.skip("Addon not built -- run 'scons' first")
-        return zipfile.ZipFile(self.ADDON_PATH)
+        path = _current_addon_path()
+        if not os.path.exists(path):
+            pytest.skip(
+                f"Addon not built for the current version -- expected "
+                f"{os.path.basename(path)}; run 'scons' first"
+            )
+        return zipfile.ZipFile(path)
 
     def test_no_pyc_files_in_addon(self, addon_zip):
         """Built addon must not contain any .pyc bytecode files."""
@@ -43,7 +60,8 @@ class TestAddonPackageHygiene:
     def test_all_lib_modules_present(self, addon_zip):
         """All lib/ modules must be in the addon package."""
         required = [
-            'lib/__init__.py', 'lib/_runtime.py', 'lib/caching.py',
+            'lib/__init__.py', 'lib/_runtime.py', 'lib/buffer_html.py',
+            'lib/buffer_snapshot.py', 'lib/caching.py',
             'lib/config.py', 'lib/gesture_conflicts.py', 'lib/navigation.py',
             'lib/operations.py', 'lib/profiles.py', 'lib/search.py',
             'lib/settings_panel.py', 'lib/text_processing.py',
