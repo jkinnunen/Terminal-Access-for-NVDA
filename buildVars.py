@@ -23,10 +23,10 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Provides enhanced terminal accessibility for Windows Terminal and PowerShell, enabling screen reader users to efficiently navigate and interact with command-line interfaces. Inspired by TDSR (Terminal Data Structure Reader) and incorporates functionality from both TDSR and Speakup. Advanced features inspired by community suggestions and discussions."""),
 	# version
-	addon_version="2.1.0-beta.1",
+	addon_version="2.1.0",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""v2.1.0-beta.1: first beta of the buffer window release. Please test and report issues.
+	addon_changelog=_("""v2.1.0: the buffer window release, going first to the beta channel for testing.
 
 New: the buffer window. Press NVDA+Enter in a terminal to open the whole scrollback as a browsable snapshot: arrow through it, press H to move between the commands you ran and the errors they produced, follow the table of contents, read columnar output as real tables, and activate web links. NVDA+Shift+Enter opens a jump to line dialog that moves the review cursor to any line, found by its text. In the command layer, Shift+E opens an errors-only view and Shift+C a commands-only view.
 
