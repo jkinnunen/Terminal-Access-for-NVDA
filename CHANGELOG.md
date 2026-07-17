@@ -6,9 +6,14 @@ Version 2.0.0 was developed through fifteen pre-releases (2.0.0-beta through 2.0
 
 ## [Unreleased]
 
+### Added
+
+- **Find next and find previous now announce your position in the results.** Pressing NVDA+F3 or NVDA+Shift+F3 speaks the matched line followed by "N of M", and says "Wrapped" when navigation loops from the last match back to the first (or the reverse), so you always know where you are in the results and when you have been all the way through.
+
 ### Fixed
 
 - **Find next and find previous (NVDA+F3 / NVDA+Shift+F3) now work after you activate a search result.** Search results were stored per terminal "tab", but the tab identity was a hash of the window title and the focused object, both of which change every time focus returns to the terminal. So activating a result and pressing F3 looked under a different key, found nothing, and reported "No search results." Search results are now kept per terminal window, keyed on the stable window handle, so they survive the focus change and are restored when you switch to another window and back. (This is also the path a missing test failed to cover, which is now added.)
+- **Bookmark jumps land on the right line on legacy consoles.** When a terminal cannot provide a position anchor for a bookmark (common on the classic console host, where the anchor is empty), the jump used to count lines from the top, which terminals number inconsistently, so it could land on the wrong or a blank line. The jump now re-finds the bookmarked line by its text, the same reliable method search-result jumps use, and only counts lines as a last resort.
 - **Bookmarks are no longer lost when focus returns to the terminal.** Bookmarks had the same root cause as the search bug: they were stored under a tab id that hashes the window title and the focused object, so a title change or a normal refocus orphaned them. Bookmarks are now stored per terminal window, keyed on the stable window handle, so they persist across focus changes and across switching to another window and back. One consequence worth noting: several tabs inside a single Windows Terminal window share one window handle, so they now share bookmarks; separate terminal windows keep their own. This is a deliberate trade for reliability, since the old title-based separation lost bookmarks constantly.
 
 ## [2.0.2] - 2026-07-13

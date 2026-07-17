@@ -70,6 +70,66 @@ def test_bookmarks_separate_and_restore_per_window():
 	assert len(manager.list_bookmarks()) == 1
 
 
+def test_bookmark_jump_resolves_by_text_without_position_bookmark():
+	"""On terminals that cannot produce a position bookmark (legacy consoles),
+	jump re-finds the line by its stored text, landing on the real line even
+	when the stored line number has drifted."""
+	import textInfos
+	from globalPlugins.terminalAccess import BookmarkManager
+
+	textInfos.POSITION_FIRST = "first"
+	textInfos.UNIT_LINE = "line"
+
+	buffer_lines = ["$ run", "file1.txt", "needle here", "", ""]
+
+	class WalkTextInfo:
+		def __init__(self, lines, idx=0):
+			self._lines, self._idx, self._expanded = lines, idx, False
+
+		@property
+		def text(self):
+			if self._expanded and 0 <= self._idx < len(self._lines):
+				return self._lines[self._idx]
+			return ""
+
+		def expand(self, unit):
+			self._expanded = True
+
+		def copy(self):
+			c = WalkTextInfo(self._lines, self._idx)
+			c._expanded = self._expanded
+			return c
+
+		def move(self, unit, count):
+			new = self._idx + count
+			if 0 <= new < len(self._lines):
+				self._idx = new
+				return count
+			return 0
+
+	class WalkTerminal:
+		windowHandle = 0x33
+
+		def makeTextInfo(self, arg):
+			if arg == textInfos.POSITION_FIRST:
+				return WalkTextInfo(buffer_lines, 0)
+			raise ValueError("only POSITION_FIRST")
+
+	manager = BookmarkManager(WalkTerminal())
+	# Inject a bookmark with no position object and a drifted line number.
+	manager._get_bookmark_dict()["1"] = {
+		"bookmark": None,
+		"label": "run: needle",   # context label, not the raw line
+		"line_num": 99,
+		"line_text": "needle here",
+	}
+
+	with patch('api.setReviewPosition') as mock_set:
+		assert manager.jump_to_bookmark("1") is True
+		set_pos = mock_set.call_args[0][0]
+		assert set_pos.text == "needle here"
+
+
 def test_bookmark_manager_set_and_jump():
 	"""Test that bookmarks can be set and jumped to."""
 	from globalPlugins.terminalAccess import BookmarkManager
@@ -513,8 +573,10 @@ def test_jump_to_bookmark_with_none_bookmark_uses_line_number():
 	"""Jump must work even when bookmark object is None.
 
 	Many terminal UIA implementations don't support bookmarks, so
-	pos.bookmark returns None. jump_to_bookmark must fall back to
-	navigating by line number using POSITION_FIRST + move(UNIT_LINE).
+	pos.bookmark returns None. jump_to_bookmark first tries to re-find the
+	line by its stored text; if that finds nothing (as with this mock, whose
+	lines are not real strings), it falls back to navigating by line number
+	using POSITION_FIRST + move(UNIT_LINE).
 	"""
 	from lib.navigation import BookmarkManager
 	import textInfos
@@ -559,7 +621,9 @@ def test_jump_to_bookmark_with_none_bookmark_uses_line_number():
 
 	assert result is True, "Jump should succeed with None bookmark by using line number"
 	mock_set.assert_called_once()
-	terminal.makeTextInfo.assert_called_once_with(textInfos.POSITION_FIRST)
+	# Both the text-resolution attempt and the line-number fallback anchor at
+	# POSITION_FIRST; the line-number path is what ultimately moves and sets.
+	terminal.makeTextInfo.assert_any_call(textInfos.POSITION_FIRST)
 	# Should have moved 4 lines (to line 5)
 	jump_target.move.assert_called_with(textInfos.UNIT_LINE, 4)
 

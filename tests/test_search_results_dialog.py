@@ -424,6 +424,62 @@ class TestSearchResultsDialogData:
 # TestSearchFlowNoAutoJump
 # ---------------------------------------------------------------------------
 
+class TestNavigateSearchAnnouncement:
+	"""F3 / Shift+F3 announce the match line plus its position, and a wrap
+	cue when navigation loops to the other end."""
+
+	def _plugin(self):
+		from globalPlugins.terminalAccess import GlobalPlugin
+		return GlobalPlugin.__new__(GlobalPlugin)
+
+	def test_format_includes_position(self):
+		plugin = self._plugin()
+		msg = plugin._format_search_match_message("error: boom", 3, 5, False)
+		assert "error: boom" in msg
+		assert "3 of 5" in msg
+		assert "Wrapped" not in msg
+
+	def test_format_prefixes_wrap(self):
+		plugin = self._plugin()
+		msg = plugin._format_search_match_message("first hit", 1, 5, True)
+		assert msg.startswith("Wrapped")
+		assert "1 of 5" in msg
+
+	def test_navigate_announces_position(self):
+		import globalPlugins.terminalAccess as ta
+		plugin = self._plugin()
+		mgr = MagicMock()
+		mgr.get_match_count.return_value = 5
+		# before -> (num=2), after next -> (num=3)
+		mgr.get_current_match_info.side_effect = [
+			(2, 5, "old line", 10),
+			(3, 5, "error here", 12),
+		]
+		mgr.next_match.return_value = True
+		plugin._searchManager = mgr
+		with patch.object(ta, "ui") as mock_ui:
+			plugin._navigateSearch("next")
+		spoken = mock_ui.message.call_args[0][0]
+		assert "error here" in spoken and "3 of 5" in spoken
+
+	def test_navigate_next_wrap_announced(self):
+		import globalPlugins.terminalAccess as ta
+		plugin = self._plugin()
+		mgr = MagicMock()
+		mgr.get_match_count.return_value = 5
+		# at last (5), next wraps to first (1)
+		mgr.get_current_match_info.side_effect = [
+			(5, 5, "last", 40),
+			(1, 5, "first", 4),
+		]
+		mgr.next_match.return_value = True
+		plugin._searchManager = mgr
+		with patch.object(ta, "ui") as mock_ui:
+			plugin._navigateSearch("next")
+		spoken = mock_ui.message.call_args[0][0]
+		assert spoken.startswith("Wrapped") and "1 of 5" in spoken
+
+
 class TestSearchFlowNoAutoJump:
 	"""Test that the new flow doesn't auto-jump after search."""
 

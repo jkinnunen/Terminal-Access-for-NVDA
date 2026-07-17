@@ -511,6 +511,10 @@ class BookmarkManager:
 				"bookmark": bookmark_obj,
 				"label": label,
 				"line_num": line_num,
+				# Raw line text (not the possibly context-aware label) so a
+				# jump can re-find the line by content when the position
+				# bookmark is unavailable and line counting is unreliable.
+				"line_text": line_text,
 			}
 			return True
 
@@ -540,8 +544,9 @@ class BookmarkManager:
 		entry = bookmarks[name]
 		bookmark_obj = entry.get("bookmark")
 		line_num = entry.get("line_num")
+		line_text = entry.get("line_text")
 
-		# Try bookmark object first
+		# Try the stored position bookmark first (robust on UIA terminals).
 		if bookmark_obj is not None:
 			try:
 				pos = self._terminal.makeTextInfo(bookmark_obj)
@@ -551,7 +556,20 @@ class BookmarkManager:
 			except Exception:
 				pass
 
-		# Fall back to line number navigation
+		# No usable position bookmark (common on legacy consoles). Re-find
+		# the line by its stored text, which is reliable regardless of how
+		# lines are counted; the line number is only a tie-break hint.
+		if line_text:
+			try:
+				from lib.line_resolve import resolve_line_by_content
+				pos = resolve_line_by_content(self._terminal, line_text, line_num)
+				if pos:
+					api.setReviewPosition(pos)
+					return True
+			except Exception:
+				pass
+
+		# Last resort: navigate by line number (may drift on some terminals).
 		if line_num is not None and line_num >= 1:
 			try:
 				pos = self._terminal.makeTextInfo(textInfos.POSITION_FIRST)

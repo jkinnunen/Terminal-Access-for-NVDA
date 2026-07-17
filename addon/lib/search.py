@@ -662,57 +662,11 @@ class OutputSearchManager:
 
 	def _resolve_line_by_content(self, line_text, line_hint):
 		"""Return a TextInfo on the buffer line whose text matches
-		*line_text*, or None.
-
-		Walks the live buffer one UNIT_LINE at a time so the result aligns
-		with UNIT_LINE navigation regardless of how the search counted lines
-		(POSITION_ALL text split on newlines can disagree with UNIT_LINE in
-		a terminal). When several lines share the text, the occurrence
-		nearest *line_hint* wins.
+		*line_text*, or None. See lib.line_resolve.resolve_line_by_content.
 		"""
-		target = _rt.strip_ansi(line_text or "").strip()
-		if not target:
-			return None
-		try:
-			info = self._terminal.makeTextInfo(textInfos.POSITION_FIRST)
-			info.expand(textInfos.UNIT_LINE)
-		except (RuntimeError, AttributeError, TypeError, NotImplementedError,
-				ValueError):
-			return None
-
-		best = None
-		best_delta = None
-		index = 0
-		while index < self.MAX_SEARCH_LINES:
-			try:
-				cur = _rt.strip_ansi(getattr(info, "text", "") or "").strip()
-			except Exception:
-				cur = ""
-			if cur and (cur == target or target in cur or cur in target):
-				delta = abs((index + 1) - (line_hint or (index + 1)))
-				if best is None or delta < best_delta:
-					try:
-						best = info.copy()
-					except (RuntimeError, AttributeError):
-						best = info
-					best_delta = delta
-					if delta == 0:
-						break
-			nxt = None
-			try:
-				nxt = info.copy()
-				moved = nxt.move(textInfos.UNIT_LINE, 1)
-			except (RuntimeError, AttributeError, TypeError):
-				break
-			if not moved:
-				break
-			try:
-				nxt.expand(textInfos.UNIT_LINE)
-			except (RuntimeError, AttributeError, TypeError):
-				break
-			info = nxt
-			index += 1
-		return best
+		from lib.line_resolve import resolve_line_by_content
+		return resolve_line_by_content(
+			self._terminal, line_text, line_hint, self.MAX_SEARCH_LINES)
 
 	def get_match_count(self) -> int:
 		"""

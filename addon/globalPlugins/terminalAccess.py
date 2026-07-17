@@ -4275,15 +4275,37 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message(_("No search results. Use NVDA+F to search."))
 			return
 
+		before = self._searchManager.get_current_match_info()
+		old_num = before[0] if before else None
+
 		move_fn = self._searchManager.next_match if direction == "next" else self._searchManager.previous_match
 		if move_fn():
 			info = self._searchManager.get_current_match_info()
 			if info:
 				match_num, total, line_text, line_num = info
-				ui.message(line_text)
+				wrapped = old_num is not None and (
+					(direction == "next" and match_num < old_num)
+					or (direction == "previous" and match_num > old_num)
+				)
+				ui.message(self._format_search_match_message(
+					line_text, match_num, total, wrapped))
 		else:
 			# Translators: Error jumping to search match
 			ui.message(_("Cannot jump to {direction} match").format(direction=direction))
+
+	@staticmethod
+	def _format_search_match_message(line_text, match_num, total, wrapped):
+		"""Build the spoken message for a search match: content, then its
+		position, prefixed with a wrap cue when find next/previous looped
+		around to the other end of the results."""
+		# Translators: a search match's position among the results, e.g. "3 of 5"
+		position = _("{num} of {total}").format(num=match_num, total=total)
+		if wrapped:
+			# Translators: spoken when find next/previous wraps to the other end
+			return _("Wrapped, {line}, {position}").format(
+				line=line_text, position=position)
+		# Translators: a search match line followed by its position
+		return _("{line}, {position}").format(line=line_text, position=position)
 
 	@scriptHandler.script(
 		# Translators: Description for next search match

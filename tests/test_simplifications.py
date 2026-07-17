@@ -397,7 +397,7 @@ class TestNavigateSearch:
 		plugin._navigateSearch("next")
 
 	def test_navigateSearch_announces_line_text(self):
-		"""_navigateSearch should announce the matched line text."""
+		"""_navigateSearch announces the matched line text and its position."""
 		plugin = self._make_plugin()
 		plugin._searchManager = MagicMock()
 		plugin._searchManager.get_match_count.return_value = 5
@@ -408,7 +408,9 @@ class TestNavigateSearch:
 		ui.message = MagicMock()
 
 		plugin._navigateSearch("next")
-		ui.message.assert_called_with("found line")
+		spoken = ui.message.call_args[0][0]
+		assert "found line" in spoken
+		assert "2 of 5" in spoken
 
 	def test_navigateSearch_failed_jump_announces_error(self):
 		"""_navigateSearch should announce error when jump fails."""
