@@ -4,7 +4,9 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 The 2.0.3 entry below is the consolidated summary of everything that changed since 1.4.0, written for anyone upgrading from 1.4.0 or installing for the first time. It is the entry to read. The 2.0.2, 2.0.1, and 2.0.0 sections beneath it are the per-release history for anyone already running a 2.0.x build, and the fifteen 2.0.0-beta sections below those are the detailed development history.
 
-## [Unreleased]
+## [2.1.0-beta.1] - 2026-07-17
+
+First beta of the 2.1.0 feature release. The headline is the buffer window. Please test the buffer window against your daily terminals and report anything that reads wrong, lands wrong, or feels slow; the checks that matter most are listed in the user guide's Buffer Window chapter.
 
 ### Added
 
