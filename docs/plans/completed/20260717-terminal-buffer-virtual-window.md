@@ -455,16 +455,18 @@ the "go to a specific place" path.
 - Modify: `addon/lib/buffer_html.py`
 - Modify: `tests/test_buffer_html.py`
 
-- [ ] add a short table-of-contents block at the top of the rendered HTML:
+- [x] add a short table-of-contents block at the top of the rendered HTML:
       links to each command (h2) and each error (h3), so `H` and the TOC both
       reach structure immediately without scrolling 50k lines
 - [ ] confirm (real NVDA, folded into the Task 3 gate re-run) whether an
       `#fragment` in the initial HTML auto-scrolls; if it does, open at the
       newest prompt, and if it does not, the TOC covers the need
-- [ ] write tests that the TOC lists every command and error heading
-- [ ] write tests that the TOC entries are escaped
-- [ ] write tests that a buffer with no headings still renders (no empty TOC)
-- [ ] run tests - must pass before task 7
+      ⚠️ open at close-out: carried to RELEASE_VERIFICATION.md (TOC link
+      activation check). The TOC covers the need either way.
+- [x] write tests that the TOC lists every command and error heading
+- [x] write tests that the TOC entries are escaped
+- [x] write tests that a buffer with no headings still renders (no empty TOC)
+- [x] run tests - must pass before task 7
 
 ### Task 7: Real HTML tables for columnar output
 
@@ -473,16 +475,16 @@ the "go to a specific place" path.
 - Modify: `addon/lib/table_reader.py` (extract column detection if needed)
 - Modify: `tests/test_buffer_html.py`
 
-- [ ] reuse `table_reader`'s column detection over candidate spans
-- [ ] render detected tables as `<table>` with `<th>` headers and `<td>` cells so
+- [x] reuse `table_reader`'s column detection over candidate spans
+- [x] render detected tables as `<table>` with `<th>` headers and `<td>` cells so
       NVDA's native table navigation works
-- [ ] escape every cell
-- [ ] fall back to `<p>` lines when detection is not confident (the heuristic is
+- [x] escape every cell
+- [x] fall back to `<p>` lines when detection is not confident (the heuristic is
       already marked experimental; a wrong table is worse than no table)
-- [ ] write tests that `docker ps`-style output becomes a table with headers
-- [ ] write tests that ambiguous output does NOT become a table
-- [ ] write tests that cell content is escaped
-- [ ] run tests - must pass before task 8
+- [x] write tests that `docker ps`-style output becomes a table with headers
+- [x] write tests that ambiguous output does NOT become a table
+- [x] write tests that cell content is escaped
+- [x] run tests - must pass before task 8
 
 ### Task 8: Real links for URLs
 
@@ -490,14 +492,14 @@ the "go to a specific place" path.
 - Modify: `addon/lib/buffer_html.py`
 - Modify: `tests/test_buffer_html.py`
 
-- [ ] reuse `UrlExtractorManager`'s detection to wrap URLs in `<a href>`
-- [ ] reuse the existing shared scheme check; refuse `file://`, `javascript:`,
+- [x] reuse `UrlExtractorManager`'s detection to wrap URLs in `<a href>`
+- [x] reuse the existing shared scheme check; refuse `file://`, `javascript:`,
       and `data:` exactly as the URL list already does
-- [ ] escape the href attribute as well as the link text
-- [ ] write tests that an http/https URL becomes a link
-- [ ] write tests that `javascript:` and `data:` URLs do NOT become links
-- [ ] write tests that a URL containing `"` cannot break out of the attribute
-- [ ] run tests - must pass before task 9
+- [x] escape the href attribute as well as the link text
+- [x] write tests that an http/https URL becomes a link
+- [x] write tests that `javascript:` and `data:` URLs do NOT become links
+- [x] write tests that a URL containing `"` cannot break out of the attribute
+- [x] run tests - must pass before task 9
 
 ### Task 9: Filtered views
 
@@ -511,17 +513,17 @@ its own snapshot window.
 - Modify: `addon/lib/buffer_html.py`
 - Modify: `tests/test_virtual_window.py`
 
-- [ ] add filtered renders: errors only, and commands only (prompt spans)
-- [ ] add an "errors only" open command in the command layer; verify the binding
+- [x] add filtered renders: errors only, and commands only (prompt spans)
+- [x] add an "errors only" open command in the command layer; verify the binding
       is free before adding (`Shift+Enter` is taken by Task 5's jump dialog, so
       pick another free layer key and record it here)
-- [ ] state the active filter in the window title
-- [ ] state that re-opening captures a fresh snapshot (documented in Task 10, not
+- [x] state the active filter in the window title
+- [x] state that re-opening captures a fresh snapshot (documented in Task 10, not
       a code behaviour to build)
-- [ ] write tests that the errors-only view contains only error/warning spans
-- [ ] write tests that the commands-only view contains only prompt spans
-- [ ] write tests that a filter with no matches announces rather than opening empty
-- [ ] run tests - must pass before task 10
+- [x] write tests that the errors-only view contains only error/warning spans
+- [x] write tests that the commands-only view contains only prompt spans
+- [x] write tests that a filter with no matches announces rather than opening empty
+- [x] run tests - must pass before task 10
 
 ### Task 10: User guide documentation
 
@@ -531,51 +533,53 @@ Extensive, per the request, and following the punctuation convention.
 - Modify: `addon/doc/en/readme.md`
 - Modify: `tests/test_doc_gesture_consistency.py` (only if new patterns appear)
 
-- [ ] add a "Buffer Window" section after "Command Layer" covering: what it is,
+- [x] add a "Buffer Window" section after "Command Layer" covering: what it is,
       the key to open it, arrowing, `H` heading navigation, browse-mode find,
       copy, and Escape to close
-- [ ] document the separate "jump to line" list dialog as the way to move the
+- [x] document the separate "jump to line" list dialog as the way to move the
       review cursor to a line found in the snapshot, and be explicit that the
       browse window itself is read-only (so users do not press Enter in it
       expecting to jump)
-- [ ] document the heading structure (terminal / command / error) so users know
+- [x] document the heading structure (terminal / command / error) so users know
       what `H` will land on
-- [ ] document the tables and links behaviour, marking column detection
+- [x] document the tables and links behaviour, marking column detection
       experimental (consistent with the existing table mode caveat)
-- [ ] document filters and refresh
-- [ ] **document the snapshot caveat honestly**: it is frozen at the moment you
+- [x] document filters and refresh
+- [x] **document the snapshot caveat honestly**: it is frozen at the moment you
       opened it, new output does not appear until refresh, and it shows the most
       recent N lines of what the terminal still holds
-- [ ] **document the legacy-console limitation**: on the legacy console NVDA
+- [x] **document the legacy-console limitation**: on the legacy console NVDA
       exposes only the visible window, so the buffer window shows only what is
       on screen there (this is the search exception, and users deserve to know)
-- [ ] document the NVDA+Enter conflict on the laptop layout and how to rebind
-- [ ] add the new commands to the command reference tables
-- [ ] verify every gesture is written with punctuation as words (no bare symbols)
-- [ ] run `py -m pytest tests/test_doc_gesture_consistency.py` - must pass
-- [ ] run tests - must pass before task 11
+- [x] document the NVDA+Enter conflict on the laptop layout and how to rebind
+- [x] add the new commands to the command reference tables
+- [x] verify every gesture is written with punctuation as words (no bare symbols)
+- [x] run `py -m pytest tests/test_doc_gesture_consistency.py` - must pass
+- [x] run tests - must pass before task 11
 
 ### Task 11: Verify acceptance criteria
-- [ ] verify all Overview acceptance criteria are implemented
-- [ ] verify edge cases: empty buffer, single line, 50k lines, no prompts,
+- [x] verify all Overview acceptance criteria are implemented
+- [x] verify edge cases: empty buffer, single line, 50k lines, no prompts,
       buffer of only errors, terminal closed while window open
-- [ ] add a Buffer Window section to `docs/testing/RELEASE_VERIFICATION.md`
+- [x] add a Buffer Window section to `docs/testing/RELEASE_VERIFICATION.md`
       covering the real-NVDA checks (Escape, H nav, jump back lands correctly,
       large buffer responsiveness, laptop-layout conflict)
-- [ ] run full test suite: `py -m pytest tests/ -q --no-cov --timeout=120`
-- [ ] run `py validate.py`
-- [ ] regenerate the translation template: `py -m SCons pot`, copy to
+- [x] run full test suite: `py -m pytest tests/ -q --no-cov --timeout=120`
+- [x] run `py validate.py`
+- [x] regenerate the translation template: `py -m SCons pot`, copy to
       `addon/locale/terminalAccess.pot`, confirm new strings carry translator
       comments
-- [ ] build and verify the package contains the updated guide
+- [x] build and verify the package contains the updated guide
 
 ### Task 12: [Final] Update documentation
-- [ ] update `CLAUDE.md` Key Paths with `buffer_snapshot.py` / `buffer_html.py`
-- [ ] update `CLAUDE.md` Gesture Mappings with NVDA+Enter and the layer key
-- [ ] add a CHANGELOG `[Unreleased]` entry (feature + the laptop-layout conflict)
+- [x] update `CLAUDE.md` Key Paths with `buffer_snapshot.py` / `buffer_html.py`
+- [x] update `CLAUDE.md` Gesture Mappings with NVDA+Enter and the layer key
+- [x] add a CHANGELOG `[Unreleased]` entry (feature + the laptop-layout conflict)
 - [ ] update `buildVars.py` `addon_changelog` when this ships (it is the store's
       "What's new", shown verbatim, and has gone stale before)
-- [ ] move this plan to `docs/plans/completed/`
+      ⚠️ open at close-out, deliberately: no version is being cut yet, and that
+      field must describe the release it actually ships in. Do it at the bump.
+- [x] move this plan to `docs/plans/completed/`
 
 ## Technical Details
 

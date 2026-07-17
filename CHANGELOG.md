@@ -6,6 +6,14 @@ The 2.0.3 entry below is the consolidated summary of everything that changed sin
 
 ## [Unreleased]
 
+### Added
+
+- **The buffer window: browse the whole terminal buffer as a document.** Press NVDA+Enter in a terminal (or Enter in the command layer) to open a frozen snapshot of the entire scrollback in a browsable NVDA window. Arrow through it line by line, use NVDA's find, and press H to move by structure: heading level 2 is each command you ran, heading level 3 is the start of each error, warning, or stack trace (an error and its stack trace count as one stop). A table of contents at the top links every command and error. Columnar output such as docker ps renders as a real table with NVDA table navigation and announced headers (same experimental detection as table mode; ambiguous output stays plain). Web addresses become activatable links, with unsafe schemes (file, javascript, data) left as plain text. Escape closes the window.
+- **Jump to line.** NVDA+Shift+Enter (or Shift+Enter in the command layer) opens a filterable list of every buffer line with the command that produced it. Enter moves the review cursor to that line in the live terminal, resolved by the line's text rather than by counting, and says "Could not reach that line" if it has scrolled out of history instead of failing silently. That announcement also now covers search-result jumps, which previously failed without a word when the matched line was gone.
+- **Filtered buffer windows.** Shift+E in the command layer opens only the errors, warnings, and stack traces; Shift+C opens only the commands you ran. The filter is named in the window title, and an empty filter announces instead of opening an empty window.
+- Buffer windows are snapshots: frozen at open, refreshed by reopening, capped at 50,000 lines (far beyond any terminal's own scrollback limit), and fully documented in the new Buffer Window chapter of the user guide, including the legacy console's visible-screen-only limitation.
+- **Note for laptop keyboard layout users:** NVDA+Enter is NVDA's activate-navigator-object command on that layout. Terminal Access takes it only inside supported terminals; the overlap is listed in the Gesture Conflicts settings, and the command layer's Enter avoids it entirely.
+
 ### Changed
 
 - **Punctuation keys are now named rather than shown as symbols.** A screen reader speaks a bare symbol at your punctuation level, and terminal work is usually done at a low level or with punctuation off, so "NVDA+;" was heard as "NVDA plus" and the command could not be learned by ear. The user guide and the command finder now write the word: NVDA+apostrophe, NVDA+comma, NVDA+period, NVDA+semicolon, NVDA+minus, NVDA+equals. The keys themselves are unchanged; only how they are named has changed.
