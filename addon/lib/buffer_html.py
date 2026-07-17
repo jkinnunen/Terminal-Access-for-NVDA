@@ -247,7 +247,43 @@ def render(snapshot, spans):
 	return "\n".join(parts)
 
 
-def window_title(snapshot):
+def render_filtered(snapshot, spans, categories):
+	"""Render only the spans whose category is in *categories*.
+
+	Used for the errors-only and commands-only windows. Heading
+	semantics match the full render (prompts h2, problem spans h3 with
+	the same adjacent-run coalescing), but there is no TOC: a filtered
+	view IS its own table of contents. Returns "" when nothing matches,
+	so the caller can announce instead of opening an empty window.
+	"""
+	body = []
+	in_h3_run = False
+	for span in spans:
+		if span.category not in categories:
+			# A gap between matching spans separates events, so the next
+			# problem span starts its own heading.
+			in_h3_run = False
+			continue
+		is_h3_span = span.category in _H3_CATEGORIES
+		for idx in range(span.start_line, span.end_line + 1):
+			line = snapshot.lines[idx]
+			absolute = snapshot.first_line_num + idx
+			text = escape_line(line) or "&nbsp;"
+			if span.category in _H2_CATEGORIES:
+				body.append('<h2 id="L%d">%s</h2>' % (absolute, text))
+			elif is_h3_span and idx == span.start_line and not in_h3_run:
+				body.append('<h3 id="L%d">%s</h3>' % (absolute, text))
+			else:
+				body.append(_paragraph(line))
+		in_h3_run = is_h3_span
+	if not body:
+		return ""
+	return "\n".join(
+		["<h1>%s</h1>" % escape_line(snapshot.terminal_name)] + body
+	)
+
+
+def window_title(snapshot, filter_label=None):
 	"""Title for the browse window: names the terminal, admits truncation.
 
 	A stale snapshot silently presented as live is the worst failure
@@ -255,9 +291,17 @@ def window_title(snapshot):
 	dropped it says how many of how many remain rather than pretending
 	the buffer is smaller than it is. The terminal name is
 	program-influenced text, so it passes through escape_line like any
-	other line.
+	other line. A filtered view names its filter so the window cannot be
+	mistaken for the whole buffer.
 	"""
 	name = escape_line(snapshot.terminal_name)
+	if filter_label:
+		# Translators: Title of a filtered buffer window. {terminal} is the
+		# terminal application's name; {filter} names the filter, e.g.
+		# "errors only".
+		return _("{terminal} buffer snapshot, {filter} - Terminal Access").format(
+			terminal=name, filter=filter_label,
+		)
 	if snapshot.truncated:
 		# Translators: Title of the terminal buffer window when older lines
 		# were dropped. {terminal} is the terminal application's name;

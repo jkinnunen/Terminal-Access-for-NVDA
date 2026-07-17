@@ -240,6 +240,8 @@ _COMMAND_LAYER_MAP = {
 	# Buffer window
 	"kb:enter": "showBufferWindow",
 	"kb:shift+enter": "jumpToBufferLine",
+	"kb:shift+e": "showErrorsWindow",
+	"kb:shift+c": "showCommandsWindow",
 	# Layer exit
 	"kb:escape": "exitCommandLayer",
 }
@@ -3855,6 +3857,60 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self.isTerminalApp():
 			gesture.send()
 			return
+		self._openBufferWindow(gesture)
+
+	@script(
+		# Translators: Description for opening the errors-only buffer window
+		description=_(
+			"Open only the errors, warnings, and stack traces from the "
+			"terminal buffer in a browsable window."
+		),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_showErrorsWindow(self, gesture):
+		"""Open a browsable window of only the buffer's problems."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		self._openBufferWindow(
+			gesture,
+			categories=frozenset({"error", "warning", "stack_trace"}),
+			# Translators: Names the errors-only filter in the window title
+			filter_label=_("errors only"),
+			# Translators: Announced when the errors-only window has nothing
+			# to show
+			empty_message=_("No errors in the terminal buffer"),
+		)
+
+	@script(
+		# Translators: Description for opening the commands-only buffer window
+		description=_(
+			"Open only the commands you ran, from the terminal buffer, "
+			"in a browsable window."
+		),
+		category=SCRCAT_TERMINALACCESS,
+	)
+	def script_showCommandsWindow(self, gesture):
+		"""Open a browsable window of only the commands run."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
+		self._openBufferWindow(
+			gesture,
+			categories=frozenset({"prompt"}),
+			# Translators: Names the commands-only filter in the window title
+			filter_label=_("commands only"),
+			# Translators: Announced when the commands-only window has
+			# nothing to show
+			empty_message=_("No commands found in the terminal buffer"),
+		)
+
+	def _openBufferWindow(self, gesture, categories=None,
+			filter_label=None, empty_message=None):
+		"""Shared open path for the full and filtered buffer windows."""
+		if not self.isTerminalApp():
+			gesture.send()
+			return
 		# The COM/UIA read stays on this (main) thread, where NVDA's
 		# watchdog can cancel a stuck call; worker-thread COM is what
 		# deadlocked in 2.0.0-beta.3. Only the CPU-heavy render moves off.
@@ -3866,25 +3922,36 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		from lib.buffer_snapshot import BufferSnapshot
 		snapshot = BufferSnapshot.capture(self._boundTerminal, lines)
 		import threading
+		worker_args = (snapshot,) if categories is None else (
+			snapshot, categories, filter_label, empty_message)
 		threading.Thread(
 			target=self._bufferWindowWorker,
-			args=(snapshot,),
+			args=worker_args,
 			name="TerminalAccessBufferWindow",
 			daemon=True,
 		).start()
 
-	def _bufferWindowWorker(self, snapshot):
+	def _bufferWindowWorker(self, snapshot, categories=None,
+			filter_label=None, empty_message=None):
 		"""Render the snapshot to HTML off the main thread, then present.
 
 		Tokenization runs here too: it is pure CPU over the captured
-		lines and has no business on the main thread.
+		lines and has no business on the main thread. A filtered render
+		that matches nothing announces instead of opening empty.
 		"""
 		from lib import buffer_html
 		from lib.section_tokenizer import SectionTokenizer
 		tokenizer = SectionTokenizer()
 		tokenizer.tokenize(snapshot.lines)
-		html_doc = buffer_html.render(snapshot, tokenizer.get_spans())
-		title = buffer_html.window_title(snapshot)
+		spans = tokenizer.get_spans()
+		if categories is None:
+			html_doc = buffer_html.render(snapshot, spans)
+		else:
+			html_doc = buffer_html.render_filtered(snapshot, spans, categories)
+			if not html_doc:
+				wx.CallAfter(ui.message, empty_message)
+				return
+		title = buffer_html.window_title(snapshot, filter_label=filter_label)
 		wx.CallAfter(self._presentBufferWindow, html_doc, title)
 
 	def _presentBufferWindow(self, html_doc, title):

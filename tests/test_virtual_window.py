@@ -286,6 +286,107 @@ class TestJumpDialogScript:
         ui.message.assert_called_once()
 
 
+class TestFilteredViews:
+    """Errors-only and commands-only windows, each a fresh snapshot.
+
+    A modeless browse window cannot be mutated after opening, so filters
+    are separate render modes and re-opening is the refresh.
+    """
+
+    LINES = (
+        "PS C:\\repo> npm test",
+        "collecting tests",
+        "Error: assertion failed",
+        "PS C:\\repo> git status",
+        "clean",
+    )
+
+    def _filtered(self, categories):
+        from lib.buffer_html import render_filtered
+        from lib.section_tokenizer import SectionTokenizer
+
+        snap = _snapshot(lines=self.LINES)
+        tok = SectionTokenizer()
+        tok.tokenize(snap.lines)
+        return render_filtered(snap, tok.get_spans(), categories)
+
+    def test_errors_only_contains_only_problems(self):
+        out = self._filtered({"error", "warning", "stack_trace"})
+        assert "assertion failed" in out
+        assert "collecting tests" not in out
+        assert "npm test" not in out
+
+    def test_commands_only_contains_only_prompts_as_headings(self):
+        out = self._filtered({"prompt"})
+        assert "npm test" in out
+        assert "git status" in out
+        assert out.count("<h2") == 2
+        assert "collecting tests" not in out
+
+    def test_no_matches_renders_empty(self):
+        from lib.buffer_html import render_filtered
+        from lib.section_tokenizer import SectionTokenizer
+
+        snap = _snapshot(lines=("just output", "more output"))
+        tok = SectionTokenizer()
+        tok.tokenize(snap.lines)
+        assert render_filtered(snap, tok.get_spans(), {"prompt"}) == ""
+
+    def test_filtered_title_names_the_filter(self):
+        from lib.buffer_html import window_title
+
+        title = window_title(_snapshot(), filter_label="errors only")
+        assert "errors only" in title
+
+    def test_layer_bindings(self):
+        from globalPlugins.terminalAccess import _COMMAND_LAYER_MAP
+        assert _COMMAND_LAYER_MAP.get("kb:shift+e") == "showErrorsWindow"
+        assert _COMMAND_LAYER_MAP.get("kb:shift+c") == "showCommandsWindow"
+
+    def test_scripts_exist(self):
+        from globalPlugins.terminalAccess import GlobalPlugin
+        assert hasattr(GlobalPlugin, "script_showErrorsWindow")
+        assert hasattr(GlobalPlugin, "script_showCommandsWindow")
+
+    def test_worker_announces_when_filter_finds_nothing(self):
+        """No window opens on an empty filter; the user hears why."""
+        import ui
+        import wx
+        plugin = _make_plugin()
+        snap = _snapshot(lines=("plain output", "nothing else"))
+        wx.CallAfter.reset_mock()
+
+        plugin._bufferWindowWorker(
+            snap,
+            categories={"error", "warning", "stack_trace"},
+            filter_label="errors only",
+            empty_message="No errors in the terminal buffer",
+        )
+
+        wx.CallAfter.assert_called_once()
+        args = wx.CallAfter.call_args.args
+        assert args[0] is ui.message
+        assert args[1] == "No errors in the terminal buffer"
+
+    def test_worker_presents_filtered_html_with_filter_title(self):
+        import wx
+        plugin = _make_plugin()
+        snap = _snapshot(lines=self.LINES)
+        wx.CallAfter.reset_mock()
+
+        plugin._bufferWindowWorker(
+            snap,
+            categories={"prompt"},
+            filter_label="commands only",
+            empty_message="none",
+        )
+
+        args = wx.CallAfter.call_args.args
+        assert args[0] == plugin._presentBufferWindow
+        assert "<h2" in args[1]
+        assert "commands only" in args[2]
+
+
 class TestReapplyFallbackAnnouncement:
     """The shared reapply path speaks up when the line cannot be reached.
 
