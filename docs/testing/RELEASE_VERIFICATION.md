@@ -42,6 +42,20 @@ For each environment, confirm each item speaks correctly and nothing hangs.
 ### Table mode
 - [ ] On `docker ps` / `kubectl get` / `ls -l` output, table mode (NVDA+Alt+G) announces cells with headers; arrows, Home/End, Ctrl+Up, and Space behave; Escape exits.
 
+### Buffer window
+- [ ] NVDA+Enter (or Enter in the command layer) opens the snapshot; the title names the terminal and says "snapshot"; Escape closes and returns focus to the terminal.
+- [ ] Arrow keys read line by line; blank rows occupy a line instead of vanishing.
+- [ ] H moves by heading: level 2 lands on each command, level 3 on each error or stack trace start; an error and its trace are ONE heading stop.
+- [ ] The table of contents at the top links to commands and errors; activating a link moves within the window.
+- [ ] Columnar output (`docker ps`, `ls -l`) renders as a real table: NVDA table navigation works and announces headers; prose does NOT render as a table.
+- [ ] An http/https URL in output is an activatable link; a `file://` or `javascript:` string is plain text.
+- [ ] Shift+E / Shift+C (command layer) open errors-only / commands-only windows with the filter named in the title; with nothing matching, a message is spoken and no window opens.
+- [ ] Jump to line (NVDA+Shift+Enter): filter narrows, Enter closes and the review cursor lands on the chosen line (verify with review-current-line a second or two after close).
+- [ ] Jump to a line, clear the terminal (or exceed scrollback), jump again from a stale dialog: "Could not reach that line" is spoken.
+- [ ] Laptop layout: outside a terminal, NVDA+Enter still activates the navigator object (the add-on must not swallow it there).
+- [ ] A buffer at the terminal's scrollback limit (thousands of lines) opens without freezing NVDA; note the open time.
+- [ ] Hostile output stays inert: `echo "<script>alert(1)</script>"` renders as text in the window, and `printf` with ANSI colour codes shows clean text.
+
 ### AI CLI (if testing an AI tool)
 - [ ] Turn navigation (NVDA+Alt+T / NVDA+Alt+Shift+T) lands on turns and announces role and first line.
 - [ ] Code block navigation (NVDA+Alt+B / NVDA+Alt+Shift+B) moves between blocks.
