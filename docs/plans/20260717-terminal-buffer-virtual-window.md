@@ -49,6 +49,44 @@ This keeps every capability the user asked for (browse the whole buffer, navigat
 by structure, reach a line in the live terminal) without depending on an
 interaction the primitive cannot support.
 
+### Considered and deferred: WebView2 (wx.html2 Edge backend)
+
+A custom `wx.Dialog` hosting a WebView2 control would make the in-window jump
+possible (`EVT_WEBVIEW_NAVIGATING` is interceptable) and would allow
+programmatic close/refresh. Evaluated 2026-07-17 against the real environment
+and deferred. Findings, so this is not re-litigated from scratch:
+
+- **Blocker: NVDA ships `wx._html2.pyd` but NOT `WebView2Loader.dll`** (verified
+  against the installed NVDA under `C:\Program Files\NVDA`). wxPython needs that
+  loader to instantiate the Edge backend; without it `wx.html2.WebView` falls
+  back to Trident, the same MSHTML engine `browseableMessage` already uses, with
+  none of the benefits. The add-on would have to ship the DLL itself: native
+  code, per-architecture (x86/x64/ARM64), reopening exactly the multi-arch
+  binary distribution problem 2.0.0 eliminated. CLAUDE.md: do not reintroduce
+  native code paths. (The WebView2 *runtime* is broadly present on updated
+  Windows 10/11 and was present on the dev machine; the missing piece is the
+  loader inside NVDA's process, not the runtime.)
+- **Cold start**: environment + control init + navigation is realistically 1-2s
+  to readable on first open, vs low hundreds of ms for the MSHTML dialog. For a
+  keystroke-invoked reading window this is very noticeable.
+- **Memory**: each WebView2 control spawns a family of `msedgewebview2.exe`
+  processes (~100-300MB combined) for the life of the window; MSHTML renders
+  in-process.
+- **Large documents**: raw DOM rendering favors Chromium, but the dominant cost
+  for a screen reader is NVDA's browse-mode virtual buffer build, which is
+  roughly linear in node count on either engine. WebView2 does not materially
+  help the reading path this feature exists for.
+- **Unproven wiring**: NVDA reading an embedded WebView2 inside NVDA's own wx
+  dialog has support code (`Chrome_WidgetWin_0` handling in
+  `nvda/source/NVDAObjects/IAccessible/wx.py`) but is exactly the class of
+  focus/buffer behaviour CLAUDE.md says cannot be trusted until verified in real
+  NVDA.
+
+**Revisit trigger**: if, after shipping, the two-door workflow (read window +
+jump dialog) genuinely grates in daily use, WebView2 is the v2 candidate. By
+then the Task 3 gate measurements will also say how large a snapshot either
+engine can hold. Until then: read-only `browseableMessage` + modal jump dialog.
+
 ### What this is NOT: the search-scope correction
 
 The feature was originally motivated by an assumption that search only covers
