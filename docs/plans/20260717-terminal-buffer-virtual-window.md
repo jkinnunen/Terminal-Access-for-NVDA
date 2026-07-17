@@ -296,19 +296,25 @@ before anything builds HTML.
 - Create: `addon/lib/buffer_html.py`
 - Create: `tests/test_buffer_html.py`
 
-- [ ] create `escape_line(text)` wrapping `html.escape(text, quote=True)`
-- [ ] strip ANSI via the shared `_runtime.strip_ansi` before escaping, so colour
+- [x] create `escape_line(text)` wrapping `html.escape(text, quote=True)`
+- [x] strip ANSI via the shared `_runtime.strip_ansi` before escaping, so colour
       codes do not appear as literal text
-- [ ] strip control characters that survive ANSI stripping (NUL, BEL, backspace)
-- [ ] strip Unicode bidi override characters (U+202A-U+202E, U+2066-U+2069) to
+      ➕ deviation: uses `ANSIParser.stripANSI` directly instead of the
+      `_runtime.strip_ansi` indirection, which defaults to an identity function
+      until the plugin registers the real one; a security boundary must not
+      silently no-op
+- [x] strip control characters that survive ANSI stripping (NUL, BEL, backspace)
+- [x] strip Unicode bidi override characters (U+202A-U+202E, U+2066-U+2069) to
       prevent Trojan-Source-style visual spoofing in the rendered snapshot
-- [ ] write tests that `<script>alert(1)</script>` in terminal output renders as
+      ➕ the character class is built from codepoints at import time so no
+      invisible character appears literally in the module's own source
+- [x] write tests that `<script>alert(1)</script>` in terminal output renders as
       inert text, not markup
-- [ ] write tests that bidi override characters are removed
-- [ ] write tests that `&`, `<`, `>`, `"`, `'` each escape correctly
-- [ ] write tests that an unterminated ANSI sequence does not leak
-- [ ] write tests that a line of 10,000 characters is handled without error
-- [ ] run tests - must pass before task 3
+- [x] write tests that bidi override characters are removed
+- [x] write tests that `&`, `<`, `>`, `"`, `'` each escape correctly
+- [x] write tests that an unterminated ANSI sequence does not leak
+- [x] write tests that a line of 10,000 characters is handled without error
+- [x] run tests - must pass before task 3 (30 new tests; full suite 1937 green)
 
 ### Task 3: Minimal window + REAL NVDA VERIFICATION GATE ⚠️
 
