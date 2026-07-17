@@ -219,6 +219,53 @@ class TestRenderSemantic:
             assert line in out
 
 
+class TestTableOfContents:
+    """A TOC at the top links every command and error heading.
+
+    browseableMessage renders from the top with no scroll parameter, so
+    the TOC is how structure is reachable without arrowing through
+    thousands of lines.
+    """
+
+    def _render(self, lines):
+        from lib.buffer_html import render
+        from lib.section_tokenizer import SectionTokenizer
+
+        snap = _snapshot(lines)
+        tok = SectionTokenizer()
+        tok.tokenize(snap.lines)
+        return render(snap, tok.get_spans())
+
+    def test_toc_links_every_command_and_error(self):
+        out = self._render([
+            "PS C:\\repo> npm run build",
+            "compiling",
+            "Error: build failed",
+            "PS C:\\repo> npm test",
+        ])
+        toc = out.split("</ul>", 1)[0]
+        assert 'href="#L0"' in toc
+        assert 'href="#L2"' in toc
+        assert 'href="#L3"' in toc
+        assert "npm run build" in toc
+        assert "build failed" in toc
+
+    def test_toc_entries_are_escaped(self):
+        out = self._render(["PS C:\\repo> echo <img src=x>"])
+        toc = out.split("</ul>", 1)[0]
+        assert "<img" not in toc
+
+    def test_no_headings_means_no_toc(self):
+        out = self._render(["plain output", "more output"])
+        assert "<ul>" not in out
+        assert "<li>" not in out
+
+    def test_toc_ids_match_heading_ids(self):
+        out = self._render(["PS C:\\repo> go", "done"])
+        assert 'href="#L0"' in out
+        assert 'id="L0"' in out
+
+
 class TestWindowTitle:
     """The title names the terminal and never hides truncation."""
 

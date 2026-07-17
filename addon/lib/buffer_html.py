@@ -92,8 +92,14 @@ def render(snapshot, spans):
 	tokenizer classifies "Traceback:" as error and the "File ..." lines
 	under it as stack_trace, but to a reader they are a single event and
 	must not cost two presses of H.
+
+	When any headings exist, a table of contents linking each one sits at
+	the top: browseableMessage renders from the top with no scroll
+	parameter, so the TOC is how structure is reachable without arrowing
+	through thousands of lines.
 	"""
-	parts = ["<h1>%s</h1>" % escape_line(snapshot.terminal_name)]
+	body = []
+	toc_entries = []
 	in_h3_run = False
 	for span in spans:
 		is_h3_span = span.category in _H3_CATEGORIES
@@ -101,16 +107,25 @@ def render(snapshot, spans):
 			line = snapshot.lines[idx]
 			absolute = snapshot.first_line_num + idx
 			if span.category in _H2_CATEGORIES:
-				parts.append(
-					'<h2 id="L%d">%s</h2>' % (absolute, escape_line(line) or "&nbsp;")
-				)
+				text = escape_line(line) or "&nbsp;"
+				body.append('<h2 id="L%d">%s</h2>' % (absolute, text))
+				toc_entries.append((absolute, text))
 			elif is_h3_span and idx == span.start_line and not in_h3_run:
-				parts.append(
-					'<h3 id="L%d">%s</h3>' % (absolute, escape_line(line) or "&nbsp;")
-				)
+				text = escape_line(line) or "&nbsp;"
+				body.append('<h3 id="L%d">%s</h3>' % (absolute, text))
+				toc_entries.append((absolute, text))
 			else:
-				parts.append(_paragraph(line))
+				body.append(_paragraph(line))
 		in_h3_run = is_h3_span
+	parts = ["<h1>%s</h1>" % escape_line(snapshot.terminal_name)]
+	if toc_entries:
+		# Translators: Label above the table of contents in the buffer window
+		parts.append("<p>%s</p>" % escape_line(_("Contents:")))
+		parts.append("<ul>%s</ul>" % "".join(
+			'<li><a href="#L%d">%s</a></li>' % (absolute, text)
+			for absolute, text in toc_entries
+		))
+	parts.extend(body)
 	return "\n".join(parts)
 
 
