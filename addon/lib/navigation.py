@@ -64,21 +64,30 @@ class TabManager:
 			# Try to get window properties
 			components = []
 
-			# Add window handle if available
-			if hasattr(terminal_obj, 'windowHandle'):
+			# windowHandle, windowText and name are defined on every Window
+			# NVDAObject, so they are read directly. hasattr would be worse
+			# than useless here: a property that raises makes hasattr return
+			# False, silently dropping a component instead of surfacing the
+			# error, and the same exception would be raised by the access
+			# anyway.
+			try:
 				components.append(str(terminal_obj.windowHandle))
-
-			# Add window text/title if available
-			if hasattr(terminal_obj, 'windowText'):
+			except Exception:
+				pass
+			try:
 				components.append(terminal_obj.windowText or "")
-			elif hasattr(terminal_obj, 'name'):
-				components.append(terminal_obj.name or "")
-
-			# Add object ID if available
-			if hasattr(terminal_obj, '_get_ID'):
+			except Exception:
 				try:
-					obj_id = terminal_obj._get_ID()
-					components.append(str(obj_id))
+					components.append(terminal_obj.name or "")
+				except Exception:
+					pass
+
+			# _get_ID is not part of the NVDAObject contract, so this one
+			# genuinely may be absent.
+			get_id = getattr(terminal_obj, '_get_ID', None)
+			if callable(get_id):
+				try:
+					components.append(str(get_id()))
 				except Exception:
 					pass
 
@@ -122,11 +131,14 @@ class TabManager:
 		Returns:
 			str: Tab title or empty string
 		"""
+		# Both are defined on every Window NVDAObject; read directly rather
+		# than hasattr, which would swallow a raising property.
 		try:
-			if hasattr(self._terminal, 'windowText'):
-				return self._terminal.windowText or ""
-			elif hasattr(self._terminal, 'name'):
-				return self._terminal.name or ""
+			return self._terminal.windowText or ""
+		except Exception:
+			pass
+		try:
+			return self._terminal.name or ""
 		except Exception:
 			pass
 		return ""

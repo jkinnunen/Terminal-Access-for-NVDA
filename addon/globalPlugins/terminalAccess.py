@@ -105,11 +105,7 @@ import speech
 import languageHandler
 import tones
 
-try:
-	import braille
-	_braille_available = True
-except (ImportError, AttributeError):
-	_braille_available = False
+import braille
 
 # The Rust native layer was removed in 2.0.0: its helper-process reads hung
 # on some terminals (the beta.3 machine freeze and a per-search stall), the
@@ -1487,8 +1483,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		Args:
 			text: The text to show on the Braille display.
 		"""
-		if not _braille_available:
-			return
 		try:
 			if self._getEffective("quietMode"):
 				return
@@ -1518,8 +1512,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		this moves the display's tether, which is what makes typed text
 		show up under the fingers.
 		"""
-		if not _braille_available:
-			return
 		try:
 			if braille.handler.displaySize > 0:
 				braille.handler.handleCaretMove(obj)
@@ -1749,7 +1741,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		info = obj.makeTextInfo(textInfos.POSITION_CARET)
 
 		# Check if position has actually changed
-		currentPos = (info.bookmark.startOffset if hasattr(info, 'bookmark') else None)
+		# bookmark is part of the TextInfo contract, but it raises on some
+		# terminals (conhost) rather than being absent, which is exactly the
+		# case hasattr would silently mistake for "no such attribute".
+		try:
+			currentPos = info.bookmark.startOffset
+		except (AttributeError, RuntimeError, NotImplementedError):
+			currentPos = None
 		if currentPos == self._lastCaretPosition:
 			return
 
@@ -5103,7 +5101,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# Show braille delta if available
 		braille_text = self._deltaTracker.get_braille_delta()
-		if braille_text and _braille_available:
+		if braille_text:
 			braille.handler.message(braille_text)
 
 	# ------------------------------------------------------------------
