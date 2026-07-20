@@ -4,6 +4,12 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 The 2.0.3 entry below is the consolidated summary of everything that changed since 1.4.0, written for anyone upgrading from 1.4.0 or installing for the first time. It is the entry to read. The 2.0.2, 2.0.1, and 2.0.0 sections beneath it are the per-release history for anyone already running a 2.0.x build, and the fifteen 2.0.0-beta sections below those are the detailed development history.
 
+## [Unreleased]
+
+### Fixed
+
+- **Braille now follows the cursor in terminals.** Typing in a terminal did not update the braille display: the character reached the terminal, but braille kept showing stale content until you panned away and back, and the display never jumped back to the cursor when you typed after reading elsewhere. Terminal Access takes over NVDA's caret handling to control what is spoken (so it does not double-speak or say "blank" after Enter), and NVDA's braille cursor tracking was riding on the handler that got taken over, so nothing was left to move the display. Braille is now updated on every caret movement and every typed character, before any of the decisions about what to speak. This also restores the automatic re-tethering that brings the display back to the cursor as soon as you type. Braille tracking is deliberately independent of quiet mode and of the cursor tracking setting, since those silence speech and a braille reader still needs the display to follow. Affected every 2.0.x release and 2.1.0; reported by a braille user.
+
 ## [2.1.0] - 2026-07-17
 
 The 2.1.0 feature release. The headline is the buffer window. This version goes first to the NVDA Add-on Store's beta channel (and as a GitHub pre-release) so it can be tested widely before it becomes the stable recommendation; the store's stable users stay on 2.0.3 until then. Please test the buffer window against your daily terminals and report anything that reads wrong, lands wrong, or feels slow; the checks that matter most are listed in the user guide's Buffer Window chapter.
