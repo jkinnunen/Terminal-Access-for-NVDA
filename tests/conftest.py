@@ -73,6 +73,15 @@ behaviors_mock.Terminal = _MockTerminal
 sys.modules['NVDAObjects'] = nvdaobjects_mock
 sys.modules['NVDAObjects.behaviors'] = behaviors_mock
 
+# Mock the legacy-console Win32 layer. NVDA exposes only the visible
+# window for these consoles; we read the whole screen buffer ourselves.
+wincon_mock = MagicMock()
+win_console_handler_mock = MagicMock()
+win_console_handler_mock.consoleOutputHandle = None
+win_console_handler_mock.consoleObject = None
+sys.modules['wincon'] = wincon_mock
+sys.modules['winConsoleHandler'] = win_console_handler_mock
+
 # Mock braille module
 braille_mock = MagicMock()
 braille_mock.handler = MagicMock()
@@ -257,6 +266,7 @@ _MOCK_SNAPSHOT = {
         'tones', 'logHandler', 'wx', 'braille',
         'characterProcessing', 'languageHandler',
         'NVDAObjects', 'NVDAObjects.behaviors',
+        'wincon', 'winConsoleHandler',
     ]
     if name in sys.modules
 }

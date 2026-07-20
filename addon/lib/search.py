@@ -214,13 +214,25 @@ class OutputSearchManager:
 		"""
 		import time as _time
 		t0 = _time.perf_counter()
-		try:
-			info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
-			all_text = info.text
-		except Exception:
-			all_text = None
+		all_text = None
+		read_path = "makeTextInfo"
+		# Legacy console: NVDA only exposes the visible window, so searching
+		# through it can never see scrollback. Read the full screen buffer
+		# ourselves; None falls through to the normal path.
+		from lib.legacy_console import is_attached_console, read_full_buffer_lines
+		if is_attached_console(self._terminal):
+			lines = read_full_buffer_lines()
+			if lines:
+				all_text = "\n".join(lines)
+				read_path = "consoleBuffer"
+		if all_text is None:
+			try:
+				info = self._terminal.makeTextInfo(textInfos.POSITION_ALL)
+				all_text = info.text
+			except Exception:
+				all_text = None
 		self._last_read_ms = (_time.perf_counter() - t0) * 1000.0
-		self._last_read_path = "makeTextInfo"
+		self._last_read_path = read_path
 		self._last_read_chars = len(all_text) if all_text else 0
 		return all_text
 

@@ -243,7 +243,7 @@ The landing is found by matching the line's text, not by counting lines, so it s
 
 - The window is frozen at the moment you open it. New terminal output does not appear inside it. To see newer output, close the window and open it again; every open captures a fresh snapshot.
 - The window holds what the terminal still holds. Terminals limit their own scrollback (PowerShell keeps roughly the most recent 9,000 lines by default), so lines the terminal has dropped cannot appear in the snapshot either. Terminal Access caps a snapshot at 50,000 lines, far beyond any default scrollback; if the cap ever applies, the window title says "most recent 50,000 of" however many lines the buffer held.
-- On the legacy Windows console, NVDA can only read the visible screen, so the buffer window there shows only what is currently displayed. Windows Terminal and the modern console expose their full scrollback. (The same limitation applies to search on the legacy console.)
+- On the legacy Windows console, NVDA itself can only read the visible screen. Terminal Access reads that console's full screen buffer directly instead, so the buffer window and search both see the scrollback there, not just what is on display. If that direct read is unavailable for any reason, Terminal Access falls back to what NVDA exposes, and the window then shows only the visible screen.
 
 ### Note for Laptop Keyboard Layout Users
 

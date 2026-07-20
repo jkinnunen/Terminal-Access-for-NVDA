@@ -4776,6 +4776,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		terminal = self._boundTerminal
 		if terminal is None:
 			return None
+		# Legacy console: NVDA exposes only the visible window, so read the
+		# whole screen buffer ourselves. Returns None when that is not
+		# possible, which falls through to the normal path below.
+		from lib.legacy_console import is_attached_console, read_full_buffer_lines
+		if is_attached_console(terminal):
+			lines = read_full_buffer_lines()
+			if lines:
+				return lines
 		try:
 			info = terminal.makeTextInfo(textInfos.POSITION_ALL)
 			text = info.text or ""
