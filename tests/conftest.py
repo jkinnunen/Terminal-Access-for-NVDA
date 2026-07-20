@@ -54,6 +54,10 @@ globalPluginHandler_mock.GlobalPlugin = MockGlobalPlugin
 
 sys.modules['globalPluginHandler'] = globalPluginHandler_mock
 sys.modules['api'] = MagicMock()
+# Typing is not protected by default. Without an explicit False this
+# returns a truthy MagicMock, so every test would look like a password
+# field and the echo would mask everything.
+sys.modules['api'].isTypingProtected = MagicMock(return_value=False)
 sys.modules['ui'] = MagicMock()
 sys.modules['config'] = MagicMock()
 
@@ -283,6 +287,12 @@ def ensure_mocks():
     for name, original in _MOCK_SNAPSHOT.items():
         if name not in sys.modules:
             sys.modules[name] = original
+
+    # Typing is unprotected unless a test says otherwise. A leaked True
+    # here would silently mask every echo assertion in later tests.
+    api_mock = sys.modules.get('api')
+    if api_mock is not None:
+        api_mock.isTypingProtected = MagicMock(return_value=False)
 
     # Reset config dict to defaults before each test
     config_mock = sys.modules.get('config')

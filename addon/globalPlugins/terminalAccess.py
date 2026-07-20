@@ -1444,6 +1444,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# Process the character for speech
 		if ch:
+			# Condensing builds runs out of the real characters and would
+			# report a password's shape ("dash 4 times"), so protected
+			# input goes straight to the masked echo.
+			if self._isTypingProtected():
+				self._speakCharacter(ch)
+				return
 			# Check if we should condense repeated symbols
 			if self._getEffective("repeatedSymbols"):
 				repeatedSymbolsValues = self._getEffective("repeatedSymbolsValues")
@@ -3343,8 +3349,33 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return self._processSymbol(char)
 		return char
 
+	#: Substituted for a typed character while typing is protected,
+	#: matching NVDA's speech.PROTECTED_CHAR.
+	_PROTECTED_CHAR = "*"
+
+	def _isTypingProtected(self) -> bool:
+		"""True when the focused control masks what is typed into it.
+
+		Fails toward True: if the state cannot be determined, mask. An
+		unnecessary mask is a small annoyance; speaking a password aloud
+		is not recoverable.
+		"""
+		try:
+			return bool(api.isTypingProtected())
+		except Exception:
+			return True
+
 	def _speakCharacter(self, char):
-		"""Speak a single character, handling space and blank specially."""
+		"""Speak a single character, handling space and blank specially.
+
+		While typing is protected the character is replaced with a mask
+		before it can reach speech, exactly as NVDA does. The keystroke
+		is still announced rather than dropped, so the user knows it
+		registered.
+		"""
+		if self._isTypingProtected():
+			ui.message(self._resolveSymbol(self._PROTECTED_CHAR))
+			return
 		if char == ' ':
 			ui.message(_("space"))
 		elif not char or char in ('\r', '\n'):
