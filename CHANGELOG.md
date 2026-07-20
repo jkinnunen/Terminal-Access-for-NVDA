@@ -4,11 +4,24 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 The 2.0.3 entry below is the consolidated summary of everything that changed since 1.4.0, written for anyone upgrading from 1.4.0 or installing for the first time. It is the entry to read. The 2.0.2, 2.0.1, and 2.0.0 sections beneath it are the per-release history for anyone already running a 2.0.x build, and the fifteen 2.0.0-beta sections below those are the detailed development history.
 
-## [Unreleased]
+## [2.2.0] - 2026-07-17
+
+Acts on reports from users and on a code review from an NVDA developer. The two user-visible headlines: terminals the add-on used to ignore now work, and searching an older console can finally reach the scrollback instead of only the visible screen.
+
+### Added
+
+- **Any terminal NVDA recognizes is now supported, not just the ones on a list.** Support was decided by matching the application name against a hand-maintained list of 33 names, so a terminal that was not on it was ignored and every new terminal needed a code change. Terminal Access now trusts NVDA's own classification first: if NVDA has identified something as a terminal, it is supported, including terminals released after this version. The name list is kept as well, because roughly half of those applications have no NVDA app module, so nothing that worked before is lost.
+- **Find reaches the scrollback on the legacy Windows console.** NVDA can only read the visible screen of these consoles, which is why find was limited there and why the guide said so. Terminal Access now reads the console's full screen buffer directly, so search, the buffer window, the jump list, and transcript export all see the history rather than just what is on display. If that read is unavailable, it falls back to the previous behavior.
 
 ### Fixed
 
 - **Braille now follows the cursor in terminals.** Typing in a terminal did not update the braille display: the character reached the terminal, but braille kept showing stale content until you panned away and back, and the display never jumped back to the cursor when you typed after reading elsewhere. Terminal Access takes over NVDA's caret handling to control what is spoken (so it does not double-speak or say "blank" after Enter), and NVDA's braille cursor tracking was riding on the handler that got taken over, so nothing was left to move the display. Braille is now updated on every caret movement and every typed character, before any of the decisions about what to speak. This also restores the automatic re-tethering that brings the display back to the cursor as soon as you type. Braille tracking is deliberately independent of quiet mode and of the cursor tracking setting, since those silence speech and a braille reader still needs the display to follow. Affected every 2.0.x release and 2.1.0; reported by a braille user.
+
+### Changed
+
+- **Jumping to a search result is faster and lands more reliably.** Reaching a match used to walk the buffer line by line comparing text, which is slow on a long buffer and ambiguous whenever the same text appears more than once. Terminal Access now converts the match's character position directly into a buffer position in a single step, checks that it landed on the expected line, and only falls back to the old line-by-line walk if that check fails.
+- **Plain text searches no longer run on a background thread.** Threading could never make a search faster, and a plain search over a real terminal buffer finishes in milliseconds. Searches using a regular expression still run in the background, because a pattern can be written that takes minutes to evaluate, and that must not be able to freeze NVDA.
+- Internal robustness, following an NVDA developer's review: object properties that NVDA guarantees are now read directly instead of through `hasattr`, which silently reported "missing" when a property raised an error and hid the real problem.
 
 ## [2.1.0] - 2026-07-17
 
