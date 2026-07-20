@@ -174,3 +174,58 @@ class TestOurWordEcho:
 
         spoken = " ".join(str(c.args[0]) for c in ui.message.call_args_list)
         assert "git" not in spoken
+
+
+class TestInertEchoWarning:
+    """Key Echo must never be silently inert.
+
+    One combination still leaves it quiet by design (NVDA's word echo on,
+    ours off). That is defensible, but the user has to be told, or they
+    enable a setting, hear nothing, and have no way to find out why.
+    """
+
+    def _panel(self, key_echo, word_echo, nvda_words):
+        import config
+        from lib.settings_panel import TerminalAccessSettingsPanel
+
+        panel = TerminalAccessSettingsPanel.__new__(TerminalAccessSettingsPanel)
+        config.conf["terminalAccess"]["keyEcho"] = key_echo
+        config.conf["terminalAccess"]["wordEcho"] = word_echo
+        config.conf["keyboard"]["speakTypedWords"] = nvda_words
+        return panel
+
+    def test_warns_when_nvda_word_echo_wins(self):
+        import ui
+        panel = self._panel(key_echo=True, word_echo=False, nvda_words=2)
+        ui.message.reset_mock()
+
+        panel._warnIfEchoInert()
+
+        assert ui.message.called
+
+    def test_silent_when_we_own_the_echo(self):
+        import ui
+        panel = self._panel(key_echo=True, word_echo=False, nvda_words=0)
+        ui.message.reset_mock()
+
+        panel._warnIfEchoInert()
+
+        assert not ui.message.called
+
+    def test_silent_when_our_word_echo_takes_over(self):
+        import ui
+        panel = self._panel(key_echo=True, word_echo=True, nvda_words=2)
+        ui.message.reset_mock()
+
+        panel._warnIfEchoInert()
+
+        assert not ui.message.called
+
+    def test_silent_when_key_echo_is_off(self):
+        import ui
+        panel = self._panel(key_echo=False, word_echo=False, nvda_words=2)
+        ui.message.reset_mock()
+
+        panel._warnIfEchoInert()
+
+        assert not ui.message.called

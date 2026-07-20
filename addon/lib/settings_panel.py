@@ -763,6 +763,35 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 				wx.OK | wx.ICON_INFORMATION
 			)
 
+	def _warnIfEchoInert(self):
+		"""Say so when Key Echo was saved but cannot take effect.
+
+		One combination still leaves Key Echo silent: NVDA's own "speak
+		typed words" is on and Terminal Access's word echo is off, so
+		NVDA keeps the keystrokes to build its words and we stay quiet.
+		That is deliberate, but it used to be invisible: the user
+		enabled a setting, heard no change, and had no way to learn why
+		except by reading the guide. Saying it once, at the moment they
+		save, is the cheap fix.
+		"""
+		try:
+			if not config.conf["terminalAccess"]["keyEcho"]:
+				return
+			if config.conf["terminalAccess"]["wordEcho"]:
+				return
+			if not config.conf["keyboard"].get("speakTypedWords", 0):
+				return
+			import ui
+			# Translators: Announced when Key Echo is saved but NVDA's own
+			# word echo is handling typing instead.
+			ui.message(_(
+				"Key echo is on, but NVDA's speak typed words is handling "
+				"typing in terminals. Enable speak typed words in terminals, "
+				"or turn off NVDA's setting, to use Terminal Access echo."
+			))
+		except Exception:
+			pass
+
 	def onSave(self):
 		"""Save the settings when the user clicks OK with validation."""
 		# Validate and save cursor tracking mode
@@ -840,6 +869,8 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			if not self.gestureCheckList.IsChecked(i):
 				unchecked.append(gesture)
 		config.conf["terminalAccess"]["unboundGestures"] = ",".join(unchecked)
+
+		self._warnIfEchoInert()
 
 		# Live-reload gesture bindings
 		try:

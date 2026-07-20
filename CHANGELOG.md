@@ -4,6 +4,21 @@ All notable changes to Terminal Access for NVDA will be documented in this file.
 
 The 2.0.3 entry below is the consolidated summary of everything that changed since 1.4.0, written for anyone upgrading from 1.4.0 or installing for the first time. It is the entry to read. The 2.0.2, 2.0.1, and 2.0.0 sections beneath it are the per-release history for anyone already running a 2.0.x build, and the fifteen 2.0.0-beta sections below those are the detailed development history.
 
+## [Unreleased]
+
+### Security
+
+- **Passwords are no longer spoken by Key Echo.** Terminal Access does its own typing echo but never checked whether the control masks what you type, so it announced the real character where NVDA would have said a mask. It now masks the character, never speaks a completed word, and skips repeated-symbol condensing (which would have reported the shape of what you typed) while typing is protected. If the protection state cannot be determined it masks anyway, because speaking a password is not recoverable.
+
+### Changed
+
+- **Key Echo now works without turning NVDA's settings off.** It used to do nothing whenever either of NVDA's typing-echo settings was on, so enabling it appeared to have no effect. Inside terminals Terminal Access now replaces NVDA's "speak typed characters" directly, so you keep NVDA's setting for everywhere else and still get symbol names at your punctuation level, condensed repeats, and the per-profile behavior that silences echo in programs where single keys are commands.
+- **One case still defers, and now says so.** With NVDA's "speak typed words" on and Terminal Access's own word echo off, NVDA keeps handling typing, because it builds each word from the keystrokes it sees and withholding them would break word echo. Saving settings in that combination now announces why, instead of leaving Key Echo silently inert.
+
+### Added
+
+- **Speak typed words in terminals.** A word echo of Terminal Access's own, off by default. Enabling it replaces NVDA's word echo while you are in a terminal, which brings word echo under the same per-profile control as character echo. Passwords are never spoken.
+
 ## [2.2.0] - 2026-07-17
 
 Acts on reports from users and on a code review from an NVDA developer. The two user-visible headlines: terminals the add-on used to ignore now work, and searching an older console can finally reach the scrollback instead of only the visible screen.
