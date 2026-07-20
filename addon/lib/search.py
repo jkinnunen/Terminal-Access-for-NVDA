@@ -673,7 +673,14 @@ class OutputSearchManager:
 				# so "line N of the split" lands on a different (often blank)
 				# row than "N lines down". Walking to the line that actually
 				# contains the text sidesteps the mismatch.
-				pos = self._resolve_line_by_content(line_text, line_num)
+				# Try the codepoint offset first (one call, unambiguous even
+				# when the same text repeats); it verifies itself against
+				# line_text and falls through to the walk if it does not
+				# check out, e.g. when ANSI codes shifted the story text.
+				pos = self._resolve_line_by_content(
+					line_text, line_num,
+					offset=self._absolute_offset_for(line_num, char_offset or 0),
+				)
 				if pos is None:
 					# Last-resort positional fallback (may drift).
 					try:
@@ -701,13 +708,30 @@ class OutputSearchManager:
 
 		return False
 
-	def _resolve_line_by_content(self, line_text, line_hint):
+	def _resolve_line_by_content(self, line_text, line_hint, offset=None):
 		"""Return a TextInfo on the buffer line whose text matches
 		*line_text*, or None. See lib.line_resolve.resolve_line_by_content.
+
+		*offset* is an absolute codepoint offset when the caller knows
+		one; it resolves in a single call instead of walking the buffer,
+		and is verified against *line_text* before being trusted.
 		"""
 		from lib.line_resolve import resolve_line_by_content
 		return resolve_line_by_content(
-			self._terminal, line_text, line_hint, self.MAX_SEARCH_LINES)
+			self._terminal, line_text, line_hint, self.MAX_SEARCH_LINES,
+			offset=offset)
+
+	def _absolute_offset_for(self, line_num, char_offset=0):
+		"""Absolute codepoint offset of a match, or None if unavailable.
+
+		Computed from the same cached line list the match came from, so
+		it stays consistent with what was searched.
+		"""
+		from lib.line_resolve import absolute_offset
+		lines = self._cached_lines
+		if not lines:
+			return None
+		return absolute_offset(lines, line_num, char_offset)
 
 	def get_match_count(self) -> int:
 		"""
