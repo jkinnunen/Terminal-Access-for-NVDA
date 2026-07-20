@@ -939,13 +939,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		overlay at position 0 so its methods (event_textChange,
 		_reportNewLines) take priority over NVDA's LiveText defaults.
 		"""
-		from lib.terminal_overlay import TerminalAccessTerminal, should_apply_overlay
-		try:
-			appName = obj.appModule.appName
-		except AttributeError:
-			return
-		if not should_apply_overlay(appName):
-			return
+		from lib.terminal_overlay import (
+			TerminalAccessTerminal, has_terminal_class, should_apply_overlay,
+		)
+		# Trust NVDA's own classification first: if it already decided this
+		# is a terminal, support it even if the app is not on our list. That
+		# is what makes terminals we never enumerated (and ones released
+		# after this code) work. The app-name list stays as a union for the
+		# terminals that have no NVDA appModule.
+		if not has_terminal_class(clsList):
+			try:
+				appName = obj.appModule.appName
+			except AttributeError:
+				return
+			if not should_apply_overlay(appName):
+				return
 		if TerminalAccessTerminal in clsList:
 			return
 		clsList.insert(0, TerminalAccessTerminal)
@@ -972,7 +980,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if obj is None:
 			obj = api.getForegroundObject()
 
-		if not obj or not obj.appModule:
+		if not obj:
+			return False
+
+		# NVDA's own classification wins, and is deliberately NOT cached by
+		# app name: one application can own both terminal and non-terminal
+		# windows, so a class-based hit must not poison the name cache.
+		from NVDAObjects.behaviors import Terminal
+		if isinstance(obj, Terminal):
+			return True
+
+		if not obj.appModule:
 			return False
 
 		try:

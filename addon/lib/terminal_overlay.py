@@ -43,6 +43,29 @@ def should_apply_overlay(app_name):
     return app_name in _SUPPORTED_TERMINALS
 
 
+def has_terminal_class(clsList):
+    """True if NVDA already classified this object as a terminal.
+
+    NVDA inserts a Terminal SUBCLASS into clsList, never Terminal
+    itself: WinConsoleUIA for the modern console, and
+    KeyboardHandlerBasedTypedCharSupport for PuTTY and mintty. So this
+    tests issubclass; a literal ``Terminal in clsList`` would never
+    match anything in practice.
+
+    Used together with the app-name list, not instead of it: about half
+    the supported names (ConEmu, Cmder, Alacritty, WezTerm, MobaXterm,
+    Tera Term...) have no NVDA appModule, so whether NVDA classes them
+    as terminals is unproven. The union widens coverage to terminals we
+    never enumerated, including ones released after this code, without
+    dropping anything that works today.
+    """
+    from NVDAObjects.behaviors import Terminal
+    return any(
+        isinstance(cls, type) and issubclass(cls, Terminal)
+        for cls in clsList
+    )
+
+
 # The running GlobalPlugin, registered once at plugin start via
 # set_active_plugin. The overlay delegates terminal events to it and reads
 # config through its config manager. This replaces the earlier pattern of

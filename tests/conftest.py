@@ -57,6 +57,22 @@ sys.modules['api'] = MagicMock()
 sys.modules['ui'] = MagicMock()
 sys.modules['config'] = MagicMock()
 
+# Mock NVDAObjects.behaviors with a REAL Terminal class (not a MagicMock),
+# so the issubclass/isinstance checks in terminal detection behave the way
+# they do in production. NVDA never puts Terminal itself in clsList; it
+# inserts subclasses such as WinConsoleUIA and
+# KeyboardHandlerBasedTypedCharSupport, so tests must be able to build a
+# real subclass.
+class _MockTerminal:
+    """Stands in for NVDAObjects.behaviors.Terminal."""
+
+
+nvdaobjects_mock = MagicMock()
+behaviors_mock = MagicMock()
+behaviors_mock.Terminal = _MockTerminal
+sys.modules['NVDAObjects'] = nvdaobjects_mock
+sys.modules['NVDAObjects.behaviors'] = behaviors_mock
+
 # Mock braille module
 braille_mock = MagicMock()
 braille_mock.handler = MagicMock()
@@ -240,6 +256,7 @@ _MOCK_SNAPSHOT = {
         'addonHandler', 'scriptHandler', 'globalCommands', 'speech',
         'tones', 'logHandler', 'wx', 'braille',
         'characterProcessing', 'languageHandler',
+        'NVDAObjects', 'NVDAObjects.behaviors',
     ]
     if name in sys.modules
 }
