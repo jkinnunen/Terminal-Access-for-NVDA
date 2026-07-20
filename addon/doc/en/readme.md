@@ -614,7 +614,8 @@ Open settings from NVDA menu > Preferences > Settings > Terminal Settings.
 
 | Setting | Description |
 |---------|-------------|
-| **Key Echo** | Hear characters as you type in terminals, spoken at your punctuation level and with repeated symbols condensed ("dash 4 times"). See the note below on how this relates to NVDA's own typing echo. |
+| **Key Echo** | Hear characters as you type in terminals, spoken at your punctuation level and with repeated symbols condensed ("dash 4 times"). Inside terminals this replaces NVDA's own "speak typed characters". See the note below. |
+| **Speak typed words in terminals** | Hear each word as you finish typing it in a terminal. Off by default. Replaces NVDA's "speak typed words" while you are in a terminal, so word echo follows your per-profile settings. |
 | **Cursor Tracking** | Announce cursor movements. |
 | **Punctuation Level** | Control symbol verbosity (None, Some, Most, All). |
 | **Indentation** | Announce indentation for code automatically. |
@@ -627,12 +628,14 @@ The settings panel also has a "NVDA Gesture Conflicts" section for disabling con
 
 ### Key Echo and NVDA's Typing Echo
 
-NVDA has two typing-echo settings of its own in NVDA menu > Preferences > Settings > Keyboard: "Speak typed characters" and "Speak typed words". Terminal Access's Key Echo and those settings all announce typing, but they are not the same feature, and only one echoes at a time:
+NVDA has two typing-echo settings of its own in NVDA menu > Preferences > Settings > Keyboard: "Speak typed characters" and "Speak typed words". Terminal Access has its own Key Echo, and its own Speak typed words in terminals. Inside a terminal, Terminal Access's settings take over; NVDA's continue to apply everywhere else. You no longer need to turn NVDA's settings off to make Key Echo work.
 
-- **When both of NVDA's typing-echo settings are off** (recommended for terminal work), Terminal Access does the echo inside terminals. You get symbol names at your chosen punctuation level, repeated symbols condensed ("dash 4 times"), and per-application profile control: profiles for single-key programs such as less, lazygit, btop, and Claude turn echo off automatically so shortcuts do not chatter.
-- **When either of NVDA's typing-echo settings is on**, NVDA echoes typing itself and Terminal Access steps aside. This matters especially for "Speak typed words": NVDA builds each spoken word from the individual keystrokes it sees, so if Terminal Access also echoed each character it would speak over the words. With NVDA's setting on, the add-on's Key Echo and any per-profile echo overrides have no effect, and you lose symbol condensing and the automatic per-application behavior.
+- **Key Echo** replaces NVDA's "Speak typed characters" while you are in a terminal. You get symbol names at your chosen punctuation level, repeated symbols condensed ("dash 4 times"), and per-application profile control: profiles for single-key programs such as less, lazygit, btop, and Claude turn echo off automatically so shortcuts do not chatter.
+- **Speak typed words in terminals** replaces NVDA's "Speak typed words" the same way, and gives word echo the same per-profile behavior. It is off by default, so nothing changes for you unless you ask for it.
+- **The one case where Terminal Access steps aside:** NVDA's "Speak typed words" is on and Terminal Access's own word echo is off. NVDA builds each spoken word from the individual keystrokes it sees, so it needs to keep receiving them; Terminal Access stays quiet rather than break your word echo. Turn on Terminal Access's Speak typed words in terminals if you would rather it handled words too.
 
-In short: for the full terminal experience, leave both of NVDA's typing-echo settings off and use Terminal Access's Key Echo; turn on NVDA's settings only if you want the same echo in every application, in which case Terminal Access's Key Echo does nothing.
+**Passwords are never spoken.** When the terminal marks what you are typing as protected, Terminal Access announces a masked character instead of the real one and never speaks the completed word, matching what NVDA does. Repeated-symbol condensing is also skipped there, since "dash 4 times" would describe the shape of what you typed.
+
 
 ---
 

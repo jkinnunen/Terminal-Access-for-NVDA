@@ -60,6 +60,11 @@ confspec = {
 	"cursorTracking": "boolean(default=True)",
 	"cursorTrackingMode": "integer(default=1, min=0, max=2)",  # 0=Off, 1=Standard, 2=Window
 	"keyEcho": "boolean(default=True)",
+	# Speak whole words as they are typed in terminals. Off by default:
+	# enabling it takes word echo over from NVDA inside terminals, so it
+	# must be an explicit choice rather than something that silently
+	# replaces a global setting the user already made.
+	"wordEcho": "boolean(default=False)",
 	"linePause": "boolean(default=True)",
 	"processSymbols": "boolean(default=False)",  # Deprecated — kept for migration from pre-v1.0.10 configs
 	"punctuationLevel": "integer(default=2, min=0, max=3)",  # 0=None, 1=Some, 2=Most, 3=All
@@ -328,7 +333,7 @@ class ConfigManager:
 			return _validateString(value, MAX_REPEATED_SYMBOLS_LENGTH, "-_=!", key)
 
 		# Boolean values - no validation needed
-		elif key in ["cursorTracking", "keyEcho", "linePause", "repeatedSymbols",
+		elif key in ["cursorTracking", "keyEcho", "wordEcho", "linePause", "repeatedSymbols",
 					 "quietMode", "verboseMode", "windowEnabled",
 					 "errorAudioCues", "errorAudioCuesInQuietMode",
 					 "outputActivityTones",

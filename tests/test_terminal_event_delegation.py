@@ -59,10 +59,16 @@ class TestHandleTextChange:
 class TestTypedCharacter:
     def _plugin(self, quiet, key_echo):
         plugin = _plugin({})
-        plugin._getEffective = MagicMock(side_effect=lambda k: {
+        plugin._getEffective = MagicMock(side_effect=lambda k, d=None: {
             "quietMode": quiet,
+            "keyEcho": key_echo,
+            "wordEcho": False,
             "repeatedSymbols": False,
-        }.get(k))
+        }.get(k, d))
+        # Who echoes is decided in test_typing_echo_ownership.py; these
+        # tests cover what the delegate does once that is settled.
+        plugin._ownsTypingEcho = MagicMock(
+            return_value=bool(key_echo and not quiet))
         plugin._isKeyEchoActive = MagicMock(return_value=key_echo)
         plugin._speakCharacter = MagicMock()
         plugin._positionCalculator = MagicMock()

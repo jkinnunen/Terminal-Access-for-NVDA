@@ -36,6 +36,7 @@ class TestSettingsPanelSections:
         expected = (
             "cursorTrackingCheckBox",
             "keyEchoCheckBox",
+            "wordEchoCheckBox",
             "quietModeCheckBox",
             "punctuationLevelChoice",
         )
@@ -43,7 +44,8 @@ class TestSettingsPanelSections:
 
     def test_basic_controls_count(self):
         from lib.settings_panel import TerminalAccessSettingsPanel
-        assert len(TerminalAccessSettingsPanel.BASIC_CONTROLS) == 4
+        # cursor tracking, key echo, word echo, quiet mode, punctuation
+        assert len(TerminalAccessSettingsPanel.BASIC_CONTROLS) == 5
 
     def test_extended_controls_tuple(self):
         from lib.settings_panel import TerminalAccessSettingsPanel

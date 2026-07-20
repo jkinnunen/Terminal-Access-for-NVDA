@@ -71,6 +71,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 	BASIC_CONTROLS = (
 		"cursorTrackingCheckBox",
 		"keyEchoCheckBox",
+		"wordEchoCheckBox",
 		"quietModeCheckBox",
 		"punctuationLevelChoice",
 	)
@@ -180,11 +181,25 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 		# Translators: Tooltip for key echo
 		self.keyEchoCheckBox.SetToolTip(_(
 			"Announce characters as you type in the terminal, using your "
-			"punctuation level and condensing repeated symbols. Active only "
-			"while both of NVDA's own typing-echo settings (\"speak typed "
-			"characters\" and \"speak typed words\", in the Keyboard category) "
-			"are off. If either is on, NVDA echoes typing and this setting "
-			"and per-profile echo overrides have no effect."
+			"punctuation level and condensing repeated symbols. Inside "
+			"terminals this replaces NVDA's own \"speak typed characters\", "
+			"so you do not need to turn that off. The one exception is "
+			"NVDA's \"speak typed words\": while that is on, NVDA keeps "
+			"echoing so its word echo keeps working, unless you also enable "
+			"Speak typed words below."
+		))
+
+		self.wordEchoCheckBox = group.addItem(
+			wx.CheckBox(self, label=_("Speak typed &words in terminals"))
+		)
+		self.wordEchoCheckBox.SetValue(config.conf["terminalAccess"]["wordEcho"])
+		# Translators: Tooltip for terminal word echo
+		self.wordEchoCheckBox.SetToolTip(_(
+			"Announce each word as you finish typing it in the terminal. "
+			"Enabling this replaces NVDA's own \"speak typed words\" while "
+			"you are in a terminal, so word echo follows your per-profile "
+			"settings and goes quiet in programs where single keys are "
+			"commands. Passwords are never spoken."
 		))
 
 		# Quiet mode checkbox
@@ -688,6 +703,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			config.conf["terminalAccess"]["cursorTracking"] = True
 			config.conf["terminalAccess"]["cursorTrackingMode"] = CT_STANDARD
 			config.conf["terminalAccess"]["keyEcho"] = True
+			config.conf["terminalAccess"]["wordEcho"] = False
 			config.conf["terminalAccess"]["linePause"] = True
 			config.conf["terminalAccess"]["punctuationLevel"] = PUNCT_MOST
 			config.conf["terminalAccess"]["repeatedSymbols"] = False
@@ -701,6 +717,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 			self.cursorTrackingCheckBox.SetValue(True)
 			self.cursorTrackingModeChoice.SetSelection(CT_STANDARD)
 			self.keyEchoCheckBox.SetValue(True)
+			self.wordEchoCheckBox.SetValue(False)
 			self.linePauseCheckBox.SetValue(True)
 			self.punctuationLevelChoice.SetSelection(PUNCT_MOST)
 			self.repeatedSymbolsCheckBox.SetValue(False)
@@ -757,6 +774,7 @@ class TerminalAccessSettingsPanel(SettingsPanel):
 
 		# Boolean settings (no validation needed)
 		config.conf["terminalAccess"]["keyEcho"] = self.keyEchoCheckBox.GetValue()
+		config.conf["terminalAccess"]["wordEcho"] = self.wordEchoCheckBox.GetValue()
 		config.conf["terminalAccess"]["linePause"] = self.linePauseCheckBox.GetValue()
 		config.conf["terminalAccess"]["repeatedSymbols"] = self.repeatedSymbolsCheckBox.GetValue()
 		config.conf["terminalAccess"]["quietMode"] = self.quietModeCheckBox.GetValue()

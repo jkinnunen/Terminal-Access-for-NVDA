@@ -104,6 +104,7 @@ import globalCommands
 import speech
 import languageHandler
 import tones
+import unicodedata
 
 import braille
 
@@ -707,6 +708,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._lastCaretPosition = None
 		self._lastTypedChar = None
 		self._repeatedCharCount = 0
+		# Characters collected toward the current word, for our own
+		# word echo (see _echoTypedWord).
+		self._typedWordChars = []
 		self._lastTypedCharTime: float = 0.0
 		self._lastTextChangeTime: float = 0.0
 		self._lastOutputActivityTime: float = 0.0
@@ -1379,29 +1383,45 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return val
 		return self._configManager.get(key)
 
-	def _isKeyEchoActive(self) -> bool:
-		"""Check if the addon should perform its own key echo.
+	def _nvdaSpeaksTypedWords(self) -> bool:
+		"""True when NVDA's own word echo is enabled.
 
-		Returns False when the addon's key echo is disabled, quiet mode is on,
-		or NVDA is already echoing typing itself (to avoid duplicate or
-		conflicting announcements).
+		This is the only NVDA typing setting that constrains us. NVDA's
+		speakTypedCharacters() both speaks the character AND accumulates
+		the buffer its word echo is built from, so withholding keystrokes
+		does not merely mute a character, it destroys the word. Reads
+		default to 0, so a missing key means off (0=off, 1=edit controls,
+		2=always; a terminal counts as an editable control).
 		"""
-		if not self._getEffective("keyEcho"):
-			return False
+		return bool(config.conf["keyboard"].get("speakTypedWords", 0))
+
+	def _ownsTypingEcho(self) -> bool:
+		"""True when Terminal Access, not NVDA, echoes typing here.
+
+		Key Echo used to do nothing whenever either NVDA typing setting
+		was on, which made it a setting that silently did nothing. The
+		word buffer only matters when word echo is on, and that is what
+		makes this fixable:
+
+		- NVDA word echo off: withholding keystrokes costs nothing, so we
+		  take over and Key Echo finally applies.
+		- NVDA word echo on, our Word Echo off: NVDA must keep receiving
+		  keystrokes or its word echo breaks, so we stand down.
+		- Our Word Echo on: we speak words ourselves, so we take over
+		  regardless. That is an explicit opt-in to replace NVDA's word
+		  echo; nobody loses it by accident.
+		"""
 		if self._getEffective("quietMode"):
 			return False
-		# When NVDA is already echoing typing, defer to it. This covers both
-		# speak-typed-characters and speak-typed-words (each is 0=off, 1=edit
-		# controls, 2=always; a terminal is an editable control, so any
-		# nonzero value echoes here). Our per-character echo would otherwise
-		# trample NVDA's word echo, which relies on NVDA seeing every typed
-		# character. Reads default to 0 so a missing key means "off".
-		keyboard = config.conf["keyboard"]
-		if keyboard.get("speakTypedCharacters", 0):
+		if not (self._getEffective("keyEcho") or self._getEffective("wordEcho")):
 			return False
-		if keyboard.get("speakTypedWords", 0):
+		if self._nvdaSpeaksTypedWords() and not self._getEffective("wordEcho"):
 			return False
 		return True
+
+	def _isKeyEchoActive(self) -> bool:
+		"""True when the add-on should speak individual typed characters."""
+		return bool(self._ownsTypingEcho() and self._getEffective("keyEcho"))
 
 	def _terminalTypedCharacter(self, obj, ch, speak_default):
 		"""Handle a typed character in a terminal.
@@ -1429,11 +1449,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if self._getEffective("quietMode"):
 			return
 
-		# Let NVDA handle its own echo, then check if we should add ours
-		speak_default()
+		if not self._ownsTypingEcho():
+			# NVDA echoes here. It must receive the keystroke, both to
+			# speak it and to accumulate the buffer its word echo needs.
+			speak_default()
+			return
 
-		# Don't echo if disabled or NVDA is already echoing
-		if not self._isKeyEchoActive():
+		# We own typing echo in this terminal, so NVDA's handler is
+		# deliberately NOT called: that is what stops the double-speech
+		# which used to force Key Echo to stand down entirely.
+		self._echoTypedWord(ch)
+
+		if not self._getEffective("keyEcho"):
 			return
 
 		# Clear position cache on content change
@@ -3352,6 +3379,38 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	#: Substituted for a typed character while typing is protected,
 	#: matching NVDA's speech.PROTECTED_CHAR.
 	_PROTECTED_CHAR = "*"
+
+	def _echoTypedWord(self, ch):
+		"""Accumulate typed characters and speak each completed word.
+
+		Mirrors the rules in NVDA's speakTypedCharacters: letters, marks
+		and numbers build the word; backspace removes the last character;
+		the delete character produced by control+backspace is ignored;
+		anything else ends the word.
+
+		A completed word is never spoken while typing is protected. A
+		password is exactly a run of characters ending in Enter, so
+		speaking the "word" would read it aloud in full. The buffer is
+		discarded in that case rather than kept.
+		"""
+		if not self._getEffective("wordEcho"):
+			# Keep the buffer clean so enabling word echo mid-session does
+			# not speak a word half-collected while it was off.
+			self._typedWordChars = []
+			return
+		if ch == "":
+			return
+		if ch == "\b":
+			del self._typedWordChars[-1:]
+			return
+		if ch and unicodedata.category(ch)[0] in "LMN":
+			self._typedWordChars.append(ch)
+			return
+		# Any other character closes the current word.
+		word = "".join(self._typedWordChars)
+		self._typedWordChars = []
+		if word and not self._isTypingProtected():
+			ui.message(word)
 
 	def _isTypingProtected(self) -> bool:
 		"""True when the focused control masks what is typed into it.

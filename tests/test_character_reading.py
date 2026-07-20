@@ -359,16 +359,23 @@ class TestCharacterReading(unittest.TestCase):
 		plugin._currentProfile = None
 		self.assertTrue(plugin._isKeyEchoActive())
 
-	def test_isKeyEchoActive_defers_to_nvda_speak_typed_characters(self):
-		"""When NVDA's speak-typed-characters is on, the add-on defers."""
+	def test_isKeyEchoActive_takes_over_from_nvda_speak_typed_characters(self):
+		"""Key Echo now applies even with NVDA's character echo on.
+
+		It used to defer, which made Key Echo silently do nothing for
+		anyone with that global setting enabled. Withholding keystrokes
+		from NVDA only breaks its WORD echo, so with word echo off we can
+		take over and speak the character ourselves.
+		"""
 		import config
 		from globalPlugins.terminalAccess import GlobalPlugin
 
 		plugin = GlobalPlugin()
 		plugin._currentProfile = None
 		config.conf["keyboard"]["speakTypedCharacters"] = 2
+		config.conf["keyboard"]["speakTypedWords"] = 0
 		try:
-			self.assertFalse(plugin._isKeyEchoActive())
+			self.assertTrue(plugin._isKeyEchoActive())
 		finally:
 			config.conf["keyboard"]["speakTypedCharacters"] = 0
 

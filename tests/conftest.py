@@ -185,6 +185,7 @@ def _default_conf_dict():
             "cursorTracking": True,
             "cursorTrackingMode": 1,
             "keyEcho": True,
+            "wordEcho": False,
             "linePause": True,
             "processSymbols": False,
             "punctuationLevel": 2,
