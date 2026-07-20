@@ -23,20 +23,20 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Provides enhanced terminal accessibility for Windows Terminal and PowerShell, enabling screen reader users to efficiently navigate and interact with command-line interfaces. Inspired by TDSR (Terminal Data Structure Reader) and incorporates functionality from both TDSR and Speakup. Advanced features inspired by community suggestions and discussions."""),
 	# version
-	addon_version="2.2.0",
+	addon_version="2.3.0",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""v2.2.0 acts on user reports and an NVDA developer's review.
+	addon_changelog=_("""v2.3.0 collects everything since 2.0.3.
 
-Now supported: any terminal NVDA recognizes, instead of only those on a built-in list, so terminals the add-on used to ignore work, including ones released after this version. Find also reaches the scrollback on the legacy Windows console: NVDA can only read the visible screen there, so Terminal Access reads the console's full buffer itself.
+New: the buffer window. Press NVDA+Enter in a terminal to open the whole scrollback as a browsable snapshot: arrow through it, press H to move between the commands you ran and the errors they produced, follow the table of contents, read columnar output as real tables, and activate web links. NVDA+Shift+Enter opens a jump to line dialog that moves the review cursor to any line, found by its text. In the command layer, Shift+E shows only errors and Shift+C only the commands you ran.
 
-Fixed: braille follows the cursor in terminals again. Typing did not update the display until you panned away and back, and the display never jumped back to the cursor. Search-result jumps are also faster and land more reliably.
+Also new: any terminal NVDA recognizes is supported, not just those on a built-in list, so terminals the add-on used to ignore now work. Find reaches the scrollback on the legacy Windows console, where NVDA can only read the visible screen. And there is an optional word echo for terminals.
 
-Earlier in 2.1.0: the buffer window. Press NVDA+Enter in a terminal to open the whole scrollback as a browsable snapshot: arrow through it, press H to move between the commands you ran and the errors they produced, follow the table of contents, read columnar output as real tables, and activate web links. NVDA+Shift+Enter opens a jump to line dialog that moves the review cursor to any line, found by its text. In the command layer, Shift+E opens an errors-only view and Shift+C a commands-only view.
+Fixed: braille follows the cursor again. Typing did not update the display until you panned away and back, and it never jumped back to the cursor. Key echo also no longer requires turning NVDA's own typing settings off; inside terminals it replaces them.
 
-Also: punctuation keys are now named in the guide and command finder (NVDA+semicolon rather than a symbol your punctuation level may silence), the spell-word command reads as NVDA+K twice, and a jump whose line has scrolled out of history says so instead of failing silently.
+Security: passwords are no longer spoken by key echo. Characters are masked and completed words are never spoken while the terminal marks input as protected.
 
-Laptop keyboard layout: NVDA+Enter is NVDA's activate-navigator-object command; Terminal Access takes it only inside terminals. Use the command layer's Enter or reassign in Input Gestures if you need NVDA's command there.
+Laptop keyboard layout: NVDA+Enter is NVDA's activate-navigator-object command; Terminal Access takes it only inside terminals. Use the command layer's Enter, or reassign in Input Gestures, if you need NVDA's command there.
 
 Requires NVDA 2025.1 or later. Existing settings are preserved on upgrade."""),
 	# Author(s)
