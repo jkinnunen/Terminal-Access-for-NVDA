@@ -4574,10 +4574,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except Exception:
 			raw_text = None
 
-		# Small buffer (or failed read): match synchronously. A failed read
-		# means raw_text is None, so search() reads in-process on this (main)
-		# thread, which is safe.
-		if not raw_text or len(raw_text) < self._SEARCH_ASYNC_THRESHOLD:
+		# Plain-text search runs synchronously whatever the buffer size.
+		# Threading cannot make a search faster (nothing is known about the
+		# text in advance), and Python's substring scan over a real terminal
+		# buffer (a terminal caps its own scrollback near 9,000 lines, so
+		# roughly a megabyte) completes in milliseconds. The thread only
+		# bought the ability to use NVDA during that millisecond, at the
+		# cost of a concurrency path to get wrong.
+		#
+		# A user-supplied regular expression is the exception, and the
+		# reason the worker survives: a pattern like (a+)+b backtracks
+		# catastrophically and can spin for minutes on a large buffer.
+		# That would freeze NVDA's main thread, which is the one failure
+		# this project treats as unacceptable.
+		if not use_regex or not raw_text or len(raw_text) < self._SEARCH_ASYNC_THRESHOLD:
 			try:
 				count = mgr.search(search_text, case_sensitive=case_sensitive,
 									use_regex=use_regex, raw_text=raw_text)
@@ -4586,7 +4596,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			on_complete(search_text, count)
 			return
 
-		# Large buffer: match off the main thread.
+		# Large buffer AND a user-supplied regex: match off the main thread,
+		# so a catastrophically backtracking pattern cannot freeze NVDA.
 		# Translators: Spoken while a search of a large terminal buffer runs.
 		ui.message(_("Searching"))
 

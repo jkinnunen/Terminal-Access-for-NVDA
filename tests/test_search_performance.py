@@ -354,6 +354,32 @@ class TestRunTerminalSearch:
         assert results == [("err", 3)]
         assert mgr.search.call_args.kwargs.get("raw_text") == "short buffer"
 
+    def test_large_plain_text_buffer_runs_synchronously(self):
+        """Threading cannot make a search faster, and a plain substring
+        scan over a real buffer takes milliseconds, so the worker is not
+        worth its concurrency. Only regex keeps it (see below)."""
+        plugin, mgr = self._plugin("e" * 500_000, 2)
+        results = []
+
+        with patch("threading.Thread") as thread_cls:
+            plugin._runTerminalSearch(
+                "err", lambda t, n: results.append((t, n)), use_regex=False)
+
+        thread_cls.assert_not_called()
+        assert results == [("err", 2)]
+
+    def test_large_regex_buffer_still_uses_a_worker(self):
+        """A user-supplied pattern can backtrack catastrophically, e.g.
+        (a+)+b, and would otherwise freeze NVDA's main thread."""
+        plugin, mgr = self._plugin("a" * 500_000, 1)
+
+        with patch("threading.Thread") as thread_cls:
+            plugin._runTerminalSearch(
+                "(a+)+b", lambda t, n: None, use_regex=True)
+
+        thread_cls.assert_called_once()
+        assert thread_cls.call_args.kwargs.get("daemon") is True
+
     def test_options_passed_to_search(self):
         plugin, mgr = self._plugin("short buffer", 1)
         plugin._runTerminalSearch("Err", lambda t, n: None,
